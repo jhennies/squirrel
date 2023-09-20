@@ -1,0 +1,33 @@
+{% set name = "squirrel" %}
+{% set version = "0.0.1" %}
+
+package:
+  name: "{{ name|lower }}"
+  version: "{{ version }}"
+
+source:
+  git_url: https://github.com/jhennies/squirrel.git
+  git_rev: 976147b1d911e39c539d5edc37a330dde85985cd
+  git_depth: 1
+
+requirements:
+  build:
+    - python
+    - setuptools
+    - h5py
+  run:
+    - python
+
+test:
+  imports:
+    - squirrel
+
+about:
+  home: https://github.com/jhennies/squirrel.git
+  license: GPLv3
+  license_family: GPL
+  summary: Data conversion and handling for volume SEM (tif, h5, n5)
+
+extra:
+  recipe-maintainers:
+    - jhennies
