@@ -6,5 +6,7 @@ setup(
     author='jhennies',
     author_email='hennies@embl.de',
     packages=['squirrel'],
-    scripts=[]
+    scripts=[
+        'bin/h5_to_tif.py'
+    ]
 )
