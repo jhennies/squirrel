@@ -14,9 +14,10 @@ requirements:
   build:
     - python
     - setuptools
-    - h5py
   run:
     - python
+    - numpy
+    - h5py
 
 test:
   imports:
