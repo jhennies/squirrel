@@ -8,5 +8,9 @@ setup(
     packages=['squirrel'],
     scripts=[
         'bin/h5_to_tif.py'
+    ],
+    install_requires=[
+        'numpy',
+        'h5py'
     ]
 )

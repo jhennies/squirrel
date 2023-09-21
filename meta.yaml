@@ -6,14 +6,13 @@ package:
   version: "{{ version }}"
 
 source:
-  git_url: https://github.com/jhennies/squirrel.git
-  git_rev:
-  git_depth: 1
+  path: .
 
 requirements:
-  build:
+  host:
     - python
-    - setuptools
+    - numpy
+    - h5py
   run:
     - python
     - numpy
