@@ -7,7 +7,8 @@ setup(
     author_email='hennies@embl.de',
     packages=['squirrel'],
     scripts=[
-        'bin/h5_to_tif.py'
+        'bin/h5_to_tif.py',
+        'bin/mib_to_tif.py'
     ],
     install_requires=[
         'numpy',

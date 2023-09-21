@@ -44,23 +44,33 @@ class TestIO(unittest.TestCase):
         import numpy as np
         from os import remove
 
-        test_array = np.random.rand(5, 5, 5)
+        test_array = np.random.rand(3, 4, 5)
         test_filepath = f'./test_load_h5_container_{randint(1000, 9999)}.h5'
         with File(test_filepath, mode='w') as f:
             f.create_dataset('data', data=test_array)
 
-        loaded_array = load_h5_container(test_filepath, 'data')
-        try:
-            assert loaded_array.shape == test_array.shape
-            print('... same shapes')
-            assert loaded_array.sum() == test_array.sum()
-            print('... same sum')
-            assert (test_array == loaded_array).all()
-            print('... data successfully loaded and equal')
-            remove(test_filepath)
-        except Exception:
-            remove(test_filepath)
-            raise
+        # Testing the most important ones
+        axes_orders = ['zyx', 'zxy', 'xyz']
+
+        for axes_order in axes_orders:
+
+            print(f'... testing for axes_order = {axes_order}')
+
+            loaded_array = load_h5_container(test_filepath, 'data', axes_order=axes_order)
+            try:
+                if axes_order == 'zyx':
+                    assert loaded_array.shape == test_array.shape
+                if axes_order == 'zxy':
+                    assert test_array.shape == (loaded_array.shape[0], loaded_array.shape[2], loaded_array.shape[1])
+                if axes_order == 'xyz':
+                    assert test_array.shape == (loaded_array.shape[2], loaded_array.shape[1], loaded_array.shape[0])
+                print('...   correct shapes')
+                assert loaded_array.sum() == test_array.sum()
+                print('...   same sum')
+            except Exception:
+                remove(test_filepath)
+                raise
+        remove(test_filepath)
 
     def test_write_tif_stack(self):
 

@@ -2,6 +2,7 @@
 import os
 from h5py import File
 from tifffile import imwrite
+import numpy as np
 
 
 def make_directory(directory, exist_ok=False, not_found_ok=False):
@@ -18,11 +19,20 @@ def make_directory(directory, exist_ok=False, not_found_ok=False):
     return None
 
 
-def load_h5_container(filepath, key):
+def load_h5_container(filepath, key, axes_order='zyx'):
 
     with File(filepath, mode='r') as f:
-        # Return the handle to the dataset not the data!
-        return f[key][:]
+        data = f[key][:]
+
+    if axes_order == 'zyx':
+        return data
+
+    axes_order_list = list(axes_order)
+    return np.transpose(data, axes=[
+        axes_order_list.index('z'),
+        axes_order_list.index('y'),
+        axes_order_list.index('x')
+    ])
 
 
 def write_tif_stack(data, out_folder):
