@@ -1,19 +1,5 @@
 
-import os
-
-
-def _make_directory(directory, exist_ok=False, not_found_ok=False):
-    try:
-        os.mkdir(directory)
-    except FileNotFoundError as e:
-        if not_found_ok:
-            return e
-        raise
-    except FileExistsError as e:
-        if exist_ok:
-            return e
-        raise
-    return None
+from .io import make_directory, load_h5_container, write_tif_stack
 
 
 def h5_to_tif(
@@ -29,8 +15,10 @@ def h5_to_tif(
         print('test')
 
     # Create target folder (parent folder has to exist)
-    # _make_directory(out_folder)
+    make_directory(out_folder)
 
-    # Open source
+    # Load data from the source file
+    data = load_h5_container(h5_file, h5_key)
 
     # Write results
+    write_tif_stack(data, out_folder)

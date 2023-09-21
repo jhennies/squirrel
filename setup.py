@@ -11,6 +11,7 @@ setup(
     ],
     install_requires=[
         'numpy',
-        'h5py'
+        'h5py',
+        'tifffile'
     ]
 )

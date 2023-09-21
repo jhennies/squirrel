@@ -13,15 +13,20 @@ requirements:
     - python
     - numpy
     - h5py
+    - tifffile
   run:
     - python
     - numpy
     - h5py
+    - tifffile
 
 test:
   imports:
     - squirrel
     - squirrel.convert
+    - squirrel.io
+  commands:
+    - python -m unittest discover -s test
 
 about:
   home: https://github.com/jhennies/squirrel.git
