@@ -1,8 +1,9 @@
 
 import os
 from h5py import File
-from tifffile import imwrite
+from tifffile import imwrite, imread
 import numpy as np
+from glob import glob
 
 
 def make_directory(directory, exist_ok=False, not_found_ok=False):
@@ -38,5 +39,23 @@ def load_h5_container(filepath, key, axes_order='zyx'):
 def write_tif_stack(data, out_folder):
 
     for idx, section in enumerate(data):
-        im_filepath = os.path.join(out_folder, 'slice_{:04d}.tif'.format(idx))
-        imwrite(im_filepath, section)
+        write_tif_slice(section, out_folder, 'slice_{:04d}.tif'.format(idx))
+
+
+def read_tif_slice(filepath):
+
+    image = imread(filepath)
+
+    # Return the image and the filename
+    return image, os.path.split(filepath)[1]
+
+
+def write_tif_slice(image, out_folder, filename):
+    im_filepath = os.path.join(out_folder, filename)
+    imwrite(im_filepath, image, compression='zlib')
+
+
+def get_file_list(path, pattern='*'):
+
+    return glob(os.path.join(path, pattern))
+

@@ -1,5 +1,10 @@
 import unittest
 import warnings
+import os
+from shutil import rmtree
+import numpy as np
+
+from random import randint
 
 
 class TestIO(unittest.TestCase):
@@ -11,9 +16,6 @@ class TestIO(unittest.TestCase):
 
         print('Testing make_directory ...')
         from squirrel.io import make_directory
-        from random import randint
-        from os.path import exists, join
-        from os import rmdir
 
         test_dirname = f'test_io_{randint(1000, 9999)}'
 
@@ -22,17 +24,17 @@ class TestIO(unittest.TestCase):
         make_directory(test_full_dir)
 
         try:
-            assert exists(test_full_dir)
+            assert os.path.exists(test_full_dir)
             print('... directory created')
 
             # Check kwargs working
             assert make_directory(test_full_dir, exist_ok=True) == 'exists'
             print('... exist_ok')
-            assert make_directory(join(test_full_dir, 'other', 'dir'), not_found_ok=True) == 'not_found'
+            assert make_directory(os.path.join(test_full_dir, 'other', 'dir'), not_found_ok=True) == 'not_found'
             print('... path_not_found_ok')
-            rmdir(test_full_dir)
+            os.rmdir(test_full_dir)
         except Exception:
-            rmdir(test_full_dir)
+            os.rmdir(test_full_dir)
             raise
 
     def test_load_h5_container(self):
@@ -40,9 +42,6 @@ class TestIO(unittest.TestCase):
         print('Testing load_h5_container ...')
         from squirrel.io import load_h5_container
         from h5py import File
-        from random import randint
-        import numpy as np
-        from os import remove
 
         test_array = np.random.rand(3, 4, 5)
         test_filepath = f'./test_load_h5_container_{randint(1000, 9999)}.h5'
@@ -68,29 +67,95 @@ class TestIO(unittest.TestCase):
                 assert loaded_array.sum() == test_array.sum()
                 print('...   same sum')
             except Exception:
-                remove(test_filepath)
+                os.remove(test_filepath)
                 raise
-        remove(test_filepath)
+        os.remove(test_filepath)
 
     def test_write_tif_stack(self):
 
         print('Testing write_tif_stack ...')
         from squirrel.io import write_tif_stack
-        from random import randint
-        import numpy as np
-        from shutil import rmtree
-        from os import listdir, mkdir
 
         test_folder = f'./test_io_{randint(1000, 9999)}'
-        mkdir(test_folder)
+        os.mkdir(test_folder)
 
         test_array = np.random.rand(5, 5, 5)
 
         try:
             write_tif_stack(test_array, test_folder)
-            assert len(listdir(test_folder)) == 5
+            assert len(os.listdir(test_folder)) == 5
             print('... number of files matches')
             rmtree(test_folder)
         except Exception:
             rmtree(test_folder)
             raise
+
+    def test_get_file_list(self):
+
+        print('Testing get_file_list ...')
+
+        test_folder = f'./test_io_{randint(1000, 9999)}'
+
+        os.mkdir(test_folder)
+
+        open(os.path.join(test_folder, 'a.xyz'), mode='w').close()
+        open(os.path.join(test_folder, 'b.xyz'), mode='w').close()
+        open(os.path.join(test_folder, 'c.xyz'), mode='w').close()
+
+        from squirrel.io import get_file_list
+        file_list = get_file_list(test_folder, pattern='*.xyz')
+
+        try:
+            assert len(file_list) == 3
+            print('... proper length')
+            assert os.path.join(test_folder, 'a.xyz') in file_list, f"{os.path.join('.', test_folder, 'a.xyz')} not in {file_list}"
+            assert os.path.join(test_folder, 'b.xyz') in file_list
+            assert os.path.join(test_folder, 'c.xyz') in file_list
+            print('... all files found!')
+            rmtree(test_folder)
+        except Exception:
+            rmtree(test_folder)
+            raise
+
+    def test_read_tif_slice(self):
+
+        print('Testing read_tif_slice ...')
+
+        test_file = f'./test_io_{randint(1000, 9999)}.tif'
+        test_array = np.random.rand(3, 4)
+
+        from tifffile import imwrite
+        imwrite(test_file, test_array)
+
+        try:
+            from squirrel.io import read_tif_slice
+            loaded_array, filename = read_tif_slice(test_file)
+            assert (loaded_array == test_array).all()
+            print('... Data is identical')
+            assert filename == test_file[2:]
+            print('... File name matches')
+            os.remove(test_file)
+        except Exception:
+            os.remove(test_file)
+            raise
+
+    def test_write_tif_slice(self):
+
+        print('Testing write_tif_slice ...')
+
+        test_file = f'test_io_{randint(1000, 9999)}.tif'
+
+        from tifffile import imread
+        from squirrel.io import write_tif_slice
+        test_array = np.random.rand(3, 4)
+
+        try:
+            write_tif_slice(test_array, './', test_file)
+            loaded_array = imread(test_file)
+            assert (loaded_array == test_array).all()
+            print('... Data is identical')
+            os.remove(test_file)
+        except Exception:
+            os.remove(test_file)
+            raise
+

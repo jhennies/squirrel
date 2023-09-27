@@ -1,5 +1,6 @@
 
 from .io import make_directory, load_h5_container, write_tif_stack
+from .io import get_file_list, read_tif_slice, write_tif_slice
 
 
 def h5_to_tif(
@@ -42,3 +43,25 @@ def mib_to_tif(
         verbose=verbose
     )
 
+
+def compress_tif_stack(
+        in_folder,
+        out_folder,
+        pattern='*.tif',
+        verbose=False
+):
+
+    if verbose:
+        print(f'in_folder = {in_folder}')
+        print(f'out_folder = {out_folder}')
+        print(f'pattern = {pattern}')
+
+    im_list = get_file_list(in_folder, pattern)
+
+    for im_filepath in im_list:
+
+        if verbose:
+            print(f'im_filepath = {im_filepath}')
+
+        image, filename = read_tif_slice(im_filepath)
+        write_tif_slice(image, out_folder, filename)
