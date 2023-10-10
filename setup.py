@@ -8,7 +8,8 @@ setup(
     packages=['squirrel'],
     scripts=[
         'bin/h5_to_tif.py',
-        'bin/mib_to_tif.py'
+        'bin/mib_to_tif.py',
+        'bin/compress_tif_stack.py'
     ],
     install_requires=[
         'numpy',

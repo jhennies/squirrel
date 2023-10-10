@@ -1,3 +1,4 @@
+import os
 
 from .io import make_directory, load_h5_container, write_tif_stack
 from .io import get_file_list, read_tif_slice, write_tif_slice
@@ -55,6 +56,9 @@ def compress_tif_stack(
         print(f'in_folder = {in_folder}')
         print(f'out_folder = {out_folder}')
         print(f'pattern = {pattern}')
+
+    if not os.path.exists(out_folder):
+        os.mkdir(out_folder)
 
     im_list = get_file_list(in_folder, pattern)
 
