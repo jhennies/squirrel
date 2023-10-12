@@ -57,5 +57,5 @@ def write_tif_slice(image, out_folder, filename):
 
 def get_file_list(path, pattern='*'):
 
-    return glob(os.path.join(path, pattern))
+    return sorted(glob(os.path.join(path, pattern)))
 
