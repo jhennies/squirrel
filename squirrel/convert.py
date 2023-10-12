@@ -31,7 +31,6 @@ def mib_to_tif(
         out_folder,
         verbose=False
 ):
-
     if verbose:
         print(f'mib_model_file = {mib_model_file}')
         print(f'out_folder = {out_folder}')
@@ -51,7 +50,6 @@ def compress_tif_stack(
         pattern='*.tif',
         verbose=False
 ):
-
     if verbose:
         print(f'in_folder = {in_folder}')
         print(f'out_folder = {out_folder}')
@@ -69,3 +67,35 @@ def compress_tif_stack(
 
         image, filename = read_tif_slice(im_filepath)
         write_tif_slice(image, out_folder, filename)
+
+
+def merge_tif_stacks(
+        stack_folders,
+        out_folder,
+        pattern='*.tif',
+        out_pattern='slice_{:05d}.tif',
+        pad_canvas=False,
+        verbose=False
+):
+    if verbose:
+        print(f'stack_folders = {stack_folders}')
+        print(f'out_folder = {out_folder}')
+
+    if pad_canvas:
+        raise NotImplementedError('Canvas padding not implemented!')
+
+    im_list = []
+    for idx, folder in enumerate(stack_folders):
+        im_list.extend(
+            get_file_list(folder, pattern=pattern if type(pattern) == str or len(pattern) == 1 else pattern[idx])
+        )
+
+    from shutil import copyfile
+
+    for idx, im_filepath in enumerate(im_list):
+
+        if verbose:
+            print(f'im_filepath = {im_filepath}')
+
+        out_filepath = os.path.join(out_folder, out_pattern.format(idx))
+        copyfile(im_filepath, out_filepath)
