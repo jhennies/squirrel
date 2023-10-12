@@ -84,6 +84,9 @@ def merge_tif_stacks(
     if pad_canvas:
         raise NotImplementedError('Canvas padding not implemented!')
 
+    if not os.path.exists(out_folder):
+        os.mkdir(out_folder)
+
     im_list = []
     for idx, folder in enumerate(stack_folders):
         im_list.extend(
