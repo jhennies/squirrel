@@ -1,5 +1,5 @@
 
-if __name__ == '__main__':
+def main():
 
     # ----------------------------------------------------
     import argparse
@@ -34,3 +34,7 @@ if __name__ == '__main__':
         axes_order=axes_order,
         verbose=verbose
     )
+
+
+if __name__ == '__main__':
+    main()

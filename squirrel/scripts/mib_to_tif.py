@@ -1,5 +1,5 @@
 
-if __name__ == '__main__':
+def main():
 
     # ----------------------------------------------------
     import argparse
@@ -26,3 +26,7 @@ if __name__ == '__main__':
         out_folder,
         verbose=verbose
     )
+
+
+if __name__ == '__main__':
+    main()

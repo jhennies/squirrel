@@ -1,5 +1,5 @@
 
-if __name__ == '__main__':
+def main():
 
     # ----------------------------------------------------
     import argparse
@@ -30,3 +30,7 @@ if __name__ == '__main__':
         pattern=pattern,
         verbose=verbose
     )
+
+
+if __name__ == '__main__':
+    main()
