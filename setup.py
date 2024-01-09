@@ -16,7 +16,6 @@ setup(
             'compress_tif_stack = squirrel.scripts.compress_tif_stack:main',
             'h5_to_tif = squirrel.scripts.h5_to_tif:main',
             'mib_to_tif = squirrel.scripts.mib_to_tif:main',
-            'mobie_merge = squirrel.scripts.mobie_merge:main',
             'tif_merge = squirrel.scripts.tif_merge:main'
         ]
     },
