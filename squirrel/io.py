@@ -36,6 +36,13 @@ def load_h5_container(filepath, key, axes_order='zyx'):
     ])
 
 
+def write_h5_container(filepath, data, key='data'):
+    # TODO add test
+
+    with File(filepath, mode='w') as f:
+        f.create_dataset(key, data=data, compression='gzip')
+
+
 def write_tif_stack(data, out_folder):
 
     for idx, section in enumerate(data):
@@ -56,6 +63,9 @@ def write_tif_slice(image, out_folder, filename):
 
 
 def get_file_list(path, pattern='*'):
-
     return sorted(glob(os.path.join(path, pattern)))
+
+
+def load_tif_stack(path, pattern='*'):
+    return [read_tif_slice(filepath) for filepath in get_file_list(path, pattern)]
 

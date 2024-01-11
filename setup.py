@@ -16,6 +16,7 @@ setup(
             'compress_tif_stack = squirrel.scripts.compress_tif_stack:main',
             'h5_to_tif = squirrel.scripts.h5_to_tif:main',
             'mib_to_tif = squirrel.scripts.mib_to_tif:main',
+            'normalize_slices = squirrel.scripts.normalize_slices:main',
             'tif_merge = squirrel.scripts.tif_merge:main'
         ]
     },
