@@ -19,7 +19,7 @@ def main():
     out_folder = args.out_folder
     verbose = args.verbose
 
-    from squirrel.convert import mib_to_tif
+    from squirrel.workflows.convert import mib_to_tif
 
     mib_to_tif(
         mib_model_file,

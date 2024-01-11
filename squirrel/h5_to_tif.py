@@ -25,7 +25,7 @@ def main():
     axes_order = args.axes_order
     verbose = args.verbose
 
-    from squirrel.convert import h5_to_tif
+    from squirrel.workflows.convert import h5_to_tif
 
     h5_to_tif(
         h5_file,

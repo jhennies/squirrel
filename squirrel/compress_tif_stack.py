@@ -22,7 +22,7 @@ def main():
     pattern = args.pattern
     verbose = args.verbose
 
-    from squirrel.convert import compress_tif_stack
+    from squirrel.workflows.convert import compress_tif_stack
 
     compress_tif_stack(
         in_folder,

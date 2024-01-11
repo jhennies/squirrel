@@ -29,7 +29,7 @@ def main():
     pad_canvas = args.pad_canvas
     verbose = args.verbose
 
-    from squirrel.convert import merge_tif_stacks
+    from squirrel.workflows.convert import merge_tif_stacks
 
     merge_tif_stacks(
         stack_folders,

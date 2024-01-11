@@ -4,19 +4,19 @@ import numpy as np
 def _load_data(path, key='data', pattern='*.tif'):
     import os
     if os.path.splitext(path)[1] == '.h5':
-        from .io import load_h5_container
+        from squirrel.library.io import load_h5_container
         return load_h5_container(path, key=key)
-    from .io import load_tif_stack
+    from squirrel.library.io import load_tif_stack
     return load_tif_stack(path, pattern=pattern)
 
 
 def _write_data(path, data, key='data'):
     import os
     if os.path.splitext(path)[1] == '.h5':
-        from .io import write_h5_container
+        from squirrel.library.io import write_h5_container
         write_h5_container(path, data, key=key)
         return
-    from .io import write_tif_stack
+    from squirrel.library.io import write_tif_stack
     write_tif_stack(data, path)
 
 

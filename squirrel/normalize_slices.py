@@ -30,7 +30,7 @@ def main():
     out_h5_key = args.out_h5_key
     verbose = args.verbose
 
-    from squirrel.normalization import normalize_slices
+    from squirrel.workflows.normalization import normalize_slices
 
     normalize_slices(
         in_path,

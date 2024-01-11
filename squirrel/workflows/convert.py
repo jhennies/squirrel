@@ -1,7 +1,7 @@
 import os
 
-from .io import make_directory, load_h5_container, write_tif_stack
-from .io import get_file_list, read_tif_slice, write_tif_slice
+from squirrel.library.io import make_directory, load_h5_container, write_tif_stack
+from squirrel.library.io import get_file_list, read_tif_slice, write_tif_slice
 
 
 def h5_to_tif(

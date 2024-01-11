@@ -15,7 +15,7 @@ class TestIO(unittest.TestCase):
     def test_make_directory(self):
 
         print('Testing make_directory ...')
-        from squirrel.io import make_directory
+        from squirrel.library.io import make_directory
 
         test_dirname = f'test_io_{randint(1000, 9999)}'
 
@@ -40,7 +40,7 @@ class TestIO(unittest.TestCase):
     def test_load_h5_container(self):
 
         print('Testing load_h5_container ...')
-        from squirrel.io import load_h5_container
+        from squirrel.library.io import load_h5_container
         from h5py import File
 
         test_array = np.random.rand(3, 4, 5)
@@ -74,7 +74,7 @@ class TestIO(unittest.TestCase):
     def test_write_tif_stack(self):
 
         print('Testing write_tif_stack ...')
-        from squirrel.io import write_tif_stack
+        from squirrel.library.io import write_tif_stack
 
         test_folder = f'./test_io_{randint(1000, 9999)}'
         os.mkdir(test_folder)
@@ -102,7 +102,7 @@ class TestIO(unittest.TestCase):
         open(os.path.join(test_folder, 'b.xyz'), mode='w').close()
         open(os.path.join(test_folder, 'c.xyz'), mode='w').close()
 
-        from squirrel.io import get_file_list
+        from squirrel.library.io import get_file_list
         file_list = get_file_list(test_folder, pattern='*.xyz')
 
         try:
@@ -128,7 +128,7 @@ class TestIO(unittest.TestCase):
         imwrite(test_file, test_array)
 
         try:
-            from squirrel.io import read_tif_slice
+            from squirrel.library.io import read_tif_slice
             loaded_array, filename = read_tif_slice(test_file)
             assert (loaded_array == test_array).all()
             print('... Data is identical')
@@ -146,7 +146,7 @@ class TestIO(unittest.TestCase):
         test_file = f'test_io_{randint(1000, 9999)}.tif'
 
         from tifffile import imread
-        from squirrel.io import write_tif_slice
+        from squirrel.library.io import write_tif_slice
         test_array = np.random.rand(3, 4)
 
         try:
