@@ -20,6 +20,21 @@ git clone https://github.com/jhennies/squirrel
 pip install -e squirrel
 ```
 
+## Installation of optional packages
+
+Install the following as necessary to enable additional functionality
+
+### nibabel for handling nii files
+This is required for 3D SIFT
+```
+mamba install -c conda-forge nibabel
+```
+
+### Napari for 3D visualization
+```
+mamba install -c conda-forge napari pyqt
+```
+
 ## Usage
 
 The main functions can be used directly after activation of the 

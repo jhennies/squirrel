@@ -69,3 +69,51 @@ def get_file_list(path, pattern='*'):
 def load_tif_stack(path, pattern='*'):
     return [read_tif_slice(filepath) for filepath in get_file_list(path, pattern)]
 
+
+def write_nii_file(data, filepath, scale=None):
+    # FIXME add tests
+    import nibabel as nib
+    affine = np.eye(4)
+    if scale is not None:
+        affine = np.eye(4)
+        affine[0, 2] = scale[0]
+        affine[1, 2] = scale[1]
+        affine[2, 2] = scale[2]
+    data = nib.Nifti1Image(data, affine=affine)
+    nib.save(data, filepath)
+
+
+def load_nii_file(filepath):
+    # FIXME add tests
+    import nibabel as nib
+    return np.array(nib.load(filepath).dataobj)
+
+
+def get_filetype(filepath):
+    # FIXME add tests
+
+    h5_extensions = ['.h5', '.H5', '.hdf5', '.HDF5']
+    nii_extensions = ['.nii']
+    tif_extensions = ['.tif', '.TIF', '.tiff', '.TIFF']
+
+    ext = os.path.splitext(filepath)[1]
+    if ext in h5_extensions:
+        return 'h5'
+    if ext in nii_extensions:
+        return 'nii'
+    if ext in tif_extensions:
+        return 'tif'
+    raise RuntimeError(f'Unknown extension: {ext}')
+
+
+def load_data(filepath, key='data', axes_order='zyx'):
+
+    filetype = get_filetype(filepath)
+
+    if filetype == 'h5':
+        return load_h5_container(filepath, key, axes_order=axes_order)
+    if filetype == 'nii':
+        return load_nii_file(filepath)
+    if filetype == 'tif':
+        raise NotImplementedError('Not implemented for 3D tif files')
+    raise RuntimeError(f'Invalid or unknown file type: {filetype}')

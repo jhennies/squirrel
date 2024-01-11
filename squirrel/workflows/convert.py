@@ -26,6 +26,27 @@ def h5_to_tif(
     write_tif_stack(data, out_folder)
 
 
+def h5_to_nii(
+        h5_file,
+        h5_key,
+        out_filepath,
+        axes_order='zyx',
+        verbose=False
+):
+    from squirrel.library.io import write_nii_file
+
+    if verbose:
+        print(f'h5_file = {h5_file}')
+        print(f'h5_key = {h5_key}')
+        print(f'out_filepath = {out_filepath}')
+
+    # Load data from the source file
+    data = load_h5_container(h5_file, h5_key, axes_order=axes_order)
+
+    # Write results
+    write_nii_file(data, out_filepath, scale=None)
+
+
 def mib_to_tif(
         mib_model_file,
         out_folder,

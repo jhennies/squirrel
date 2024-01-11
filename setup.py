@@ -14,10 +14,13 @@ setup(
     entry_points={
         'console_scripts': [
             'compress_tif_stack = squirrel.compress_tif_stack:main',
+            'h5_to_nii = squirrel.h5_to_nii:main',
             'h5_to_tif = squirrel.h5_to_tif:main',
             'mib_to_tif = squirrel.mib_to_tif:main',
             'normalize_slices = squirrel.normalize_slices:main',
-            'tif_merge = squirrel.tif_merge:main'
+            'sift3d = squirrel.sift3d:main',
+            'tif_merge = squirrel.tif_merge:main',
+            'view_in_napari = squirrel.view_in_napari:main'
         ]
     },
     install_requires=[
