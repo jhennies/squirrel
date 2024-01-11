@@ -17,3 +17,4 @@ def get_bounds(image, return_ints=False):
         bounds = np.s_[top_left[0]:bottom_right[0] + 1,  # plus 1 because slice isn't
                        top_left[1]:bottom_right[1] + 1]  # inclusive
         return bounds
+

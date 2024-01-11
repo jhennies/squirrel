@@ -4,6 +4,7 @@ from h5py import File
 from tifffile import imwrite, imread
 import numpy as np
 from glob import glob
+from .data import invert_data
 
 
 def make_directory(directory, exist_ok=False, not_found_ok=False):
@@ -20,10 +21,13 @@ def make_directory(directory, exist_ok=False, not_found_ok=False):
     return None
 
 
-def load_h5_container(filepath, key, axes_order='zyx'):
+def load_h5_container(filepath, key, axes_order='zyx', invert=False):
 
     with File(filepath, mode='r') as f:
         data = f[key][:]
+
+    if invert:
+        data = invert_data(data)
 
     if axes_order == 'zyx':
         return data
@@ -83,10 +87,13 @@ def write_nii_file(data, filepath, scale=None):
     nib.save(data, filepath)
 
 
-def load_nii_file(filepath):
+def load_nii_file(filepath, invert=False):
     # FIXME add tests
     import nibabel as nib
-    return np.array(nib.load(filepath).dataobj)
+    data = np.array(nib.load(filepath).dataobj)
+    if invert:
+        return invert_data(data)
+    return data
 
 
 def get_filetype(filepath):
@@ -106,14 +113,14 @@ def get_filetype(filepath):
     raise RuntimeError(f'Unknown extension: {ext}')
 
 
-def load_data(filepath, key='data', axes_order='zyx'):
+def load_data(filepath, key='data', axes_order='zyx', invert=False):
 
     filetype = get_filetype(filepath)
 
     if filetype == 'h5':
-        return load_h5_container(filepath, key, axes_order=axes_order)
+        return load_h5_container(filepath, key, axes_order=axes_order, invert=invert)
     if filetype == 'nii':
-        return load_nii_file(filepath)
+        return load_nii_file(filepath, invert=invert)
     if filetype == 'tif':
         raise NotImplementedError('Not implemented for 3D tif files')
     raise RuntimeError(f'Invalid or unknown file type: {filetype}')

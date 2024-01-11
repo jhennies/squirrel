@@ -6,6 +6,7 @@ def view_in_napari(
         label_keys=None,
         image_names=None,
         label_names=None,
+        invert_images=False,
         verbose=False
 ):
     import napari
@@ -26,7 +27,7 @@ def view_in_napari(
     if images is not None:
         if image_keys is None:
             image_keys = ['data'] * len(images)
-        images = [load_data(image_fp, image_keys[idx]) for idx, image_fp in enumerate(images)]
+        images = [load_data(image_fp, image_keys[idx], invert=invert_images) for idx, image_fp in enumerate(images)]
         add_images_to_napari(viewer, images, image_names)
     if labels is not None:
         if label_keys is None:
