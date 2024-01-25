@@ -14,6 +14,8 @@ setup(
     entry_points={
         'console_scripts': [
             'compress_tif_stack = squirrel.compress_tif_stack:main',
+            'elastix_affine3d = squirrel.elastix_registration:affine3d',
+            'elastix_register_z_chunks = squirrel.elastix_registration:register_z_chunks',
             'h5_to_nii = squirrel.h5_to_nii:main',
             'h5_to_tif = squirrel.h5_to_tif:main',
             'mib_to_tif = squirrel.mib_to_tif:main',

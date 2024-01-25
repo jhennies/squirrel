@@ -22,7 +22,7 @@ def run_sift3d(
 
     if not omit_run:
         run_sift_command = [
-            '/home/julian/src/SIFT3D/build/bin/regSift3D',
+            'regSift3D',
             '--matches', matches_fp,
             '--transform', transform_fp,
             '--warped', warped_fp,

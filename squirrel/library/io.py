@@ -40,10 +40,12 @@ def load_h5_container(filepath, key, axes_order='zyx', invert=False):
     ])
 
 
-def write_h5_container(filepath, data, key='data'):
+def write_h5_container(filepath, data, key='data', append=False):
     # TODO add test
 
-    with File(filepath, mode='w') as f:
+    mode = 'a' if append else 'w'
+
+    with File(filepath, mode=mode) as f:
         f.create_dataset(key, data=data, compression='gzip')
 
 

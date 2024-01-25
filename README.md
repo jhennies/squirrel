@@ -35,6 +35,12 @@ mamba install -c conda-forge nibabel
 mamba install -c conda-forge napari pyqt
 ```
 
+
+### Simple Elastix for registration
+```
+pip install SimpleITK-SimpleElastix
+```
+
 ## Usage
 
 The main functions can be used directly after activation of the 
