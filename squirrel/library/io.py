@@ -104,6 +104,8 @@ def get_filetype(filepath):
     h5_extensions = ['.h5', '.H5', '.hdf5', '.HDF5']
     nii_extensions = ['.nii']
     tif_extensions = ['.tif', '.TIF', '.tiff', '.TIFF']
+    json_extensions = ['.json', '.JSON']
+    csv_extensions = ['.csv', '.CSV']
 
     ext = os.path.splitext(filepath)[1]
     if ext in h5_extensions:
@@ -112,6 +114,10 @@ def get_filetype(filepath):
         return 'nii'
     if ext in tif_extensions:
         return 'tif'
+    if ext in json_extensions:
+        return 'json'
+    if ext in csv_extensions:
+        return 'csv'
     raise RuntimeError(f'Unknown extension: {ext}')
 
 

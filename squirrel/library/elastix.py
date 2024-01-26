@@ -10,61 +10,77 @@ def apply_transform(
     # TODO Figure out a way to do this with Transformix
     pass
 
-#     if verbose:
-#         print(f'transform = {transform}')
-#
-#     import SimpleITK as sitk
-#
-#     if type(image) == np.ndarray:
-#         if verbose:
-#             print(f'Getting fixed image from array with shape = {image.shape}')
-#         image = sitk.GetImageFromArray(image)
-#
-#     pmap = sitk.GetDefaultParameterMap('affine')
-#
-#     result = sitk.Transformix(image, pmap)
-#
-#     # pmap = sitk.AffineTransform()
-#     # pmap['TransformParameters'] = [str(x) for x in transform]
-#     # print(pmap)
-#     # print(pmap['TransformParameters'])
-#     # result = sitk.Transformix(image, pmap)
-#
-#     # tx = sitk.TransformixImageFilter()
-#     # tx.SetTransformParameterMap(sitk.GetDefaultParameterMap('affine'))
-#     # tx.SetTransformParameter('TransformParameters', [str(x) for x in transform])
-#     # tx.SetMovingImage(image)
-#     # print(tx.GetTransformParameterMap()[0]['TransformParameters'])
-#     # tx.Execute()
-#     # result = tx.GetResultImage()
-#
-#     from squirrel.library.io import write_h5_container
-#     write_h5_container(
-#         '/media/julian/Data/projects/em-xray-alignment/automated_registration_sift3d/step02_registration_refinement/b-avg_transform_on_xray/tmp.h5',
-#         result
-#     )
-#
-#
-# from squirrel.library.io import load_data
-#
-# apply_transform(
-#     load_data('/media/julian/Data/projects/em-xray-alignment/automated_registration_sift3d/step01_registration_xray_to_em_sift3d/warped.nii'),
-#     [
-#         1.00427,
-#         0.00617366,
-#         0.0186604,
-#         -0.00520014,
-#         0.985899,
-#         0.00638913,
-#         -0.0174637,
-#         -0.0295123,
-#         0.921393,
-#         0.720291,
-#         -1.27948,
-#         -0.0952311
-#     ],
-#     verbose=True
-# )
+
+def save_transforms(parameters, out_filepath, param_order='M', save_order='M', ndim=3, verbose=False):
+
+    parameters = np.array(parameters)
+    if verbose:
+        print(f'parameters = {parameters}')
+
+    def _elastix2m(param):
+        pr = np.zeros(param.shape, dtype=param.dtype)
+        pr[:ndim ** 2] = param[:ndim ** 2][::-1]
+        pr[ndim ** 2:] = param[ndim ** 2:][::-1]
+        param = pr
+
+        pr = np.reshape(param[: ndim ** 2], (ndim, ndim), order='C')
+        pr = np.concatenate([pr, np.array([param[ndim ** 2:]]).swapaxes(0, 1)], axis=1)
+        return pr
+
+        # print(f'param = {param}')
+        # p = np.zeros(param.shape, dtype=param.dtype)
+        # p[:ndim ** 2] = param[:ndim ** 2][::-1]
+        # p[ndim ** 2:] = param[ndim ** 2:][::-1]
+        # print(f'param = {p}')
+        # return _f2m(p)
+
+    def _c2m(param):
+        return np.reshape(param, (ndim, ndim + 1), order='C')
+
+    def _f2m(param):
+        return np.reshape(param, (ndim, ndim + 1), order='F')
+
+    def _m2c(param):
+        return param.flatten(order='C')
+
+    def _m2f(param):
+        return param.flatten(order='F')
+
+    def _change_order(params):
+        if param_order == 'elastix':
+            params = _elastix2m(params)
+        if param_order == 'C':
+            params = _c2m(params)
+        if param_order == 'F':
+            params = _f2m(params)
+        if save_order == 'C':
+            params = _m2c(params)
+        if save_order == 'F':
+            params = _m2f(params)
+        return params
+
+    if verbose:
+        print(f'parameters.shape = {parameters.shape}')
+        print(f'parameters.ndim = {parameters.ndim}')
+
+    if param_order != save_order:
+        if (param_order != 'M' and parameters.ndim == 2) or (param_order == 'M' and parameters.ndim == 3):
+            parameters.tolist()
+            for idx, p in enumerate(parameters):
+                parameters[idx] = _change_order(p)
+        else:
+            parameters = _change_order(parameters)
+
+    import json
+
+    if verbose:
+        print(f'parameters.shape = {parameters.shape}')
+
+    if out_filepath is not None:
+        with open(out_filepath, mode='w') as f:
+            json.dump(parameters.tolist(), f, indent=2)
+
+    return parameters
 
 
 def register_with_elastix(

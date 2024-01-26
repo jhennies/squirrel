@@ -62,9 +62,10 @@ def register_z_chunks(
         verbose=False
 ):
 
-    from ..library.elastix import register_with_elastix
+    from ..library.elastix import register_with_elastix, save_transforms
     from ..library.io import write_h5_container
     from ..library.io import make_directory
+    # from ..library.transformation import apply_affine_transform
 
     make_directory(out_path, exist_ok=True)
 
@@ -81,6 +82,7 @@ def register_z_chunks(
     moving_image = _cast_to_uint8(moving_image)
     result_images = []
     result_transforms = []
+    # ndi_result_images = []
 
     z_chunk_size = 16
     for chunk_start in range(0, fixed_image.shape[0], z_chunk_size):
@@ -111,14 +113,21 @@ def register_z_chunks(
         result_images.append(this_result_image)
         result_transforms.append([float(x) for x in this_transform])
 
+        # ndi_trafo = np.array(save_transforms([float(x) for x in this_transform], None, param_order='elastix', save_order='M', ndim=3))
+        # print(ndi_trafo)
+        # ndi_result_images.append(apply_affine_transform(this_moving, ndi_trafo, verbose=verbose))
+
         write_h5_container(out_images_filepath, this_result_image, 'result', append=True)
 
         if verbose:
             print(f'Done with chunk {chunk_start}')
 
-    import json
-    with open(os.path.join(out_path, 'transforms.json'), mode='w') as f:
-        json.dump(result_transforms, f, indent=2)
+    # from ..library.elastix import save_transforms
+    if verbose:
+        print(f'Saving transform to {os.path.join(out_path, "transforms.json")}')
+    save_transforms(
+        result_transforms, os.path.join(out_path, 'transforms.json'),
+        param_order='elastix', save_order='C', ndim=3, verbose=verbose)
 
     if verbose:
         print(f'len(result_images) = {len(result_images)}')
@@ -127,7 +136,10 @@ def register_z_chunks(
     if verbose:
         print(f'result_image.shape = {result_image.shape}')
 
+    # ndi_result_image = np.concatenate(ndi_result_images, axis=0)
+
     write_h5_container(os.path.join(out_path, 'result.h5'), result_image, key='data')
+    # write_h5_container(os.path.join(out_path, 'result.h5'), ndi_result_image, key='ndi', append=True)
 
     if view_results_in_napari:
         from ..workflows.viewing import view_in_napari

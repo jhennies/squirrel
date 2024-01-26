@@ -29,6 +29,21 @@ def validate_matrix(matrix, ndim):
             f'Matrix shape={matrix.shape} does not match image dimension={ndim}'
 
 
+def load_transform_matrix(filepath):
+
+    from squirrel.library.io import get_filetype
+    filetype = get_filetype(filepath)
+
+    if filetype == 'json':
+        import json
+        with open(filepath, mode='r') as f:
+            return json.load(f)
+
+    if filetype == 'csv':
+        from numpy import genfromtxt
+        return genfromtxt(filepath, delimiter=',')
+
+
 def validate_and_reshape_matrix(matrix, ndim):
 
     matrix = np.array(matrix)
@@ -51,16 +66,55 @@ def validate_and_reshape_matrix(matrix, ndim):
     raise ValueError(f'Matrix has invalid number of dimensions: {matrix.ndim}')
 
 
+def extract_approximate_rotation_affine(transform, coerce_affine_dimension):
+    print(transform)
+
+    from copy import deepcopy
+    new_transform = deepcopy(transform)
+
+    x = new_transform[:3, 0]
+    y = new_transform[:3, 1]
+    z = new_transform[:3, 2]
+
+    if coerce_affine_dimension == 0:
+        x = np.cross(y, z)
+        z = np.cross(x, y)
+    new_transform[:3, 0] = x
+    new_transform[:3, 1] = y
+    new_transform[:3, 2] = z
+
+    new_transform[0, 0] = 1.0
+    new_transform[1, 1] = 1.0
+    new_transform[2, 2] = 1.0
+
+    new_transform[:3, 3] = 0.0
+
+    return new_transform
+
+
 def apply_affine_transform(
         x,
         transform_matrix,
         fill_mode='nearest',
         cval=0.,
-        order=1
+        order=1,
+        no_offset_to_center=False,
+        pivot=None,
+        verbose=False
 ):
 
     transform_matrix_ = validate_and_reshape_matrix(transform_matrix, x.ndim)
-    transform_matrix_ = transform_matrix_offset_center(transform_matrix_, x.shape)
+
+    if verbose:
+        print(f'transform_matrix = {transform_matrix_}')
+
+    if verbose:
+        print(f'transform_matrix = {transform_matrix_}')
+        print(f'x.shape = {x.shape}')
+    if pivot is None and not no_offset_to_center:
+        transform_matrix_ = transform_matrix_offset_center(transform_matrix_, x.shape)
+    if pivot is not None:
+        transform_matrix_ = transform_matrix_offset_center(transform_matrix_, np.array(pivot) * 2)
 
     import scipy.ndimage as ndi
     x = ndi.affine_transform(
