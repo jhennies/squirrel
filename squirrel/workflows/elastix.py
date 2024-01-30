@@ -16,13 +16,15 @@ def _load_data(filepath, key='data'):
         return load_nii_file(filepath)
 
 
-def affine3d(
+def elastix3d(
         moving_filepath,
         fixed_filepath,
-        out_path,
+        out_filepath,
         moving_key='data',
         fixed_key='data',
+        transform='affine',
         automatic_transform_initialization=False,
+        pivot=(0., 0., 0.),
         view_results_in_napari=False,
         verbose=False
 ):
@@ -32,15 +34,28 @@ def affine3d(
     fixed_image = _load_data(fixed_filepath, key=fixed_key)
     moving_image = _load_data(moving_filepath, key=moving_key)
 
-    result_image, result_transform = register_with_elastix(
+    result_image, result_transform, _ = register_with_elastix(
         fixed_image, moving_image,
-        transform='affine',
+        transform=transform,
         automatic_transform_initialization=automatic_transform_initialization,
         verbose=verbose
     )
 
     from ..library.io import write_h5_container
-    write_h5_container(result_image, result_image, 'data')
+    write_h5_container(os.path.join(out_filepath), result_image, 'data')
+
+    from ..library.elastix import save_transforms
+    save_transforms(
+        result_transform,
+        os.path.join(
+            os.path.split(out_filepath)[0],
+            os.path.splitext(os.path.split(out_filepath)[1])[0] + '.json'
+        ),
+        param_order='elastix',
+        save_order='C',
+        ndim=3,
+        verbose=verbose
+    )
 
     if view_results_in_napari:
         from ..workflows.viewing import view_in_napari
@@ -57,6 +72,8 @@ def register_z_chunks(
         out_path,
         moving_key='data',
         fixed_key='data',
+        z_chunk_size=16,
+        transform='affine',
         automatic_transform_initialization=False,
         view_results_in_napari=False,
         verbose=False
@@ -82,9 +99,8 @@ def register_z_chunks(
     moving_image = _cast_to_uint8(moving_image)
     result_images = []
     result_transforms = []
-    # ndi_result_images = []
+    result_affine_transforms = []
 
-    z_chunk_size = 16
     for chunk_start in range(0, fixed_image.shape[0], z_chunk_size):
 
         out_images_filepath = os.path.join(out_path, 'chunk_{:05d}.h5'.format(chunk_start))
@@ -103,31 +119,33 @@ def register_z_chunks(
         write_h5_container(out_images_filepath, this_fixed, key='fixed')
         write_h5_container(out_images_filepath, this_moving, key='moving', append=True)
 
-        this_result_image, this_transform = register_with_elastix(
+        this_result_dict = register_with_elastix(
             this_fixed, this_moving,
             out_dir=out_path,
-            transform='affine',
+            transform=transform,
             automatic_transform_initialization=automatic_transform_initialization,
             verbose=verbose
         )
-        result_images.append(this_result_image)
-        result_transforms.append([float(x) for x in this_transform])
+        result_images.append(this_result_dict['result_image'])
+        result_affine_transforms.append(this_result_dict['affine_parameters'])
+        if transform == 'rigid':
+            result_transforms.append([float(x) for x in this_result_dict['rigid_parameters']])
+        if transform == 'SimilarityTransform':
+            result_transforms.append([float(x) for x in this_result_dict['similarity_parameters']])
 
-        # ndi_trafo = np.array(save_transforms([float(x) for x in this_transform], None, param_order='elastix', save_order='M', ndim=3))
-        # print(ndi_trafo)
-        # ndi_result_images.append(apply_affine_transform(this_moving, ndi_trafo, verbose=verbose))
-
-        write_h5_container(out_images_filepath, this_result_image, 'result', append=True)
+        write_h5_container(out_images_filepath, result_images[-1], 'result', append=True)
 
         if verbose:
             print(f'Done with chunk {chunk_start}')
 
-    # from ..library.elastix import save_transforms
     if verbose:
-        print(f'Saving transform to {os.path.join(out_path, "transforms.json")}')
+        print(f'Saving transform to {os.path.join(out_path, "affine_transforms.json")}')
     save_transforms(
-        result_transforms, os.path.join(out_path, 'transforms.json'),
+        result_affine_transforms, os.path.join(out_path, 'affine_transforms.json'),
         param_order='elastix', save_order='C', ndim=3, verbose=verbose)
+    import json
+    with open(os.path.join(out_path, 'transforms.json'), mode='w') as f:
+        json.dump(result_transforms, f, indent=2)
 
     if verbose:
         print(f'len(result_images) = {len(result_images)}')
@@ -136,10 +154,7 @@ def register_z_chunks(
     if verbose:
         print(f'result_image.shape = {result_image.shape}')
 
-    # ndi_result_image = np.concatenate(ndi_result_images, axis=0)
-
     write_h5_container(os.path.join(out_path, 'result.h5'), result_image, key='data')
-    # write_h5_container(os.path.join(out_path, 'result.h5'), ndi_result_image, key='ndi', append=True)
 
     if view_results_in_napari:
         from ..workflows.viewing import view_in_napari

@@ -15,10 +15,12 @@ setup(
         'console_scripts': [
             'apply_affine_on_volume = squirrel.apply_transformation:affine_on_volume',
             'apply_rotation_and_scale = squirrel.apply_transformation:apply_rotation_and_scale',
+            'apply_z_chunks_to_volume = squirrel.apply_transformation:apply_z_chunks_to_volume',
             'average_affine_on_volume = squirrel.apply_transformation:average_affine_on_volume',
             'sequential_affine_on_volume = squirrel.apply_transformation:sequential_affine_on_volume',
+            'decompose_affine_matrix = squirrel.apply_transformation:decompose_affine_matrix',
             'compress_tif_stack = squirrel.compress_tif_stack:main',
-            'elastix_affine3d = squirrel.elastix_registration:affine3d',
+            'elastix_on_volume3d = squirrel.elastix_registration:elastix_on_volume3d',
             'elastix_register_z_chunks = squirrel.elastix_registration:register_z_chunks',
             'h5_to_nii = squirrel.h5_to_nii:main',
             'h5_to_tif = squirrel.h5_to_tif:main',

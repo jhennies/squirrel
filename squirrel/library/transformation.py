@@ -1,3 +1,4 @@
+import math
 
 import numpy as np
 
@@ -66,11 +67,74 @@ def validate_and_reshape_matrix(matrix, ndim):
     raise ValueError(f'Matrix has invalid number of dimensions: {matrix.ndim}')
 
 
+def setup_translation_matrix(translation_zyx):
+
+    return np.array(
+        [
+            [1., 0., 0., translation_zyx[0]],
+            [0., 1., 0., translation_zyx[1]],
+            [0., 0., 1., translation_zyx[2]]
+        ]
+    )
+
+
+def setup_rotation_matrix(rotation):
+    return np.concatenate((rotation, np.swapaxes([[0., 0., 0.]], 0, 1)), axis=1)
+
+
+def setup_scale_matrix(scale_zyx):
+
+    return np.array(
+        [
+            [scale_zyx[0], 0., 0., 0.],
+            [0., scale_zyx[1], 0., 0.],
+            [0., 0., scale_zyx[2], 0.]
+        ]
+    )
+
+
+def setup_shear_matrix(shear_zyx):
+
+    return np.array(
+        [
+            [1., shear_zyx[0], shear_zyx[1], 0.],
+            [0., 1., shear_zyx[2], 0.],
+            [0., 0., 1., 0.]
+        ]
+    )
+
+
+def decompose_3d_transform(transform, return_matrices=False, verbose=False):
+
+    from transforms3d.affines import decompose
+
+    transform = validate_and_reshape_matrix(transform, ndim=3)
+    decomp = decompose(transform)
+
+    if not return_matrices:
+        return decomp
+
+    return (
+        setup_translation_matrix(decomp[0]),
+        decomp[1],
+        setup_scale_matrix(decomp[2]),
+        setup_shear_matrix(decomp[3])
+    )
+
+
 def extract_approximate_rotation_affine(transform, coerce_affine_dimension):
     print(transform)
 
     from copy import deepcopy
     new_transform = deepcopy(transform)
+
+    # for c in range(3):
+    #     sq_sum = 0
+    #     for r in range(3):
+    #         sq_sum += new_transform[r, c] ** 2
+    #     s = 1. / math.sqrt(sq_sum)
+    #     for r in range(3):
+    #         new_transform[r, c] *= s
 
     x = new_transform[:3, 0]
     y = new_transform[:3, 1]
@@ -79,6 +143,13 @@ def extract_approximate_rotation_affine(transform, coerce_affine_dimension):
     if coerce_affine_dimension == 0:
         x = np.cross(y, z)
         z = np.cross(x, y)
+    if coerce_affine_dimension == 1:
+        y = np.cross(z, x)
+        x = np.cross(y, z)
+    if coerce_affine_dimension == 2:
+        z = np.cross(x, y)
+        y = np.cross(z, x)
+
     new_transform[:3, 0] = x
     new_transform[:3, 1] = y
     new_transform[:3, 2] = z
@@ -100,13 +171,11 @@ def apply_affine_transform(
         order=1,
         no_offset_to_center=False,
         pivot=None,
+        apply='all',
         verbose=False
 ):
 
     transform_matrix_ = validate_and_reshape_matrix(transform_matrix, x.ndim)
-
-    if verbose:
-        print(f'transform_matrix = {transform_matrix_}')
 
     if verbose:
         print(f'transform_matrix = {transform_matrix_}')
@@ -115,6 +184,9 @@ def apply_affine_transform(
         transform_matrix_ = transform_matrix_offset_center(transform_matrix_, x.shape)
     if pivot is not None:
         transform_matrix_ = transform_matrix_offset_center(transform_matrix_, np.array(pivot) * 2)
+
+    if apply == 'rotation':
+        transform_matrix_ = extract_approximate_rotation_affine(transform_matrix_, 0)
 
     import scipy.ndimage as ndi
     x = ndi.affine_transform(

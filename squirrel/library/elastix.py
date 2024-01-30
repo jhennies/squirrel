@@ -27,13 +27,6 @@ def save_transforms(parameters, out_filepath, param_order='M', save_order='M', n
         pr = np.concatenate([pr, np.array([param[ndim ** 2:]]).swapaxes(0, 1)], axis=1)
         return pr
 
-        # print(f'param = {param}')
-        # p = np.zeros(param.shape, dtype=param.dtype)
-        # p[:ndim ** 2] = param[:ndim ** 2][::-1]
-        # p[ndim ** 2:] = param[ndim ** 2:][::-1]
-        # print(f'param = {p}')
-        # return _f2m(p)
-
     def _c2m(param):
         return np.reshape(param, (ndim, ndim + 1), order='C')
 
@@ -83,6 +76,10 @@ def save_transforms(parameters, out_filepath, param_order='M', save_order='M', n
     return parameters
 
 
+def get_affine_rotation_parameters(euler_angles):
+    return sitk.Euler3DTransform((0, 0, 0), *euler_angles).GetMatrix()
+
+
 def register_with_elastix(
         fixed_image, moving_image,
         transform='affine',
@@ -113,8 +110,10 @@ def register_with_elastix(
     elastixImageFilter.LogToConsoleOff()
 
     # Set the parameters
-    parameter_map = sitk.GetDefaultParameterMap(transform)
+    parameter_map = sitk.GetDefaultParameterMap(transform if transform != 'SimilarityTransform' else 'rigid')
     parameter_map['AutomaticTransformInitialization'] = ['true' if automatic_transform_initialization else 'false']
+    if transform == 'SimilarityTransform':
+        parameter_map['Transform'] = ['SimilarityTransform']
     elastixImageFilter.SetParameterMap(parameter_map)
 
     if verbose:
@@ -125,4 +124,39 @@ def register_with_elastix(
     result_image = elastixImageFilter.GetResultImage()
     result_transform_parameters = elastixImageFilter.GetTransformParameterMap()[0]['TransformParameters']
 
-    return sitk.GetArrayFromImage(result_image), result_transform_parameters
+    result_image = sitk.GetArrayFromImage(result_image)
+
+    if transform == 'rigid':
+
+        rotation = get_affine_rotation_parameters([float(x) for x in result_transform_parameters[:3]])
+        affine_parameters = list(rotation) + [float(x) for x in result_transform_parameters[3:]]
+
+        return dict(
+            result_image=result_image,
+            affine_parameters=affine_parameters,
+            affine_param_order='elastix',
+            rigid_parameters=result_transform_parameters
+        )
+
+    if transform == 'SimilarityTransform':
+
+        rotation = get_affine_rotation_parameters([float(x) for x in result_transform_parameters[:3]])
+        affine_parameters = list(rotation) + [float(x) for x in result_transform_parameters[3:6]]
+        affine_parameters[0] = affine_parameters[0] * float(result_transform_parameters[6])
+        affine_parameters[3] = affine_parameters[3] * float(result_transform_parameters[6])
+        affine_parameters[6] = affine_parameters[6] * float(result_transform_parameters[6])
+
+        return dict(
+            result_image=result_image,
+            affine_parameters=affine_parameters,
+            affine_param_order='elastix',
+            similarity_parameters=result_transform_parameters
+        )
+
+    result_transform_parameters = [float(x) for x in result_transform_parameters]
+
+    return dict(
+        result_image=result_image,
+        affine_parameters=result_transform_parameters,
+        affine_param_order='elastix'
+    )
