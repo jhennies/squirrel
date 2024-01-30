@@ -99,6 +99,7 @@ def apply_affine(
         no_offset_to_center=False,
         pivot=None,
         apply='all',  # Can be ['all' | 'rotation']
+        scale_canvas=False,
         verbose=False
 ):
 
@@ -124,6 +125,7 @@ def apply_affine(
         no_offset_to_center=no_offset_to_center,
         pivot=pivot,
         apply=apply,
+        scale_canvas=scale_canvas,
         verbose=verbose
     )
 

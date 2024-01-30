@@ -20,6 +20,8 @@ def affine_on_volume():
                         help="If set, the image is rotated around it's origin")
     parser.add_argument('--pivot', type=float, default=None, nargs=3,
                         help='Center point location')
+    parser.add_argument('--scale_canvas', action='store_true',
+                        help='Scale the image canvas to match the scaling of the data. Beware of shear and rotation!')
     parser.add_argument('-v', '--verbose', action='store_true')
 
     args = parser.parse_args()
@@ -29,6 +31,7 @@ def affine_on_volume():
     image_key = args.image_key
     no_offset_to_center = args.no_offset_to_center
     pivot = args.pivot
+    scale_canvas = args.scale_canvas
     verbose = args.verbose
 
     from squirrel.workflows.transformation import apply_affine
@@ -39,6 +42,7 @@ def affine_on_volume():
         image_key=image_key,
         no_offset_to_center=no_offset_to_center,
         pivot=pivot,
+        scale_canvas=scale_canvas,
         verbose=verbose
     )
 

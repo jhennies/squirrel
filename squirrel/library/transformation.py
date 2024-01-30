@@ -172,6 +172,7 @@ def apply_affine_transform(
         no_offset_to_center=False,
         pivot=None,
         apply='all',
+        scale_canvas=False,
         verbose=False
 ):
 
@@ -195,5 +196,15 @@ def apply_affine_transform(
         order=order,
         mode=fill_mode,
         cval=cval)
+
+    if scale_canvas:
+        assert no_offset_to_center and pivot is None, 'Canvas scaling only implemented when scaling with reference to image origin!'
+        _, _, scale, _ = decompose_3d_transform(transform_matrix_)
+        if verbose:
+            print(f'scale = {scale}')
+        crop = (np.ceil(np.array(x.shape) / np.array(scale))).astype(int)
+        if verbose:
+            print(f'crop = {crop}')
+        x = x[:crop[0], :crop[1], :crop[2]]
 
     return x

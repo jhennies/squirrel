@@ -34,12 +34,15 @@ def elastix3d(
     fixed_image = _load_data(fixed_filepath, key=fixed_key)
     moving_image = _load_data(moving_filepath, key=moving_key)
 
-    result_image, result_transform, _ = register_with_elastix(
+    elastix_result = register_with_elastix(
         fixed_image, moving_image,
         transform=transform,
         automatic_transform_initialization=automatic_transform_initialization,
         verbose=verbose
     )
+
+    result_transform = elastix_result['affine_parameters']
+    result_image = elastix_result['result_image']
 
     from ..library.io import write_h5_container
     write_h5_container(os.path.join(out_filepath), result_image, 'data')
