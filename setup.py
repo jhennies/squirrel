@@ -21,6 +21,7 @@ setup(
             'decompose_affine_matrix = squirrel.apply_transformation:decompose_affine_matrix',
             'compress_tif_stack = squirrel.compress_tif_stack:main',
             'elastix_on_volume3d = squirrel.elastix_registration:elastix_on_volume3d',
+            'elastix_slices_to_volume = squirrel.elastix_registration:elastix_slices_to_volume',
             'elastix_register_z_chunks = squirrel.elastix_registration:register_z_chunks',
             'h5_to_nii = squirrel.h5_to_nii:main',
             'h5_to_tif = squirrel.h5_to_tif:main',

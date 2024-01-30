@@ -115,5 +115,55 @@ def elastix_on_volume3d():
     )
 
 
+def elastix_slices_to_volume():
+
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Register 2D slices of an image stack to a corresponding volume',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('moving_filepath', type=str,
+                        help='Input filepath for the moving volume (nii or h5)')
+    parser.add_argument('fixed_filepath', type=str,
+                        help='Input filepath for the fixed volume (nii or h5)')
+    parser.add_argument('out_filepath', type=str,
+                        help='Output filepath for the result volume.')
+    parser.add_argument('--moving_key', type=str, default='data',
+                        help='Internal path of the moving input; default="data"; used if moving_filepath is h5 file')
+    parser.add_argument('--fixed_key', type=str, default='data',
+                        help='Internal path of the fixed input; default="data"; used if fixed_filepath is h5 file')
+    parser.add_argument('--transform', type=str, default='affine',
+                        help='The transformation; default="affine"')
+    parser.add_argument('-auto_init', '--automatic_transform_initialization', action='store_true',
+                        help='Triggers the automatic transform initialization from Elastix; Not needed if both images'
+                             'are already close')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    moving_filepath = args.moving_filepath
+    fixed_filepath = args.fixed_filepath
+    out_filepath = args.out_filepath
+    moving_key = args.moving_key
+    fixed_key = args.fixed_key
+    transform = args.transform
+    automatic_transform_initialization = args.automatic_transform_initialization
+    verbose = args.verbose
+
+    from squirrel.workflows.elastix import slices_to_volume
+
+    slices_to_volume(
+        moving_filepath,
+        fixed_filepath,
+        out_filepath,
+        moving_key=moving_key,
+        fixed_key=fixed_key,
+        transform=transform,
+        automatic_transform_initialization=automatic_transform_initialization,
+        verbose=verbose
+    )
+
+
 if __name__ == '__main__':
     register_z_chunks()

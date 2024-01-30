@@ -85,7 +85,6 @@ def register_z_chunks(
     from ..library.elastix import register_with_elastix, save_transforms
     from ..library.io import write_h5_container
     from ..library.io import make_directory
-    # from ..library.transformation import apply_affine_transform
 
     make_directory(out_path, exist_ok=True)
 
@@ -167,3 +166,68 @@ def register_z_chunks(
             invert_images=True,
             verbose=verbose
         )
+
+
+def slices_to_volume(
+        moving_filepath,
+        fixed_filepath,
+        out_filepath,
+        moving_key='data',
+        fixed_key='data',
+        z_chunk_size=16,
+        transform='affine',
+        automatic_transform_initialization=False,
+        verbose=False
+):
+
+    from ..library.elastix import register_with_elastix, save_transforms
+    from ..library.io import write_h5_container
+    from ..library.io import make_directory
+
+    out_basename = os.path.splitext(out_filepath)[0]
+
+    elastix_cache = out_basename + '.elastix_cache'
+    make_directory(elastix_cache, exist_ok=True)
+
+    fixed_volume = _load_data(fixed_filepath, key=fixed_key)
+    moving_volume = _load_data(moving_filepath, key=moving_key)
+
+    def _cast_to_uint8(image):
+        if image.dtype != 'uint8':
+            print(f'Warning: Input image was not uint8. Casting the filetype, however this may cause unintended effects')
+            return image.astype('uint8')
+        return image
+
+    fixed_volume = _cast_to_uint8(fixed_volume)
+    moving_volume = _cast_to_uint8(moving_volume)
+
+    assert fixed_volume.shape[0] >= moving_volume.shape[0]
+
+    result_volume = []
+    result_transforms = []
+
+    for zidx, z_slice_moving in enumerate(moving_volume):
+
+        z_slice_fixed = fixed_volume[zidx]
+
+        result_dict = register_with_elastix(
+            z_slice_fixed, z_slice_moving,
+            transform=transform,
+            automatic_transform_initialization=automatic_transform_initialization,
+            out_dir=elastix_cache,
+            verbose=verbose
+        )
+
+        result_volume.append(result_dict['result_image'])
+        result_transforms.append(
+            save_transforms(
+                result_dict['affine_parameters'], None,
+                param_order='elastix', save_order='C', ndim=2, verbose=verbose
+            ).tolist()
+        )
+
+    import json
+    with open(out_basename + '.json', mode='w') as f:
+        json.dump(result_transforms, f, indent=2)
+
+    write_h5_container(out_filepath, np.array(result_volume), key='data', append=False)
