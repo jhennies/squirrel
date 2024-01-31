@@ -69,4 +69,16 @@ def register_with_sift(
         return setup_translation_matrix(offset, ndim=2)
 
     if transform == 'affine':
-        raise NotImplementedError()
+
+        kp_img = np.array([[kp_img[x.queryIdx].pt[0], kp_img[x.queryIdx].pt[1]] for x in final])
+        kp_ref = np.array([[kp_ref[x.trainIdx].pt[0], kp_ref[x.trainIdx].pt[1], 1.] for x in final])
+
+        if verbose:
+            print(f'kp_img.shape = {kp_img.shape}')
+
+        affine_transform, residues, rank, s = np.linalg.lstsq(kp_img, kp_ref)
+
+        if verbose:
+            print(f'affine_transform = {affine_transform}')
+
+        return affine_transform
