@@ -3,21 +3,34 @@ import math
 import numpy as np
 
 
-def transform_matrix_offset_center(matrix, shape):
+def transform_matrix_offset_center(matrix, shape, ndim=3):
 
-    o_x = float(shape[0]) / 2  # + 0.5
-    o_y = float(shape[1]) / 2  # + 0.5
-    o_z = float(shape[2]) / 2
-    offset_matrix = np.array([[1, 0, 0, o_x],
-                              [0, 1, 0, o_y],
-                              [0, 0, 1, o_z],
-                              [0, 0, 0, 1]])
-    reset_matrix = np.array([[1, 0, 0, -o_x],
-                             [0, 1, 0, -o_y],
-                             [0, 0, 1, -o_z],
-                             [0, 0, 0, 1]])
-    transform_matrix = np.dot(np.dot(offset_matrix, matrix), reset_matrix)
-    return transform_matrix
+    if ndim == 3:
+        o_x = float(shape[0]) / 2  # + 0.5
+        o_y = float(shape[1]) / 2  # + 0.5
+        o_z = float(shape[2]) / 2
+        offset_matrix = np.array([[1, 0, 0, o_x],
+                                  [0, 1, 0, o_y],
+                                  [0, 0, 1, o_z],
+                                  [0, 0, 0, 1]])
+        reset_matrix = np.array([[1, 0, 0, -o_x],
+                                 [0, 1, 0, -o_y],
+                                 [0, 0, 1, -o_z],
+                                 [0, 0, 0, 1]])
+        transform_matrix = np.dot(np.dot(offset_matrix, matrix), reset_matrix)
+        return transform_matrix
+
+    if ndim == 2:
+        o_x = float(shape[0]) / 2  # + 0.5
+        o_y = float(shape[1]) / 2  # + 0.5
+        offset_matrix = np.array([[1, 0, o_x],
+                                  [0, 1, o_y],
+                                  [0, 0, 1]])
+        reset_matrix = np.array([[1, 0, -o_x],
+                                 [0, 1, -o_y],
+                                 [0, 0, 1]])
+        transform_matrix = np.dot(np.dot(offset_matrix, matrix), reset_matrix)
+        return transform_matrix
 
 
 def validate_matrix(matrix, ndim):
@@ -67,15 +80,26 @@ def validate_and_reshape_matrix(matrix, ndim):
     raise ValueError(f'Matrix has invalid number of dimensions: {matrix.ndim}')
 
 
-def setup_translation_matrix(translation_zyx):
+def setup_translation_matrix(translation_zyx, ndim=3):
 
-    return np.array(
-        [
-            [1., 0., 0., translation_zyx[0]],
-            [0., 1., 0., translation_zyx[1]],
-            [0., 0., 1., translation_zyx[2]]
-        ]
-    )
+    if ndim == 3:
+
+        return np.array(
+            [
+                [1., 0., 0., translation_zyx[0]],
+                [0., 1., 0., translation_zyx[1]],
+                [0., 0., 1., translation_zyx[2]]
+            ]
+        )
+
+    if ndim == 2:
+
+        return np.array(
+            [
+                [1., 0., translation_zyx[0]],
+                [0., 1., translation_zyx[1]]
+            ]
+        )
 
 
 def setup_rotation_matrix(rotation):
@@ -182,9 +206,9 @@ def apply_affine_transform(
         print(f'transform_matrix = {transform_matrix_}')
         print(f'x.shape = {x.shape}')
     if pivot is None and not no_offset_to_center:
-        transform_matrix_ = transform_matrix_offset_center(transform_matrix_, x.shape)
+        transform_matrix_ = transform_matrix_offset_center(transform_matrix_, x.shape, ndim=x.ndim)
     if pivot is not None:
-        transform_matrix_ = transform_matrix_offset_center(transform_matrix_, np.array(pivot) * 2)
+        transform_matrix_ = transform_matrix_offset_center(transform_matrix_, np.array(pivot) * 2, ndim=x.ndim)
 
     if apply == 'rotation':
         transform_matrix_ = extract_approximate_rotation_affine(transform_matrix_, 0)

@@ -128,7 +128,7 @@ def register_with_elastix(
 
     if transform == 'rigid':
 
-        assert fixed_image.ndim == 3, 'Rigid only implemented for volumes'
+        assert result_image.ndim == 3, 'Rigid only implemented for volumes'
 
         rotation = get_affine_rotation_parameters([float(x) for x in result_transform_parameters[:3]])
         affine_parameters = list(rotation) + [float(x) for x in result_transform_parameters[3:]]
@@ -142,7 +142,7 @@ def register_with_elastix(
 
     if transform == 'SimilarityTransform':
 
-        assert fixed_image.ndim == 3, 'SimilarityTransform only implemented for volumes'
+        assert result_image.ndim == 3, 'SimilarityTransform only implemented for volumes'
 
         rotation = get_affine_rotation_parameters([float(x) for x in result_transform_parameters[:3]])
         affine_parameters = list(rotation) + [float(x) for x in result_transform_parameters[3:6]]

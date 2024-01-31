@@ -34,6 +34,10 @@ def elastix3d(
     fixed_image = _load_data(fixed_filepath, key=fixed_key)
     moving_image = _load_data(moving_filepath, key=moving_key)
 
+    if verbose:
+        print(f'type(fixed_image) = {type(fixed_image)}')
+        print(f'type(moving_image) = {type(moving_image)}')
+
     elastix_result = register_with_elastix(
         fixed_image, moving_image,
         transform=transform,

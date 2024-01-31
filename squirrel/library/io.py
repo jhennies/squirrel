@@ -1,5 +1,7 @@
 
 import os
+
+import h5py
 from h5py import File
 from tifffile import imwrite, imread
 import numpy as np
@@ -108,6 +110,8 @@ def get_filetype(filepath):
     csv_extensions = ['.csv', '.CSV']
 
     ext = os.path.splitext(filepath)[1]
+    if os.path.isdir(filepath):
+        return 'dir'
     if ext in h5_extensions:
         return 'h5'
     if ext in nii_extensions:
@@ -118,7 +122,7 @@ def get_filetype(filepath):
         return 'json'
     if ext in csv_extensions:
         return 'csv'
-    raise RuntimeError(f'Unknown extension: {ext}')
+    raise ValueError(f'Unknown file extension: {ext}')
 
 
 def load_data(filepath, key='data', axes_order='zyx', invert=False):
@@ -132,3 +136,26 @@ def load_data(filepath, key='data', axes_order='zyx', invert=False):
     if filetype == 'tif':
         raise NotImplementedError('Not implemented for 3D tif files')
     raise RuntimeError(f'Invalid or unknown file type: {filetype}')
+
+
+def load_data_from_handle_stack(h, idx):
+
+    if type(h[idx]) == str:
+        assert get_filetype(h[idx]) == 'tif'
+        return read_tif_slice(h[idx])
+
+    # Assuming h5 file handle
+    return h[idx]
+
+
+def load_data_handle(path, key='data', pattern='*.tif'):
+
+    filetype = get_filetype(path)
+
+    if filetype == 'h5':
+        h = h5py.File(path, mode='r')[key]
+        return h, h.shape[0]
+
+    if filetype is 'dir':
+        h = sorted(glob(os.path.join(path, pattern)))
+        return h, len(h)

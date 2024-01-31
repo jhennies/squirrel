@@ -471,3 +471,58 @@ def apply_rotation_and_scale_from_transform_stack(
         verbose=verbose
     )
 
+
+def apply_stack_alignment_on_volume(
+        stack,
+        transform_filepath,
+        out_filepath,
+        key='data',
+        pattern='*.tif',
+        verbose=False,
+):
+
+    from squirrel.library.io import load_data_handle, load_data_from_handle_stack, write_h5_container
+    from squirrel.library.elastix import save_transforms
+    from squirrel.library.transformation import validate_and_reshape_matrix
+    from squirrel.library.transformation import apply_affine_transform
+    import json
+
+    stack, stack_size = load_data_handle(stack, key=key, pattern=pattern)
+    with open(transform_filepath, mode='r') as f:
+        transforms = json.load(f)
+
+    transform = np.identity(3)
+
+    result_volume = []
+
+    for idx in range(0, stack_size):
+
+        z_slice = load_data_from_handle_stack(stack, idx)
+        if idx > 0:
+            this_transform = save_transforms(
+                transforms[idx - 1],
+                None,
+                param_order='C',
+                save_order='M',
+                ndim=2,
+                verbose=verbose
+            )
+            if verbose:
+                print(f'this_transform = {this_transform}')
+            this_transform = validate_and_reshape_matrix(
+                this_transform, ndim=2
+            )
+
+            transform = np.dot(transform, this_transform)
+
+        result_volume.append(
+            apply_affine_transform(
+                z_slice, transform,
+                verbose=verbose
+            )
+        )
+
+    result_volume = np.array(result_volume)
+
+    write_h5_container(out_filepath, result_volume)
+

@@ -47,6 +47,46 @@ def affine_on_volume():
     )
 
 
+def apply_stack_alignment():
+
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Applies an affine transformation on a volume',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('stack', type=str,
+                        help='Input filepath for the image stack (h5 or tif stack)')
+    parser.add_argument('transform_filepath', type=str,
+                        help='Json file containing the transformations for each slice')
+    parser.add_argument('out_filepath', type=str,
+                        help='Output filepath for the result file (only h5 for now)')
+    parser.add_argument('--key', type=str, default='data',
+                        help='Internal path of the input; default="data"; used if stack is h5 file')
+    parser.add_argument('--pattern', type=str, default='*.tif',
+                        help='Used to glob tif files from a tif stack folder; default="*.tif"')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    stack = args.stack
+    transform_filepath = args.transform_filepath
+    out_filepath = args.out_filepath
+    key = args.key
+    pattern = args.pattern
+    verbose = args.verbose
+
+    from squirrel.workflows.transformation import apply_stack_alignment_on_volume
+    apply_stack_alignment_on_volume(
+        stack,
+        transform_filepath,
+        out_filepath,
+        key=key,
+        pattern=pattern,
+        verbose=verbose,
+    )
+
+
 def sequential_affine_on_volume():
 
     # ----------------------------------------------------

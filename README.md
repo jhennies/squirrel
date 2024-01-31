@@ -41,6 +41,11 @@ mamba install -c conda-forge napari pyqt
 pip install SimpleITK-SimpleElastix
 ```
 
+### OpenCV for 2D SIFT 
+```
+mamba install -c conda-forge opencv
+```
+
 ## Usage
 
 The main functions can be used directly after activation of the 

@@ -13,6 +13,7 @@ setup(
     packages=['squirrel'],
     entry_points={
         'console_scripts': [
+            'apply_stack_alignment = squirrel.apply_transformation:apply_stack_alignment',
             'apply_affine_on_volume = squirrel.apply_transformation:affine_on_volume',
             'apply_rotation_and_scale = squirrel.apply_transformation:apply_rotation_and_scale',
             'apply_z_chunks_to_volume = squirrel.apply_transformation:apply_z_chunks_to_volume',
@@ -27,6 +28,7 @@ setup(
             'h5_to_tif = squirrel.h5_to_tif:main',
             'mib_to_tif = squirrel.mib_to_tif:main',
             'normalize_slices = squirrel.normalize_slices:main',
+            'sift2d_stack_alignment = squirrel.sift2d:sift2d_stack_alignment',
             'sift3d = squirrel.sift3d:main',
             'tif_merge = squirrel.tif_merge:main',
             'view_in_napari = squirrel.view_in_napari:main'
