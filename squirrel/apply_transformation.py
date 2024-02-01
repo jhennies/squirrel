@@ -66,6 +66,11 @@ def apply_stack_alignment():
                         help='Internal path of the input; default="data"; used if stack is h5 file')
     parser.add_argument('--pattern', type=str, default='*.tif',
                         help='Used to glob tif files from a tif stack folder; default="*.tif"')
+    parser.add_argument('--no_adding_of_transforms', action='store_true',
+                        help='By default each transformation is treated as the dot product of the previous.'
+                             'If this flag is set, each transform is applied as it is')
+    parser.add_argument('--xy_pivot', nargs=2, type=float, default=(0., 0.),
+                        help='A pivot point of the 2D affine transformations')
     parser.add_argument('-v', '--verbose', action='store_true')
 
     args = parser.parse_args()
@@ -74,6 +79,8 @@ def apply_stack_alignment():
     out_filepath = args.out_filepath
     key = args.key
     pattern = args.pattern
+    no_adding_of_transforms = args.no_adding_of_transforms
+    xy_pivot = args.xy_pivot
     verbose = args.verbose
 
     from squirrel.workflows.transformation import apply_stack_alignment_on_volume
@@ -83,6 +90,8 @@ def apply_stack_alignment():
         out_filepath,
         key=key,
         pattern=pattern,
+        no_adding_of_transforms=no_adding_of_transforms,
+        xy_pivot=xy_pivot,
         verbose=verbose,
     )
 
@@ -299,4 +308,4 @@ def apply_rotation_and_scale():
 
 
 if __name__ == '__main__':
-    affine_on_volume()
+    apply_stack_alignment()

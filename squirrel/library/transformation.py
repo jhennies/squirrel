@@ -36,14 +36,14 @@ def transform_matrix_offset_center(matrix, shape, ndim=3):
 def validate_matrix(matrix, ndim):
     matrix = np.array(matrix)
     if matrix.ndim == 1:
-        assert len(matrix) == ndim ** 2 + ndim or len(matrix) == (ndim + 1) ** 2, \
-            f'Length of matrix={len(matrix)} does not match image dimension={ndim}!'
+        if len(matrix) == ndim ** 2 + ndim and len(matrix) == (ndim + 1) ** 2:
+            raise ValueError(f'Length of matrix={len(matrix)} does not match image dimension={ndim}!')
     if matrix.ndim == 2:
-        assert matrix.shape == (ndim, ndim + 1) or matrix.shape == (ndim + 1, ndim + 1), \
-            f'Matrix shape={matrix.shape} does not match image dimension={ndim}'
+        if matrix.shape != (ndim, ndim + 1) and matrix.shape != (ndim + 1, ndim + 1):
+            raise ValueError(f'Matrix shape={matrix.shape} does not match image dimension={ndim}')
 
 
-def load_transform_matrix(filepath):
+def load_transform_matrix(filepath, validate=False):
 
     from squirrel.library.io import get_filetype
     filetype = get_filetype(filepath)
@@ -56,6 +56,34 @@ def load_transform_matrix(filepath):
     if filetype == 'csv':
         from numpy import genfromtxt
         return genfromtxt(filepath, delimiter=',')
+
+
+def load_transform_matrices(filepath, validate=False, ndim=3):
+
+    from squirrel.library.io import get_filetype
+    assert get_filetype(filepath) == 'json', 'Multiple transforms in one file only supported for json files'
+
+    import json
+    with open(filepath, mode='r') as f:
+        transforms = json.load(f)
+
+    if np.array(transforms).ndim == 1:
+        if validate:
+            return [validate_and_reshape_matrix(transforms, ndim)]
+        return transforms
+    if np.array(transforms).ndim >= 2:
+        if not validate:
+            return transforms
+        try:
+            # If this works it was one transform in matrix shape
+            return [validate_and_reshape_matrix(transforms, ndim)]
+        except ValueError:
+            pass
+        out_transforms = []
+        for transform in transforms:
+            out_transforms.append(validate_and_reshape_matrix(transform, ndim))
+        return out_transforms
+    raise RuntimeError(f'Invalid file contents for {filepath}')
 
 
 def validate_and_reshape_matrix(matrix, ndim):

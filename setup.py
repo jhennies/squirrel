@@ -31,7 +31,10 @@ setup(
             'sift2d_stack_alignment = squirrel.sift2d:sift2d_stack_alignment',
             'sift3d = squirrel.sift3d:main',
             'tif_merge = squirrel.tif_merge:main',
-            'view_in_napari = squirrel.view_in_napari:main'
+            'view_in_napari = squirrel.view_in_napari:main',
+            'linalg_dot_product_on_affines = squirrel.linear_algebra:dot_product_on_affines',
+            'linalg_scale_sequential_affines = squirrel.linear_algebra:scale_sequential_affines',
+            'linalg_apply_affine_sequence = squirrel.linear_algebra:apply_affine_sequence'
         ]
     },
     install_requires=[

@@ -166,4 +166,4 @@ def elastix_slices_to_volume():
 
 
 if __name__ == '__main__':
-    register_z_chunks()
+    elastix_slices_to_volume()

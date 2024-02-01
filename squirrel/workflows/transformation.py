@@ -478,6 +478,8 @@ def apply_stack_alignment_on_volume(
         out_filepath,
         key='data',
         pattern='*.tif',
+        no_adding_of_transforms=False,
+        xy_pivot=(0., 0.),
         verbose=False,
 ):
 
@@ -491,33 +493,47 @@ def apply_stack_alignment_on_volume(
     with open(transform_filepath, mode='r') as f:
         transforms = json.load(f)
 
-    transform = np.identity(3)
+    transform = None
 
     result_volume = []
 
     for idx in range(0, stack_size):
+        # for idx in range(0, 10):
 
         z_slice = load_data_from_handle_stack(stack, idx)
-        if idx > 0:
-            this_transform = save_transforms(
-                transforms[idx - 1],
-                None,
-                param_order='C',
-                save_order='M',
-                ndim=2,
-                verbose=verbose
-            )
-            if verbose:
-                print(f'this_transform = {this_transform}')
-            this_transform = validate_and_reshape_matrix(
-                this_transform, ndim=2
-            )
+        this_transform = save_transforms(
+            transforms[idx],
+            None,
+            param_order='C',
+            save_order='M',
+            ndim=2,
+            verbose=verbose
+        )
+        if verbose:
+            print(f'this_transform = {this_transform}')
+        this_transform = validate_and_reshape_matrix(
+            this_transform, ndim=2
+        )
 
-            transform = np.dot(transform, this_transform)
+        # pivot_matrix = np.array([
+        #     [1., 0., xy_pivot[0]],
+        #     [0., 1., xy_pivot[1]],
+        #     [0., 0., 1.]
+        # ])
+        # this_transform = np.dot(
+        #     this_transform,
+        #     pivot_matrix
+        # )
+
+        if idx > 0 and not no_adding_of_transforms:
+            transform = np.dot(this_transform, transform)
+        else:
+            transform = this_transform
 
         result_volume.append(
             apply_affine_transform(
                 z_slice, transform,
+                pivot=xy_pivot,
                 verbose=verbose
             )
         )
@@ -525,4 +541,139 @@ def apply_stack_alignment_on_volume(
     result_volume = np.array(result_volume)
 
     write_h5_container(out_filepath, result_volume)
+
+
+def dot_product_on_affines_workflow(
+        transform_filepaths,
+        out_filepath,
+        verbose=False
+):
+
+    from ..library.elastix import save_transforms
+    from ..library.transformation import load_transform_matrices
+
+    transforms_a = np.array(load_transform_matrices(transform_filepaths[0], validate=True, ndim=2))
+    transforms_b = np.array(load_transform_matrices(transform_filepaths[1], validate=True, ndim=2))
+
+    if verbose:
+        print(f'transforms_a.shape = {transforms_a.shape}')
+        print(f'transforms_b.shape = {transforms_b.shape}')
+    # assert transforms_a.shape == transforms_b.shape, \
+    #     f'Shapes of the transform sequences have to match: {transforms_a.shape} != {transforms_b.shape}'
+    n_transforms = min(len(transforms_a), len(transforms_b))
+
+    result_transforms = []
+    for idx in range(n_transforms):
+        transform_a = transforms_a[idx]
+        transform_b = transforms_b[idx]
+        result_transforms.append(np.dot(transform_a, transform_b))
+
+    # Prepare for saving
+    transforms = [
+        save_transforms(x, None, param_order='M', save_order='C', ndim=2)[:6].tolist()
+        for x in result_transforms
+    ]
+
+    import json
+    with open(out_filepath, mode='w') as f:
+        json.dump(transforms, f, indent=2)
+
+
+def scale_sequential_affines_workflow(
+        transform_filepath,
+        out_filepath,
+        scale,
+        xy_pivot=(0., 0.),
+        verbose=False
+):
+    from ..library.transformation import load_transform_matrices
+    from ..library.elastix import save_transforms
+    transforms = np.array(load_transform_matrices(transform_filepath, validate=True, ndim=2))
+
+    if verbose:
+        print(f'scale = {scale}')
+        print(f'transforms.shape = {transforms.shape}')
+
+    for idx, transform in enumerate(transforms):
+        # # Translations are stored in pixels so need to be adjusted
+        transform[:, 2] = transform[:, 2] * scale
+        # Move the pivot according to the scale
+        pivot_matrix = np.array([
+            [1., 0., xy_pivot[0]],
+            [0., 1., xy_pivot[1]],
+            [0., 0., 1.]
+        ])
+        transform = np.dot(
+            transform,
+            pivot_matrix
+        )
+        pivot_matrix[:2, 2] *= scale
+        transform = np.dot(
+            np.linalg.inv(pivot_matrix),
+            transform
+        )
+        transforms[idx] = transform
+
+    # z-interpolation to extend the stack
+    from scipy.ndimage import zoom
+    transforms = zoom(transforms, (scale, 1., 1.), order=1)
+
+    if verbose:
+        print(f'transforms.shape = {transforms.shape}')
+
+    # Prepare for saving
+    transforms = [save_transforms(x, None, param_order='M', save_order='C', ndim=2)[:6].tolist() for x in transforms]
+
+    import json
+    with open(out_filepath, mode='w') as f:
+        json.dump(transforms, f, indent=2)
+
+
+def apply_affine_sequence_workflow(
+        transform_filepath,
+        out_filepath,
+        verbose=False
+):
+
+    import json
+    with open(transform_filepath, mode='r') as f:
+        transforms = json.load(f)
+
+    from squirrel.library.elastix import save_transforms
+    from squirrel.library.transformation import validate_and_reshape_matrix
+
+    result_transforms = []
+    transform = None
+
+    for this_transform in transforms:
+
+        this_transform = save_transforms(
+            this_transform,
+            None,
+            param_order='C',
+            save_order='M',
+            ndim=2,
+            verbose=verbose
+        )
+        if verbose:
+            print(f'this_transform = {this_transform}')
+        this_transform = validate_and_reshape_matrix(
+            this_transform, ndim=2
+        )
+
+        if transform is not None:
+            transform = np.dot(this_transform, transform)
+        else:
+            transform = this_transform
+
+        result_transforms.append(
+            save_transforms(
+                transform, None,
+                param_order='M', save_order='C', ndim=2, verbose=verbose
+            ).tolist()
+        )
+
+    with open(out_filepath, mode='w') as f:
+        json.dump(result_transforms, f, indent=2)
+
 

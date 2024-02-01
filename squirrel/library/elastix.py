@@ -85,6 +85,7 @@ def register_with_elastix(
         transform='affine',
         automatic_transform_initialization=False,
         out_dir=None,
+        params_to_origin=False,
         verbose=False
 ):
 
@@ -158,6 +159,24 @@ def register_with_elastix(
         )
 
     result_transform_parameters = [float(x) for x in result_transform_parameters]
+
+    if params_to_origin:
+        assert result_image.ndim == 2
+        result_transform_parameters = save_transforms(
+            result_transform_parameters, None,
+            param_order='elastix', save_order='M', ndim=2, verbose=verbose
+        )
+        from squirrel.library.transformation import validate_and_reshape_matrix
+        result_transform_parameters = validate_and_reshape_matrix(result_transform_parameters, 2)
+        pivot = elastixImageFilter.GetTransformParameterMap()[0]['CenterOfRotationPoint']
+        pivot = [float(x) for x in pivot]
+        offset = np.array(pivot) - np.dot(result_transform_parameters[:2, :2], np.array(pivot))
+        pivot_matrix = np.array([
+            [1., 0., offset[0]],
+            [0., 1., offset[1]],
+            [0., 0., 1.]
+        ])
+        result_transform_parameters = np.dot(pivot_matrix, result_transform_parameters)[:2].tolist()
 
     return dict(
         result_image=result_image,

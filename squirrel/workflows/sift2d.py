@@ -15,7 +15,9 @@ def sift_stack_alignment(
 
     stack, stack_size = load_data_handle(stack, key=key, pattern=pattern)
 
-    transforms = []
+    transforms = [
+        [1., 0., 0., 0., 1., 0.]
+    ]
 
     for idx in range(1, stack_size):
 
@@ -32,7 +34,7 @@ def sift_stack_alignment(
         transforms.append(
             save_transforms(
                 transform_params, None,
-                param_order='M',  # TODO what does register_with_sift return?
+                param_order='M',
                 save_order='C',
                 ndim=2,
                 verbose=verbose

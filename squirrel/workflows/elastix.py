@@ -219,6 +219,7 @@ def slices_to_volume(
             transform=transform,
             automatic_transform_initialization=automatic_transform_initialization,
             out_dir=elastix_cache,
+            params_to_origin=True,
             verbose=verbose
         )
 
@@ -226,9 +227,10 @@ def slices_to_volume(
         result_transforms.append(
             save_transforms(
                 result_dict['affine_parameters'], None,
-                param_order='elastix', save_order='C', ndim=2, verbose=verbose
+                param_order='M', save_order='C', ndim=2, verbose=verbose
             ).tolist()
         )
+        # result_transforms.append(result_dict['affine_parameters'][:2])
 
     import json
     with open(out_basename + '.json', mode='w') as f:
