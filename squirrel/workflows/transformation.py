@@ -546,6 +546,7 @@ def apply_stack_alignment_on_volume(
 def dot_product_on_affines_workflow(
         transform_filepaths,
         out_filepath,
+        inverse=(0, 0),
         verbose=False
 ):
 
@@ -564,8 +565,8 @@ def dot_product_on_affines_workflow(
 
     result_transforms = []
     for idx in range(n_transforms):
-        transform_a = transforms_a[idx]
-        transform_b = transforms_b[idx]
+        transform_a = np.linalg.inv(transforms_a[idx]) if inverse[0] else transforms_a[idx]
+        transform_b = np.linalg.inv(transforms_b[idx]) if inverse[1] else transforms_b[idx]
         result_transforms.append(np.dot(transform_a, transform_b))
 
     # Prepare for saving
@@ -670,10 +671,67 @@ def apply_affine_sequence_workflow(
             save_transforms(
                 transform, None,
                 param_order='M', save_order='C', ndim=2, verbose=verbose
-            ).tolist()
+            )[:6].tolist()
         )
 
     with open(out_filepath, mode='w') as f:
         json.dump(result_transforms, f, indent=2)
 
+
+def smooth_affine_sequence_workflow(
+        transform_filepath,
+        out_filepath,
+        sigma,
+        verbose=False
+):
+
+    import json
+    with open(transform_filepath, mode='r') as f:
+        transforms = np.array(json.load(f))
+
+    from scipy.ndimage import gaussian_filter1d
+    from scipy.signal import medfilt
+    from ..library.transformation import smooth_2d_affine_sequence
+
+    # transforms = transforms.swapaxes(0, 1)
+    # for idx, x in enumerate(transforms):
+    #     transforms[idx] = gaussian_filter1d(x, sigma)
+
+    transforms = np.array(smooth_2d_affine_sequence(transforms, sigma))
+
+    # transforms = gaussian_filter1d(transforms, sigma, axis=0)
+    # transforms = np.array([medfilt(x) for x in transforms.swapaxes(0, 1)]).swapaxes(0, 1)
+
+    with open(out_filepath, mode='w') as f:
+        json.dump(transforms.tolist(), f, indent=2)
+
+
+def inverse_of_sequence_workflow(
+        transform_filepath,
+        out_filepath,
+        verbose=False
+):
+    from ..library.elastix import save_transforms
+    from ..library.transformation import load_transform_matrices
+
+    transforms = np.array(load_transform_matrices(transform_filepath, validate=True, ndim=2))
+
+    if verbose:
+        print(f'transforms_a.shape = {transforms.shape}')
+    # assert transforms_a.shape == transforms_b.shape, \
+    #     f'Shapes of the transform sequences have to match: {transforms_a.shape} != {transforms_b.shape}'
+
+    result_transforms = []
+    for idx, transform in enumerate(len(transforms)):
+        result_transforms.append(np.linalg.inv(transform))
+
+    # Prepare for saving
+    transforms = [
+        save_transforms(x, None, param_order='M', save_order='C', ndim=2)[:6].tolist()
+        for x in result_transforms
+    ]
+
+    import json
+    with open(out_filepath, mode='w') as f:
+        json.dump(transforms, f, indent=2)
 

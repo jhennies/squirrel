@@ -129,31 +129,61 @@ def setup_translation_matrix(translation_zyx, ndim=3):
             ]
         )
 
+    raise ValueError(f'Invalid number of dimensions = {ndim}')
+
 
 def setup_rotation_matrix(rotation):
     return np.concatenate((rotation, np.swapaxes([[0., 0., 0.]], 0, 1)), axis=1)
 
 
-def setup_scale_matrix(scale_zyx):
-
-    return np.array(
-        [
-            [scale_zyx[0], 0., 0., 0.],
-            [0., scale_zyx[1], 0., 0.],
-            [0., 0., scale_zyx[2], 0.]
-        ]
-    )
+def setup_2d_rotation_matrix_from_angle(angle):
+    return np.array([
+        [math.cos(angle), -math.sin(angle), 0.],
+        [math.sin(angle), math.cos(angle), 0.]
+    ])
 
 
-def setup_shear_matrix(shear_zyx):
+def setup_scale_matrix(scale_zyx, ndim=3):
 
-    return np.array(
-        [
-            [1., shear_zyx[0], shear_zyx[1], 0.],
-            [0., 1., shear_zyx[2], 0.],
-            [0., 0., 1., 0.]
-        ]
-    )
+    if ndim == 3:
+        return np.array(
+            [
+                [scale_zyx[0], 0., 0., 0.],
+                [0., scale_zyx[1], 0., 0.],
+                [0., 0., scale_zyx[2], 0.]
+            ]
+        )
+
+    if ndim == 2:
+        return np.array(
+            [
+                [scale_zyx[0], 0., 0.],
+                [0., scale_zyx[1], 0.]
+            ]
+        )
+
+    raise ValueError(f'Invalid number of dimensions = {ndim}')
+
+
+def setup_shear_matrix(shear_zyx, ndim=3):
+
+    if ndim == 3:
+        return np.array(
+            [
+                [1., shear_zyx[0], shear_zyx[1], 0.],
+                [0., 1., shear_zyx[2], 0.],
+                [0., 0., 1., 0.]
+            ]
+        )
+
+    if ndim == 2:
+        return np.array(
+            [
+                [1., shear_zyx[0], 0.],
+                [0., 1., 0.]
+            ]
+        )
+    raise ValueError(f'Invalid number of dimensions = {ndim}')
 
 
 def decompose_3d_transform(transform, return_matrices=False, verbose=False):
@@ -172,6 +202,99 @@ def decompose_3d_transform(transform, return_matrices=False, verbose=False):
         setup_scale_matrix(decomp[2]),
         setup_shear_matrix(decomp[3])
     )
+
+
+def decompose_sequence(sequence):
+
+    from ..library.elastix import save_transforms
+
+    from transforms3d.affines import decompose
+    translations = []
+    rotations = []
+    zooms = []
+    shears = []
+    for m in sequence:
+        m = save_transforms(m, None, param_order='C', save_order='M', ndim=2)
+        m = validate_and_reshape_matrix(m, 2)
+        t, r, z, s = decompose(m)
+        translations.append(t)
+        rotations.append(r)
+        zooms.append(z)
+        shears.append(s)
+    return translations, rotations, zooms, shears
+
+
+def smooth_2d_affine_sequence(
+        sequence,
+        sigma=1.0
+):
+
+    from scipy.ndimage import gaussian_filter1d
+    from scipy.ndimage import convolve1d
+
+    def _gaussian_arithmetic(seq):
+        # This on is trivial: the weighted arithmetic mean
+        return gaussian_filter1d(seq, sigma, axis=0)
+
+    def _gaussian_geometric(seq):
+        # Easy too: weighted geometric mean (weights are the normal distribution)
+        kernel = [x for x in range(int(np.floor(-sigma * 2)), int(np.ceil(sigma * 2) + 1))]
+        kernel = np.array([1/(sigma * math.sqrt(2 * math.pi)) * math.exp(- x ** 2 / (2 * sigma ** 2)) for x in kernel])
+        kernel /= kernel.sum()
+        return convolve1d(seq, kernel, axis=0)
+
+    def _gaussian_on_rotations(seq):
+        # Get the rotation angles
+        # Make sure the angle is -pi < angle < pi
+        # Weighted arithmetic mean
+        pass
+
+    def _to_angles(rotations):
+        angles00 = [math.acos(x[0, 0]) for x in rotations]
+        # angles01 = [math.asin(-x[0, 1]) for x in rotations]
+        # angles10 = [math.asin(x[1, 0]) for x in rotations]
+        # angles11 = [math.acos(x[1, 1]) for x in rotations]
+        for idx, x in enumerate(angles00):
+            if -3 * np.pi < x < -np.pi:
+                x += 2 * np.pi
+            elif -np.pi < x < np.pi:
+                pass
+            elif np.pi < x < 3 * np.pi:
+                x -= 2 * np.pi
+            else:
+                ValueError(f'Invalid angle: {x}')
+            angles00[idx] = x
+        for x in angles00:
+            assert -np.pi < x < np.pi
+        return angles00
+
+    # Decompose matrices
+    translations, rotations, zooms, shears = decompose_sequence(sequence)
+    # Convert the rotation matrices to angles
+    rotations = _to_angles(rotations)
+
+    # Filter the components
+    translations = _gaussian_arithmetic(translations)
+    zooms = _gaussian_geometric(zooms)
+    rotations = _gaussian_arithmetic(rotations)
+    shears = _gaussian_arithmetic(shears)
+
+    # Now convert everything back to one affine matrix per element
+    translations = [validate_and_reshape_matrix(setup_translation_matrix(x, 2), ndim=2) for x in translations]
+    rotations = [validate_and_reshape_matrix(setup_2d_rotation_matrix_from_angle(x), ndim=2) for x in rotations]
+    zooms = [validate_and_reshape_matrix(setup_scale_matrix(x, 2), ndim=2) for x in zooms]
+    shears = [validate_and_reshape_matrix(setup_shear_matrix(x, 2), ndim=2) for x in shears]
+    sequence = [
+        np.dot(shears[idx], np.dot(zooms[idx], np.dot(rotations[idx], translations[idx])))[:2]
+        for idx in range(len(sequence))
+    ]
+    from ..library.elastix import save_transforms
+    sequence = [
+        save_transforms(x, None, 'M', 'C', ndim=2)
+        for x in sequence
+    ]
+
+    return sequence
 
 
 def extract_approximate_rotation_affine(transform, coerce_affine_dimension):

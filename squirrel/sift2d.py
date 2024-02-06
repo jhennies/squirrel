@@ -6,7 +6,7 @@ def sift2d_stack_alignment():
     import argparse
 
     parser = argparse.ArgumentParser(
-        description='Runs Simple Elastix with an affine transform',
+        description='Runs a stack alignment with SIFT',
         formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument('stack', type=str,

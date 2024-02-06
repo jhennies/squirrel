@@ -24,6 +24,7 @@ setup(
             'elastix_on_volume3d = squirrel.elastix_registration:elastix_on_volume3d',
             'elastix_slices_to_volume = squirrel.elastix_registration:elastix_slices_to_volume',
             'elastix_register_z_chunks = squirrel.elastix_registration:register_z_chunks',
+            'elastix_stack_alignment = squirrel.elastix_registration:elastix_stack_alignment',
             'h5_to_nii = squirrel.h5_to_nii:main',
             'h5_to_tif = squirrel.h5_to_tif:main',
             'mib_to_tif = squirrel.mib_to_tif:main',
@@ -34,7 +35,8 @@ setup(
             'view_in_napari = squirrel.view_in_napari:main',
             'linalg_dot_product_on_affines = squirrel.linear_algebra:dot_product_on_affines',
             'linalg_scale_sequential_affines = squirrel.linear_algebra:scale_sequential_affines',
-            'linalg_apply_affine_sequence = squirrel.linear_algebra:apply_affine_sequence'
+            'linalg_apply_affine_sequence = squirrel.linear_algebra:apply_affine_sequence',
+            'linalg_smooth_affine_sequence = squirrel.linear_algebra:smooth_affine_sequence'
         ]
     },
     install_requires=[

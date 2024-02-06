@@ -13,7 +13,7 @@ conda create -n squirrel-env squirrel
 ## Installation via pip
 
 ```
-mamba create squirrel-env -c conda-forge python=3.11
+mamba create -n squirrel-env -c conda-forge python=3.11
 mkdir path/to/src
 cd path/to/src
 git clone https://github.com/jhennies/squirrel
