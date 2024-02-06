@@ -1,5 +1,5 @@
 
-if __name__ == '__main__':
+def main():
 
     # ----------------------------------------------------
     import argparse
@@ -22,7 +22,7 @@ if __name__ == '__main__':
     pattern = args.pattern
     verbose = args.verbose
 
-    from squirrel.convert import compress_tif_stack
+    from squirrel.workflows.convert import compress_tif_stack
 
     compress_tif_stack(
         in_folder,
@@ -30,3 +30,7 @@ if __name__ == '__main__':
         pattern=pattern,
         verbose=verbose
     )
+
+
+if __name__ == '__main__':
+    main()
