@@ -127,6 +127,15 @@ def register_with_elastix(
 
     result_image = sitk.GetArrayFromImage(result_image)
 
+    if transform == 'translation':
+
+        return dict(
+            result_image=result_image,
+            affine_parameters=list(np.eye(result_image.ndim).flatten('C')) + list(result_transform_parameters),
+            affine_parameter_order='M',
+            translation_parameters=result_transform_parameters
+        )
+
     if transform == 'rigid':
 
         assert result_image.ndim == 3, 'Rigid only implemented for volumes'

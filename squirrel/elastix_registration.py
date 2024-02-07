@@ -207,4 +207,5 @@ def elastix_stack_alignment():
 
 
 if __name__ == '__main__':
-    elastix_slices_to_volume()
+
+    elastix_stack_alignment()
