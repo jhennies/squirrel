@@ -40,6 +40,7 @@ mamba install -c conda-forge napari pyqt
 ```
 pip install SimpleITK-SimpleElastix
 ```
+also install OpenCV (see below)
 
 ### OpenCV for 2D SIFT 
 ```

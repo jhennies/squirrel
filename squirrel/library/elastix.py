@@ -129,10 +129,14 @@ def register_with_elastix(
 
     if transform == 'translation':
 
+        from ..library.transformation import setup_translation_matrix
+
         return dict(
             result_image=result_image,
-            affine_parameters=list(np.eye(result_image.ndim).flatten('C')) + list(result_transform_parameters),
-            affine_parameter_order='M',
+            # affine_parameters=list(np.eye(result_image.ndim).flatten('C')) + list(result_transform_parameters),
+            # affine_parameters=[[1., 0, result_transform_parameters[0]], [0., 1., result_transform_parameters[1]]],
+            affine_parameters=setup_translation_matrix([float(x) for x in result_transform_parameters[::-1]], ndim=2),
+            affine_param_order='M',
             translation_parameters=result_transform_parameters
         )
 
@@ -186,6 +190,12 @@ def register_with_elastix(
             [0., 0., 1.]
         ])
         result_transform_parameters = np.dot(pivot_matrix, result_transform_parameters)[:2].tolist()
+
+        return dict(
+            result_image=result_image,
+            affine_parameters=result_transform_parameters,
+            affine_param_order='M'
+        )
 
     return dict(
         result_image=result_image,

@@ -138,8 +138,8 @@ def setup_rotation_matrix(rotation):
 
 def setup_2d_rotation_matrix_from_angle(angle):
     return np.array([
-        [math.cos(angle), -math.sin(angle), 0.],
-        [math.sin(angle), math.cos(angle), 0.]
+        [math.cos(angle), math.sin(angle), 0.],
+        [-math.sin(angle), math.cos(angle), 0.]
     ])
 
 
@@ -251,8 +251,8 @@ def smooth_2d_affine_sequence(
 
     def _to_angles(rotations):
         angles00 = [math.acos(x[0, 0]) for x in rotations]
-        # angles01 = [math.asin(-x[0, 1]) for x in rotations]
-        # angles10 = [math.asin(x[1, 0]) for x in rotations]
+        # angles01 = [math.asin(x[0, 1]) for x in rotations]
+        # angles10 = [math.asin(-x[1, 0]) for x in rotations]
         # angles11 = [math.acos(x[1, 1]) for x in rotations]
         for idx, x in enumerate(angles00):
             if -3 * np.pi < x < -np.pi:
@@ -267,17 +267,19 @@ def smooth_2d_affine_sequence(
         for x in angles00:
             assert -np.pi < x < np.pi
         return angles00
-
+    sequence = np.array(sequence, dtype='float64')
     # Decompose matrices
     translations, rotations, zooms, shears = decompose_sequence(sequence)
     # Convert the rotation matrices to angles
     rotations = _to_angles(rotations)
+    # print(rotations)
 
-    # Filter the components
-    translations = _gaussian_arithmetic(translations)
-    zooms = _gaussian_geometric(zooms)
-    rotations = _gaussian_arithmetic(rotations)
-    shears = _gaussian_arithmetic(shears)
+    if sigma > 0:
+        # Filter the components
+        translations = _gaussian_arithmetic(translations)
+        zooms = _gaussian_geometric(zooms)
+        rotations = _gaussian_arithmetic(rotations)
+        shears = _gaussian_arithmetic(shears)
 
     # Now convert everything back to one affine matrix per element
     translations = [validate_and_reshape_matrix(setup_translation_matrix(x, 2), ndim=2) for x in translations]
@@ -285,7 +287,8 @@ def smooth_2d_affine_sequence(
     zooms = [validate_and_reshape_matrix(setup_scale_matrix(x, 2), ndim=2) for x in zooms]
     shears = [validate_and_reshape_matrix(setup_shear_matrix(x, 2), ndim=2) for x in shears]
     sequence = [
-        np.dot(shears[idx], np.dot(zooms[idx], np.dot(rotations[idx], translations[idx])))[:2]
+        # np.dot(shears[idx], np.dot(zooms[idx], np.dot(rotations[idx], translations[idx])))[:2]
+        np.dot(translations[idx], np.dot(rotations[idx], np.dot(zooms[idx], shears[idx])))[:2]
         for idx in range(len(sequence))
     ]
     from ..library.elastix import save_transforms

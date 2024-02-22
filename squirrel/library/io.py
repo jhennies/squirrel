@@ -57,12 +57,14 @@ def write_tif_stack(data, out_folder):
         write_tif_slice(section, out_folder, 'slice_{:04d}.tif'.format(idx))
 
 
-def read_tif_slice(filepath):
+def read_tif_slice(filepath, return_filepath=True):
 
     image = imread(filepath)
 
     # Return the image and the filename
-    return image, os.path.split(filepath)[1]
+    if return_filepath:
+        return image, os.path.split(filepath)[1]
+    return image
 
 
 def write_tif_slice(image, out_folder, filename):
@@ -75,7 +77,7 @@ def get_file_list(path, pattern='*'):
 
 
 def load_tif_stack(path, pattern='*'):
-    return [read_tif_slice(filepath) for filepath in get_file_list(path, pattern)]
+    return [read_tif_slice(filepath, return_filepath=False) for filepath in get_file_list(path, pattern)]
 
 
 def write_nii_file(data, filepath, scale=None):
@@ -135,17 +137,25 @@ def load_data(filepath, key='data', axes_order='zyx', invert=False):
         return load_nii_file(filepath, invert=invert)
     if filetype == 'tif':
         raise NotImplementedError('Not implemented for 3D tif files')
+    if filetype == 'dir':
+        return np.array(load_tif_stack(filepath))
     raise RuntimeError(f'Invalid or unknown file type: {filetype}')
 
 
 def load_data_from_handle_stack(h, idx):
+    """
+    :param h:
+    :param idx:
+    :return: np.array(data_slice), slice_filepath
+    Note that slice_filepath is None if it's a hdf5 file handle
+    """
 
     if type(h[idx]) == str:
         assert get_filetype(h[idx]) == 'tif'
         return read_tif_slice(h[idx])
 
     # Assuming h5 file handle
-    return h[idx]
+    return h[idx], None
 
 
 def load_data_handle(path, key='data', pattern='*.tif'):
@@ -156,6 +166,6 @@ def load_data_handle(path, key='data', pattern='*.tif'):
         h = h5py.File(path, mode='r')[key]
         return h, h.shape[0]
 
-    if filetype is 'dir':
+    if filetype == 'dir':
         h = sorted(glob(os.path.join(path, pattern)))
         return h, len(h)

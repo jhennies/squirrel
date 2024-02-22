@@ -248,6 +248,10 @@ def elastix_stack_alignment_workflow(
         verbose=False
 ):
 
+    if os.path.exists(out_filepath):
+        print(f'Target file exists: {out_filepath}\nSkipping elastix stack alignment workflow ...')
+        return
+
     from ..library.io import load_data_handle, load_data_from_handle_stack
     from ..library.elastix import register_with_elastix
     from ..library.elastix import save_transforms
@@ -260,8 +264,10 @@ def elastix_stack_alignment_workflow(
 
     for idx in range(1, stack_size):
 
-        z_slice_fixed = load_data_from_handle_stack(stack, idx - 1)
-        z_slice_moving = load_data_from_handle_stack(stack, idx)
+        print(f'idx = {idx} / {stack_size}')
+
+        z_slice_fixed, _ = load_data_from_handle_stack(stack, idx - 1)
+        z_slice_moving, _ = load_data_from_handle_stack(stack, idx)
 
         transform_params = register_with_elastix(
             z_slice_fixed,
@@ -270,12 +276,12 @@ def elastix_stack_alignment_workflow(
             automatic_transform_initialization=False,
             params_to_origin=True,
             verbose=verbose
-        )['affine_parameters']
+        )  # ['affine_parameters']
 
         transforms.append(
             save_transforms(
-                transform_params, None,
-                param_order='M',
+                transform_params['affine_parameters'], None,
+                param_order=transform_params['affine_param_order'],
                 save_order='C',
                 ndim=2,
                 verbose=verbose

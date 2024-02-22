@@ -1,3 +1,4 @@
+import os.path
 
 import numpy as np
 
@@ -500,7 +501,9 @@ def apply_stack_alignment_on_volume(
     for idx in range(0, stack_size):
         # for idx in range(0, 10):
 
-        z_slice = load_data_from_handle_stack(stack, idx)
+        print(f'idx = {idx} / {stack_size}')
+
+        z_slice, _ = load_data_from_handle_stack(stack, idx)
         this_transform = save_transforms(
             transforms[idx],
             None,
@@ -529,6 +532,9 @@ def apply_stack_alignment_on_volume(
             transform = np.dot(this_transform, transform)
         else:
             transform = this_transform
+
+        if verbose:
+            print(f'this_transform = {this_transform}')
 
         result_volume.append(
             apply_affine_transform(
@@ -635,6 +641,10 @@ def apply_affine_sequence_workflow(
         out_filepath,
         verbose=False
 ):
+
+    if os.path.exists(out_filepath):
+        print(f'Target file exists: {out_filepath}\nSkipping apply affine sequence workflow ...')
+        return None
 
     import json
     with open(transform_filepath, mode='r') as f:
