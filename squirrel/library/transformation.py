@@ -186,11 +186,11 @@ def setup_shear_matrix(shear_zyx, ndim=3):
     raise ValueError(f'Invalid number of dimensions = {ndim}')
 
 
-def decompose_3d_transform(transform, return_matrices=False, verbose=False):
+def decompose_3d_transform(transform, return_matrices=False, ndim=3, verbose=False):
 
     from transforms3d.affines import decompose
 
-    transform = validate_and_reshape_matrix(transform, ndim=3)
+    transform = validate_and_reshape_matrix(transform, ndim=ndim)
     decomp = decompose(transform)
 
     if not return_matrices:
@@ -243,12 +243,6 @@ def smooth_2d_affine_sequence(
         kernel /= kernel.sum()
         return convolve1d(seq, kernel, axis=0)
 
-    def _gaussian_on_rotations(seq):
-        # Get the rotation angles
-        # Make sure the angle is -pi < angle < pi
-        # Weighted arithmetic mean
-        pass
-
     def _to_angles(rotations):
         angles00 = [math.acos(x[0, 0]) for x in rotations]
         # angles01 = [math.asin(x[0, 1]) for x in rotations]
@@ -287,7 +281,6 @@ def smooth_2d_affine_sequence(
     zooms = [validate_and_reshape_matrix(setup_scale_matrix(x, 2), ndim=2) for x in zooms]
     shears = [validate_and_reshape_matrix(setup_shear_matrix(x, 2), ndim=2) for x in shears]
     sequence = [
-        # np.dot(shears[idx], np.dot(zooms[idx], np.dot(rotations[idx], translations[idx])))[:2]
         np.dot(translations[idx], np.dot(rotations[idx], np.dot(zooms[idx], shears[idx])))[:2]
         for idx in range(len(sequence))
     ]
@@ -346,7 +339,7 @@ def apply_affine_transform(
         transform_matrix,
         fill_mode='nearest',
         cval=0.,
-        order=1,
+        order=3,
         no_offset_to_center=False,
         pivot=None,
         apply='all',
@@ -377,12 +370,17 @@ def apply_affine_transform(
 
     if scale_canvas:
         assert no_offset_to_center and pivot is None, 'Canvas scaling only implemented when scaling with reference to image origin!'
-        _, _, scale, _ = decompose_3d_transform(transform_matrix_)
+        _, _, scale, _ = decompose_3d_transform(transform_matrix_, ndim=x.ndim)
         if verbose:
             print(f'scale = {scale}')
         crop = (np.ceil(np.array(x.shape) / np.array(scale))).astype(int)
         if verbose:
             print(f'crop = {crop}')
-        x = x[:crop[0], :crop[1], :crop[2]]
+        if x.ndim == 3:
+            x = x[:crop[0], :crop[1], :crop[2]]
+        elif x.ndim == 2:
+            x = x[:crop[0], :crop[1]]
+        else:
+            raise RuntimeError(f'Invalid number of dimensions: {x.ndim}')
 
     return x

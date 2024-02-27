@@ -54,7 +54,7 @@ def normalize_workflow(data):
     return data
 
 
-def normalize_slices(
+def normalize_slices_workflow(
         in_path,
         out_path,
         pattern='*.tif',

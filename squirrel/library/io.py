@@ -164,8 +164,12 @@ def load_data_handle(path, key='data', pattern='*.tif'):
 
     if filetype == 'h5':
         h = h5py.File(path, mode='r')[key]
-        return h, h.shape[0]
+        return h, h.shape
 
     if filetype == 'dir':
         h = sorted(glob(os.path.join(path, pattern)))
-        return h, len(h)
+        shape = load_data_from_handle_stack(h, 0)[0].shape
+        return h, shape
+
+
+
