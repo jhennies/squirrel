@@ -108,7 +108,7 @@ def stack_to_ome_zarr():
     import argparse
 
     parser = argparse.ArgumentParser(
-        description='Convert a dataset within a h5 container to a tif stack',
+        description='Convert a dataset within a h5 container or a tif stack to ome.zarr',
         formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument('stack_path', type=str,
@@ -119,12 +119,14 @@ def stack_to_ome_zarr():
                         help='File pattern for globbing the input stack; default="*.tif"')
     parser.add_argument('--stack_key', type=str, default='data',
                         help='Path within input h5 file; default="data"')
-    parser.add_argument('--resolution', type=float, default=(1., 1., 1.),
+    parser.add_argument('--resolution', type=float, nargs=3, default=(1., 1., 1.),
                         help='Resolution of input data; default=(1., 1., 1.)')
     parser.add_argument('--unit', type=str, default='pixel',
                         help='Unit of input resolution; default="pixel"')
     parser.add_argument('--downsample_type', type=str, default='Average',
                         help='Downsample type used to create the resolution pyramid; default="Average"')
+    parser.add_argument('--downsample_factors', type=int, nargs='+', default=(2, 2, 2),
+                        help='Downsample factors used to create the resolution pyramid; default=(2, 2, 2)')
     parser.add_argument('--name', type=str, default=None,
                         help='Name of the dataset; defaults to the filename (without ome.zarr extension)')
     parser.add_argument('--chunk_size', type=int, nargs=3, default=[1, 512, 512],
@@ -147,6 +149,7 @@ def stack_to_ome_zarr():
     resolution = args.resolution
     unit = args.unit
     downsample_type = args.downsample_type
+    downsample_factors = args.downsample_factors
     name = args.name
     chunk_size = args.chunk_size
     z_range = args.z_range
@@ -165,6 +168,7 @@ def stack_to_ome_zarr():
         resolution=resolution,
         unit=unit,
         downsample_type=downsample_type,
+        downsample_factors=downsample_factors,
         name=name,
         chunk_size=chunk_size,
         z_range=z_range,

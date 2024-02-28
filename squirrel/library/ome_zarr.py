@@ -10,12 +10,13 @@ def create_ome_zarr(
         downsample_type='Average',  # One of ['Average', 'Sample']
         downsample_factors=(2, 2, 2),
         chunk_size=(1, 256, 256),
+        dtype='uint8',
         name=None
 ):
 
     from zarr import open as zarr_open
     handle = zarr_open(filepath, mode='w')
-    handle.create_dataset('s0', shape=shape, compression='gzip', chunks=chunk_size)
+    handle.create_dataset('s0', shape=shape, compression='gzip', chunks=chunk_size, dtype=dtype)
 
     def dataset(path, scale):
         return dict(
@@ -63,7 +64,8 @@ def create_ome_zarr(
             f's{s_idx}',
             shape=(np.array(shape) / scale).astype(int).tolist(),
             compression='gzip',
-            chunks=chunk_size
+            chunks=chunk_size,
+            dtype=dtype
         )
 
         attrs = handle.attrs
