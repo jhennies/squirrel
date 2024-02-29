@@ -498,10 +498,10 @@ def apply_stack_alignment_on_volume(
 
     result_volume = []
 
-    for idx in range(0, stack_size):
+    for idx in range(0, stack_size[0]):
         # for idx in range(0, 10):
 
-        print(f'idx = {idx} / {stack_size}')
+        print(f'idx = {idx} / {stack_size[0]}')
 
         z_slice, _ = load_data_from_handle_stack(stack, idx)
         this_transform = save_transforms(

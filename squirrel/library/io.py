@@ -169,7 +169,7 @@ def load_data_handle(path, key='data', pattern='*.tif'):
     if filetype == 'dir':
         h = sorted(glob(os.path.join(path, pattern)))
         shape = load_data_from_handle_stack(h, 0)[0].shape
-        return h, shape
+        return h, [len(h)] + list(shape)
 
 
 

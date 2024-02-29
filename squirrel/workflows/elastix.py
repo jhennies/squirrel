@@ -262,9 +262,9 @@ def elastix_stack_alignment_workflow(
         [1., 0., 0., 0., 1., 0.]
     ]
 
-    for idx in range(1, stack_size):
+    for idx in range(1, stack_size[0]):
 
-        print(f'idx = {idx} / {stack_size}')
+        print(f'idx = {idx} / {stack_size[0]}')
 
         z_slice_fixed, _ = load_data_from_handle_stack(stack, idx - 1)
         z_slice_moving, _ = load_data_from_handle_stack(stack, idx)

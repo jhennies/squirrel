@@ -43,6 +43,7 @@ setup(
     install_requires=[
         'numpy',
         'h5py',
-        'tifffile'
+        'tifffile',
+        'scipy'
     ]
 )
