@@ -184,6 +184,14 @@ def elastix_stack_alignment():
                         help='The transformation; default="translation"')
     parser.add_argument('--pattern', type=str, default='*.tif',
                         help='Used to glob tif files from a tif stack folder; default="*.tif"')
+    parser.add_argument('--auto_mask', action='store_true',
+                        help='Automatically generates a mask for fixed and moving image')
+    parser.add_argument('--number_of_spatial_samples', type=int, default=None,
+                        help='Elastix parameter')
+    parser.add_argument('--maximum_number_of_iterations', type=int, default=None,
+                        help='Elastix parameter')
+    parser.add_argument('--number_of_resolutions', type=int, default=None,
+                        help='Elastix parameter')
     parser.add_argument('-v', '--verbose', action='store_true')
 
     args = parser.parse_args()
@@ -192,6 +200,10 @@ def elastix_stack_alignment():
     key = args.key
     transform = args.transform
     pattern = args.pattern
+    auto_mask = args.auto_mask
+    number_of_spatial_samples = args.number_of_spatial_samples
+    maximum_number_of_iterations = args.maximum_number_of_iterations
+    number_of_resolutions = args.number_of_resolutions
     verbose = args.verbose
 
     from squirrel.workflows.elastix import elastix_stack_alignment_workflow
@@ -202,6 +214,10 @@ def elastix_stack_alignment():
         transform=transform,
         key=key,
         pattern=pattern,
+        auto_mask=auto_mask,
+        number_of_spatial_samples=number_of_spatial_samples,
+        maximum_number_of_iterations=maximum_number_of_iterations,
+        number_of_resolutions=number_of_resolutions,
         verbose=verbose
     )
 

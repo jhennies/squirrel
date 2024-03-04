@@ -565,6 +565,8 @@ def dot_product_on_affines_workflow(
     if verbose:
         print(f'transforms_a.shape = {transforms_a.shape}')
         print(f'transforms_b.shape = {transforms_b.shape}')
+        print(f'transforms_a[0] = {transforms_a[1]}')
+        print(f'transforms_b[0] = {transforms_b[1]}')
     # assert transforms_a.shape == transforms_b.shape, \
     #     f'Shapes of the transform sequences have to match: {transforms_a.shape} != {transforms_b.shape}'
     n_transforms = min(len(transforms_a), len(transforms_b))
@@ -574,6 +576,10 @@ def dot_product_on_affines_workflow(
         transform_a = np.linalg.inv(transforms_a[idx]) if inverse[0] else transforms_a[idx]
         transform_b = np.linalg.inv(transforms_b[idx]) if inverse[1] else transforms_b[idx]
         result_transforms.append(np.dot(transform_a, transform_b))
+        if verbose:
+            print(f'transform_a = {transform_a}')
+            print(f'transform_b = {transform_b}')
+            print(f'result_transforms[-1] = {result_transforms[-1]}')
 
     # Prepare for saving
     transforms = [
@@ -692,6 +698,7 @@ def smooth_affine_sequence_workflow(
         transform_filepath,
         out_filepath,
         sigma,
+        components=None,
         verbose=False
 ):
 
@@ -707,7 +714,7 @@ def smooth_affine_sequence_workflow(
     # for idx, x in enumerate(transforms):
     #     transforms[idx] = gaussian_filter1d(x, sigma)
 
-    transforms = np.array(smooth_2d_affine_sequence(transforms, sigma))
+    transforms = np.array(smooth_2d_affine_sequence(transforms, sigma, components=components))
 
     # transforms = gaussian_filter1d(transforms, sigma, axis=0)
     # transforms = np.array([medfilt(x) for x in transforms.swapaxes(0, 1)]).swapaxes(0, 1)

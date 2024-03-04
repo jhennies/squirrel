@@ -80,12 +80,20 @@ def get_affine_rotation_parameters(euler_angles):
     return sitk.Euler3DTransform((0, 0, 0), *euler_angles).GetMatrix()
 
 
+def make_auto_mask(image):
+    return (image > 0).astype('uint8')
+
+
 def register_with_elastix(
         fixed_image, moving_image,
         transform='affine',
         automatic_transform_initialization=False,
         out_dir=None,
         params_to_origin=False,
+        auto_mask=False,
+        number_of_spatial_samples=None,
+        maximum_number_of_iterations=None,
+        number_of_resolutions=None,
         verbose=False
 ):
 
@@ -106,6 +114,13 @@ def register_with_elastix(
     elastixImageFilter = sitk.ElastixImageFilter()
     elastixImageFilter.SetFixedImage(fixed_image)
     elastixImageFilter.SetMovingImage(moving_image)
+    if auto_mask:
+        fixed_mask = make_auto_mask(sitk.GetArrayFromImage(fixed_image))
+        moving_mask = make_auto_mask(sitk.GetArrayFromImage(moving_image))
+        mask = fixed_mask * moving_mask
+        mask = sitk.GetImageFromArray(mask)
+        elastixImageFilter.SetFixedMask(mask)
+        elastixImageFilter.SetMovingMask(mask)
     if out_dir is not None:
         elastixImageFilter.SetOutputDirectory(out_dir)
     elastixImageFilter.LogToConsoleOff()
@@ -113,6 +128,13 @@ def register_with_elastix(
     # Set the parameters
     parameter_map = sitk.GetDefaultParameterMap(transform if transform != 'SimilarityTransform' else 'rigid')
     parameter_map['AutomaticTransformInitialization'] = ['true' if automatic_transform_initialization else 'false']
+    if number_of_spatial_samples is not None:
+        parameter_map['NumberOfSpatialSamples'] = (str(number_of_spatial_samples),)
+        parameter_map['NumberOfSamplesForExactGradient'] = (str(number_of_spatial_samples * 2),)
+    if maximum_number_of_iterations is not None:
+        parameter_map['MaximumNumberOfIterations'] = (str(maximum_number_of_iterations),)
+    if number_of_resolutions is not None:
+        parameter_map['NumberOfResolutions'] = (str(number_of_resolutions),)
     if transform == 'SimilarityTransform':
         parameter_map['Transform'] = ['SimilarityTransform']
     elastixImageFilter.SetParameterMap(parameter_map)

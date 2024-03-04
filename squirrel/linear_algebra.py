@@ -111,12 +111,18 @@ def smooth_affine_sequence():
                         help='Output filepath for the result file (*.json)')
     parser.add_argument('sigma', type=float,
                         help='Sigma of the Gaussian kernel')
+    parser.add_argument('--components', type=str, nargs='+', default=None,
+                        help='Which components of the affine transform to smooth; Defaults to all of them\n'
+                             'Possible values: ["translation", "rotation", "shear", "scale"]\n'
+                             'E.g., "--components translation rotation" smoothes translation and rotation while '
+                             'leaving shearing and scaling as it is.')
     parser.add_argument('-v', '--verbose', action='store_true')
 
     args = parser.parse_args()
     transform_filepath = args.transform_filepath
     out_filepath = args.out_filepath
     sigma = args.sigma
+    components = args.components
     verbose = args.verbose
 
     from squirrel.workflows.transformation import smooth_affine_sequence_workflow
@@ -124,6 +130,7 @@ def smooth_affine_sequence():
         transform_filepath,
         out_filepath,
         sigma,
+        components=components,
         verbose=verbose,
     )
 

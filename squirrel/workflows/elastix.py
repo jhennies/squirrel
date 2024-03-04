@@ -245,6 +245,10 @@ def elastix_stack_alignment_workflow(
         transform='translation',
         key='data',
         pattern='*.tif',
+        auto_mask=False,
+        number_of_spatial_samples=None,
+        maximum_number_of_iterations=None,
+        number_of_resolutions=None,
         verbose=False
 ):
 
@@ -275,6 +279,10 @@ def elastix_stack_alignment_workflow(
             transform=transform,
             automatic_transform_initialization=False,
             params_to_origin=True,
+            auto_mask=auto_mask,
+            number_of_spatial_samples=number_of_spatial_samples,
+            maximum_number_of_iterations=maximum_number_of_iterations,
+            number_of_resolutions=number_of_resolutions,
             verbose=verbose
         )  # ['affine_parameters']
 

@@ -18,6 +18,10 @@ def create_ome_zarr(
     handle = zarr_open(filepath, mode='w')
     handle.create_dataset('s0', shape=shape, compression='gzip', chunks=chunk_size, dtype=dtype)
 
+    if name == None:
+        import os
+        name = str.replace(os.path.split(filepath)[1], '.ome.zarr', '')
+
     def dataset(path, scale):
         return dict(
             path=path,
