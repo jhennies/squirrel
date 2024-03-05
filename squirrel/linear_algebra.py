@@ -176,7 +176,7 @@ def add_translational_drift():
                         help='Json file containing the affine transformations')
     parser.add_argument('out_filepath', type=str,
                         help='Output filepath for the result file (*.json)')
-    parser.add_argument('drift', type=float, nargs=2, metavar=('Y', 'X'),
+    parser.add_argument('--drift', type=float, nargs=2, metavar=('Y', 'X'), default=(0., 0.),
                         help='The x- and y- drift that is added to each transformation in pixels')
     parser.add_argument('--is_serialized', action='store_true',
                         help='Add this flag if the sequence is serialized. Then the drift will also be serialized '
