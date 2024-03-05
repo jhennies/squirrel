@@ -361,6 +361,10 @@ def apply_affine_transform(
         verbose=False
 ):
 
+    if verbose:
+        print(f'x.ndim = {x.ndim}')
+        print(f'transform_matrix = {transform_matrix}')
+
     transform_matrix_ = validate_and_reshape_matrix(transform_matrix, x.ndim)
 
     if verbose:
