@@ -477,6 +477,7 @@ def serialize_affine_sequence(transform_sequence, param_order='C', verbose=False
 
 def apply_stack_alignment(
         stack_h,
+        stack_size,
         transform_sequence,
         no_adding_of_transforms=False,
         xy_pivot=(0., 0.),
@@ -491,7 +492,6 @@ def apply_stack_alignment(
         transform_sequence = serialize_affine_sequence(transform_sequence, param_order=param_order, verbose=verbose)
 
     transform = None
-    stack_size = stack_h.shape
 
     result_volume = []
 

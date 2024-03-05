@@ -494,6 +494,7 @@ def apply_stack_alignment_on_volume_workflow(
 
     result_volume = apply_stack_alignment(
         stack,
+        stack_size,
         transforms,
         no_adding_of_transforms=no_adding_of_transforms,
         xy_pivot=xy_pivot,
