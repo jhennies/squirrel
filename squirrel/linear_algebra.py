@@ -163,5 +163,42 @@ def inverse_of_sequence():
     )
 
 
+def add_translational_drift():
+
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Adds translational drift to an affine sequence',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('transform_filepath', type=str,
+                        help='Json file containing the affine transformations')
+    parser.add_argument('out_filepath', type=str,
+                        help='Output filepath for the result file (*.json)')
+    parser.add_argument('drift', type=float, nargs=2, metavar=('Y', 'X'),
+                        help='The x- and y- drift that is added to each transformation in pixels')
+    parser.add_argument('--is_serialized', action='store_true',
+                        help='Add this flag if the sequence is serialized. Then the drift will also be serialized '
+                             'before adding to each element of the sequence.')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    transform_filepath = args.transform_filepath
+    out_filepath = args.out_filepath
+    drift = args.drift
+    is_serialized = args.is_serialized
+    verbose = args.verbose
+
+    from squirrel.workflows.transformation import add_translational_drift_workflow
+    add_translational_drift_workflow(
+        transform_filepath,
+        out_filepath,
+        drift,
+        is_serialized=is_serialized,
+        verbose=verbose
+    )
+
+
 if __name__ == '__main__':
-    smooth_affine_sequence()
+    add_translational_drift()

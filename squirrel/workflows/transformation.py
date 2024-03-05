@@ -653,3 +653,40 @@ def inverse_of_sequence_workflow(
     with open(out_filepath, mode='w') as f:
         json.dump(transforms, f, indent=2)
 
+
+def add_translational_drift_workflow(
+        transform_filepath,
+        out_filepath,
+        drift,
+        is_serialized=False,
+        verbose=False
+):
+
+    if verbose:
+        print(f'transform_filepath = {transform_filepath}')
+        print(f'out_filepath = {out_filepath}')
+        print(f'drift = {drift}')
+        print(f'is_serialized = {is_serialized}')
+
+    from ..library.elastix import save_transforms
+    from ..library.transformation import load_transform_matrices
+    transforms = np.array(load_transform_matrices(transform_filepath, validate=True, ndim=2))
+
+    if is_serialized:
+        drift = [np.array(drift) * x for x in range(len(transforms))]
+    else:
+        drift = [drift] * len(transforms)
+
+    for idx, transform in enumerate(transforms):
+        transforms[idx][:2, 2] += drift[idx]
+
+    # Prepare for saving
+    transforms = [
+        save_transforms(x, None, param_order='M', save_order='C', ndim=2)[:6].tolist()
+        for x in transforms
+    ]
+
+    import json
+    with open(out_filepath, mode='w') as f:
+        json.dump(transforms, f, indent=2)
+

@@ -37,7 +37,8 @@ setup(
             'linalg_dot_product_on_affines = squirrel.linear_algebra:dot_product_on_affines',
             'linalg_scale_sequential_affines = squirrel.linear_algebra:scale_sequential_affines',
             'linalg_apply_affine_sequence = squirrel.linear_algebra:apply_affine_sequence',
-            'linalg_smooth_affine_sequence = squirrel.linear_algebra:smooth_affine_sequence'
+            'linalg_smooth_affine_sequence = squirrel.linear_algebra:smooth_affine_sequence',
+            'linalg_add_translational_drift = squirrel.linear_algebra:add_translational_drift'
         ]
     },
     install_requires=[
