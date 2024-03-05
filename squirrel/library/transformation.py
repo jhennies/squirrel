@@ -495,8 +495,6 @@ def apply_stack_alignment(
     if not no_adding_of_transforms:
         transform_sequence = serialize_affine_sequence(transform_sequence, param_order=param_order, verbose=verbose)
 
-    transform = None
-
     result_volume = []
 
     for idx in range(0, stack_size[0]):
@@ -524,7 +522,7 @@ def apply_stack_alignment(
 
         result_volume.append(
             apply_affine_transform(
-                z_slice, transform,
+                z_slice, this_transform,
                 pivot=xy_pivot,
                 verbose=verbose
             )
