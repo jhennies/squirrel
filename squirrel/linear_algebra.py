@@ -88,8 +88,8 @@ def apply_affine_sequence():
     out_filepath = args.out_filepath
     verbose = args.verbose
 
-    from squirrel.workflows.transformation import apply_affine_sequence_workflow
-    apply_affine_sequence_workflow(
+    from squirrel.workflows.transformation import serialize_affine_sequence_workflow
+    serialize_affine_sequence_workflow(
         transform_filepath,
         out_filepath,
         verbose=verbose,

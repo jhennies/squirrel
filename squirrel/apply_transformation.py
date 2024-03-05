@@ -83,8 +83,8 @@ def apply_stack_alignment():
     xy_pivot = args.xy_pivot
     verbose = args.verbose
 
-    from squirrel.workflows.transformation import apply_stack_alignment_on_volume
-    apply_stack_alignment_on_volume(
+    from squirrel.workflows.transformation import apply_stack_alignment_on_volume_workflow
+    apply_stack_alignment_on_volume_workflow(
         stack,
         transform_filepath,
         out_filepath,

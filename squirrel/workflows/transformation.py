@@ -473,7 +473,7 @@ def apply_rotation_and_scale_from_transform_stack(
     )
 
 
-def apply_stack_alignment_on_volume(
+def apply_stack_alignment_on_volume_workflow(
         stack,
         transform_filepath,
         out_filepath,
@@ -484,67 +484,21 @@ def apply_stack_alignment_on_volume(
         verbose=False,
 ):
 
-    from squirrel.library.io import load_data_handle, load_data_from_handle_stack, write_h5_container
-    from squirrel.library.elastix import save_transforms
-    from squirrel.library.transformation import validate_and_reshape_matrix
-    from squirrel.library.transformation import apply_affine_transform
+    from squirrel.library.io import load_data_handle, write_h5_container
+    from squirrel.library.transformation import apply_stack_alignment
     import json
 
     stack, stack_size = load_data_handle(stack, key=key, pattern=pattern)
     with open(transform_filepath, mode='r') as f:
         transforms = json.load(f)
 
-    transform = None
-
-    result_volume = []
-
-    for idx in range(0, stack_size[0]):
-        # for idx in range(0, 10):
-
-        print(f'idx = {idx} / {stack_size[0]}')
-
-        z_slice, _ = load_data_from_handle_stack(stack, idx)
-        this_transform = save_transforms(
-            transforms[idx],
-            None,
-            param_order='C',
-            save_order='M',
-            ndim=2,
-            verbose=verbose
-        )
-        if verbose:
-            print(f'this_transform = {this_transform}')
-        this_transform = validate_and_reshape_matrix(
-            this_transform, ndim=2
-        )
-
-        # pivot_matrix = np.array([
-        #     [1., 0., xy_pivot[0]],
-        #     [0., 1., xy_pivot[1]],
-        #     [0., 0., 1.]
-        # ])
-        # this_transform = np.dot(
-        #     this_transform,
-        #     pivot_matrix
-        # )
-
-        if idx > 0 and not no_adding_of_transforms:
-            transform = np.dot(this_transform, transform)
-        else:
-            transform = this_transform
-
-        if verbose:
-            print(f'this_transform = {this_transform}')
-
-        result_volume.append(
-            apply_affine_transform(
-                z_slice, transform,
-                pivot=xy_pivot,
-                verbose=verbose
-            )
-        )
-
-    result_volume = np.array(result_volume)
+    result_volume = apply_stack_alignment(
+        stack,
+        transforms,
+        no_adding_of_transforms=no_adding_of_transforms,
+        xy_pivot=xy_pivot,
+        verbose=verbose
+    )
 
     write_h5_container(out_filepath, result_volume)
 
@@ -599,7 +553,7 @@ def scale_sequential_affines_workflow(
         xy_pivot=(0., 0.),
         verbose=False
 ):
-    from ..library.transformation import load_transform_matrices
+    from ..library.transformation import load_transform_matrices, scale_sequential_affines
     from ..library.elastix import save_transforms
     transforms = np.array(load_transform_matrices(transform_filepath, validate=True, ndim=2))
 
@@ -607,29 +561,7 @@ def scale_sequential_affines_workflow(
         print(f'scale = {scale}')
         print(f'transforms.shape = {transforms.shape}')
 
-    for idx, transform in enumerate(transforms):
-        # # Translations are stored in pixels so need to be adjusted
-        transform[:, 2] = transform[:, 2] * scale
-        # Move the pivot according to the scale
-        pivot_matrix = np.array([
-            [1., 0., xy_pivot[0]],
-            [0., 1., xy_pivot[1]],
-            [0., 0., 1.]
-        ])
-        transform = np.dot(
-            transform,
-            pivot_matrix
-        )
-        pivot_matrix[:2, 2] *= scale
-        transform = np.dot(
-            np.linalg.inv(pivot_matrix),
-            transform
-        )
-        transforms[idx] = transform
-
-    # z-interpolation to extend the stack
-    from scipy.ndimage import zoom
-    transforms = zoom(transforms, (scale, 1., 1.), order=1)
+    transforms = scale_sequential_affines(transforms, scale, xy_pivot)
 
     if verbose:
         print(f'transforms.shape = {transforms.shape}')
@@ -642,7 +574,7 @@ def scale_sequential_affines_workflow(
         json.dump(transforms, f, indent=2)
 
 
-def apply_affine_sequence_workflow(
+def serialize_affine_sequence_workflow(
         transform_filepath,
         out_filepath,
         verbose=False
@@ -656,39 +588,8 @@ def apply_affine_sequence_workflow(
     with open(transform_filepath, mode='r') as f:
         transforms = json.load(f)
 
-    from squirrel.library.elastix import save_transforms
-    from squirrel.library.transformation import validate_and_reshape_matrix
-
-    result_transforms = []
-    transform = None
-
-    for this_transform in transforms:
-
-        this_transform = save_transforms(
-            this_transform,
-            None,
-            param_order='C',
-            save_order='M',
-            ndim=2,
-            verbose=verbose
-        )
-        if verbose:
-            print(f'this_transform = {this_transform}')
-        this_transform = validate_and_reshape_matrix(
-            this_transform, ndim=2
-        )
-
-        if transform is not None:
-            transform = np.dot(this_transform, transform)
-        else:
-            transform = this_transform
-
-        result_transforms.append(
-            save_transforms(
-                transform, None,
-                param_order='M', save_order='C', ndim=2, verbose=verbose
-            )[:6].tolist()
-        )
+    from squirrel.library.transformation import serialize_affine_sequence
+    result_transforms = serialize_affine_sequence(transforms, verbose=verbose)
 
     with open(out_filepath, mode='w') as f:
         json.dump(result_transforms, f, indent=2)

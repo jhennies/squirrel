@@ -110,10 +110,11 @@ def get_filetype(filepath):
     tif_extensions = ['.tif', '.TIF', '.tiff', '.TIFF']
     json_extensions = ['.json', '.JSON']
     csv_extensions = ['.csv', '.CSV']
+    zarr_extensions = ['.zarr', '.ZARR']
+    ome_zarr_sub_extensions = ['.ome', '.OME']
 
-    ext = os.path.splitext(filepath)[1]
-    if os.path.isdir(filepath):
-        return 'dir'
+    basename, ext = os.path.splitext(filepath)
+    sub_ext = ''
     if ext in h5_extensions:
         return 'h5'
     if ext in nii_extensions:
@@ -124,7 +125,13 @@ def get_filetype(filepath):
         return 'json'
     if ext in csv_extensions:
         return 'csv'
-    raise ValueError(f'Unknown file extension: {ext}')
+    if ext in zarr_extensions:
+        sub_ext = os.path.splitext(basename)[1]
+        if sub_ext in ome_zarr_sub_extensions:
+            return 'ome_zarr'
+    if os.path.isdir(filepath):
+        return 'dir'
+    raise ValueError(f'Unknown file extension: {sub_ext}.{ext}')
 
 
 def load_data(filepath, key='data', axes_order='zyx', invert=False):
@@ -170,6 +177,13 @@ def load_data_handle(path, key='data', pattern='*.tif'):
         h = sorted(glob(os.path.join(path, pattern)))
         shape = load_data_from_handle_stack(h, 0)[0].shape
         return h, [len(h)] + list(shape)
+
+    if filetype == 'ome_zarr':
+        from squirrel.library.ome_zarr import get_ome_zarr_handle
+        h = get_ome_zarr_handle(path, key, 'r')
+        return h, h.shape
+
+    raise RuntimeError(f'No valid filetype: {filetype}')
 
 
 

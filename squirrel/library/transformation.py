@@ -398,3 +398,132 @@ def apply_affine_transform(
             raise RuntimeError(f'Invalid number of dimensions: {x.ndim}')
 
     return x
+
+
+def scale_affine_matrix(affine, scale, xy_pivot):
+
+    # Translations are stored in pixels so need to be adjusted
+    print(affine)
+    affine[:, 2] = np.array(affine)[:, 2] * scale
+    # Move the pivot according to the scale
+    pivot_matrix = np.array([
+        [1., 0., xy_pivot[0]],
+        [0., 1., xy_pivot[1]],
+        [0., 0., 1.]
+    ])
+    affine = np.dot(
+        affine,
+        pivot_matrix
+    )
+    pivot_matrix[:2, 2] *= scale
+    affine = np.dot(
+        np.linalg.inv(pivot_matrix),
+        affine
+    )
+    return affine
+
+
+def scale_sequential_affines(transform_sequence, scale, xy_pivot=(0., 0.)):
+
+    transform_sequence = [
+        scale_affine_matrix(transform, scale, xy_pivot)
+        for transform in transform_sequence
+    ]
+
+    # z-interpolation to extend the stack
+    from scipy.ndimage import zoom
+    transform_sequence = zoom(transform_sequence, (scale, 1., 1.), order=1)
+
+    return transform_sequence
+
+
+def serialize_affine_sequence(transform_sequence, param_order='C', verbose=False):
+
+    from squirrel.library.elastix import save_transforms
+
+    result_transforms = []
+    transform = None
+
+    for this_transform in transform_sequence:
+
+        this_transform = save_transforms(
+            this_transform,
+            None,
+            param_order=param_order,
+            save_order='M',
+            ndim=2,
+            verbose=verbose
+        )
+        if verbose:
+            print(f'this_transform = {this_transform}')
+        this_transform = validate_and_reshape_matrix(
+            this_transform, ndim=2
+        )
+
+        if transform is not None:
+            transform = np.dot(this_transform, transform)
+        else:
+            transform = this_transform
+
+        result_transforms.append(
+            save_transforms(
+                transform, None,
+                param_order='M', save_order='C', ndim=2, verbose=verbose
+            )[:6].tolist()
+        )
+
+    return result_transforms
+
+
+def apply_stack_alignment(
+        stack_h,
+        transform_sequence,
+        no_adding_of_transforms=False,
+        xy_pivot=(0., 0.),
+        param_order='C',
+        verbose=False
+):
+
+    from squirrel.library.io import load_data_from_handle_stack
+    from squirrel.library.elastix import save_transforms
+
+    if not no_adding_of_transforms:
+        transform_sequence = serialize_affine_sequence(transform_sequence, param_order=param_order, verbose=verbose)
+
+    transform = None
+    stack_size = stack_h.shape
+
+    result_volume = []
+
+    for idx in range(0, stack_size[0]):
+        # for idx in range(0, 10):
+
+        print(f'idx = {idx} / {stack_size[0]}')
+
+        z_slice, _ = load_data_from_handle_stack(stack_h, idx)
+        this_transform = save_transforms(
+            transform_sequence[idx],
+            None,
+            param_order=param_order,
+            save_order='M',
+            ndim=2,
+            verbose=verbose
+        )
+        if verbose:
+            print(f'this_transform = {this_transform}')
+        this_transform = validate_and_reshape_matrix(
+            this_transform, ndim=2
+        )
+
+        if verbose:
+            print(f'this_transform = {this_transform}')
+
+        result_volume.append(
+            apply_affine_transform(
+                z_slice, transform,
+                pivot=xy_pivot,
+                verbose=verbose
+            )
+        )
+
+    return np.array(result_volume)

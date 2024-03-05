@@ -82,11 +82,13 @@ def create_ome_zarr(
 
 def get_ome_zarr_handle(
         filepath,
-        key,
+        key=None,
         mode='r'
 ):
     from zarr import open as zarr_open
-    return zarr_open(filepath, mode=mode)[key]
+    if key is not None:
+        return zarr_open(filepath, mode=mode)[key]
+    return zarr_open(filepath, mode=mode)
 
 
 def slice_to_ome_zarr(
@@ -256,3 +258,14 @@ def compute_downsampling_layer(
                 for idx in range(*z_range, downsample_factor)
             ]
             [task.get() for task in tasks]
+
+
+def get_scale_of_downsample_level(handle, downsample_level):
+
+    datasets = handle.attrs['multiscales'][0]['datasets']
+    this_dataset = datasets[downsample_level]
+    this_path = this_dataset['path']
+    assert this_path == f's{downsample_level}', \
+        f'Invalid path to downsample level combination: {this_path} != s{downsample_level}'
+
+    return this_dataset['coordinateTransformations'][0]['scale']

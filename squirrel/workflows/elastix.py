@@ -249,6 +249,7 @@ def elastix_stack_alignment_workflow(
         number_of_spatial_samples=None,
         maximum_number_of_iterations=None,
         number_of_resolutions=None,
+        z_range=None,
         verbose=False
 ):
 
@@ -266,9 +267,12 @@ def elastix_stack_alignment_workflow(
         [1., 0., 0., 0., 1., 0.]
     ]
 
-    for idx in range(1, stack_size[0]):
+    if z_range is None:
+        z_range = [0, stack_size[0]]
 
-        print(f'idx = {idx} / {stack_size[0]}')
+    for idx in range(*z_range):
+
+        print(f'idx = {idx} / {z_range[1]}')
 
         z_slice_fixed, _ = load_data_from_handle_stack(stack, idx - 1)
         z_slice_moving, _ = load_data_from_handle_stack(stack, idx)
