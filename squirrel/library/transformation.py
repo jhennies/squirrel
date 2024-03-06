@@ -308,7 +308,7 @@ def smooth_2d_affine_sequence(
 
 
 def extract_approximate_rotation_affine(transform, coerce_affine_dimension):
-    print(transform)
+    # print(transform)
 
     from copy import deepcopy
     new_transform = deepcopy(transform)
@@ -405,10 +405,8 @@ def apply_affine_transform(
 
 
 def scale_affine_matrix(affine, scale, xy_pivot):
-
     # Translations are stored in pixels so need to be adjusted
-    print(affine)
-    affine[:, 2] = np.array(affine)[:, 2] * scale
+    affine[:2, 2] = np.array(affine)[:2, 2] * scale
     # Move the pivot according to the scale
     pivot_matrix = np.array([
         [1., 0., xy_pivot[0]],
