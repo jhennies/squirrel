@@ -9,3 +9,4 @@ def invert_data(data):
     except ValueError:
         data = data.max() - data
     return data
+

@@ -479,11 +479,12 @@ def serialize_affine_sequence(transform_sequence, param_order='C', verbose=False
 
 def apply_stack_alignment(
         stack_h,
-        stack_size,
+        stack_shape,
         transform_sequence,
         no_adding_of_transforms=False,
         xy_pivot=(0., 0.),
         param_order='C',
+        z_range=None,
         verbose=False
 ):
 
@@ -493,14 +494,17 @@ def apply_stack_alignment(
     if not no_adding_of_transforms:
         transform_sequence = serialize_affine_sequence(transform_sequence, param_order=param_order, verbose=verbose)
 
+    stack_shape = np.ceil(np.array(stack_shape)).astype(int)
+
     result_volume = []
 
-    for idx in range(0, stack_size[0]):
-        # for idx in range(0, 10):
+    if z_range is None:
+        z_range = [0, stack_shape[0]]
 
-        print(f'idx = {idx} / {stack_size[0]}')
+    for idx in range(*z_range):
 
-        z_slice, _ = load_data_from_handle_stack(stack_h, idx)
+        print(f'idx = {idx} / {z_range[1]}')
+
         this_transform = save_transforms(
             transform_sequence[idx],
             None,
@@ -518,12 +522,16 @@ def apply_stack_alignment(
         if verbose:
             print(f'this_transform = {this_transform}')
 
+        # TODO: The data needs to be loaded with shape = max(slice_shape, target_slice_shape)
+        z_slice, _ = load_data_from_handle_stack(stack_h, idx, shape=stack_shape[1:])
         result_volume.append(
             apply_affine_transform(
                 z_slice, this_transform,
                 pivot=xy_pivot,
+                fill_mode='constant',
+                cval=0,
                 verbose=verbose
-            )
+            )[:stack_shape[1], :stack_shape[2]]
         )
 
     return np.array(result_volume)

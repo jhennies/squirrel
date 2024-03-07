@@ -149,20 +149,33 @@ def load_data(filepath, key='data', axes_order='zyx', invert=False):
     raise RuntimeError(f'Invalid or unknown file type: {filetype}')
 
 
-def load_data_from_handle_stack(h, idx):
-    """
-    :param h:
-    :param idx:
-    :return: np.array(data_slice), slice_filepath
-    Note that slice_filepath is None if it's a hdf5 file handle
-    """
+def _load_data(h, idx):
 
     if type(h[idx]) == str:
         assert get_filetype(h[idx]) == 'tif'
         return read_tif_slice(h[idx])
 
-    # Assuming h5 file handle
+    # Assuming h5, n5 or ome-zarr file handle
     return h[idx], None
+
+
+def load_data_from_handle_stack(h, idx, shape=None):
+    """
+    :param h:
+    :param idx:
+    :param shape: Returns that data in the specified shape
+    :return: np.array(data_slice), slice_filepath
+    Note that slice_filepath is None if it's a hdf5 file handle
+    """
+
+    data, data_filepath = _load_data(h, idx)
+
+    if shape is not None:
+        from squirrel.library.image import image_to_shape
+        data = image_to_shape(data, shape)
+        return data, data_filepath
+
+    return data, data_filepath
 
 
 def load_data_handle(path, key='data', pattern='*.tif'):

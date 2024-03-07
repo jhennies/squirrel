@@ -71,6 +71,10 @@ def apply_stack_alignment():
                              'If this flag is set, each transform is applied as it is')
     parser.add_argument('--xy_pivot', nargs=2, type=float, default=(0., 0.),
                         help='A pivot point of the 2D affine transformations')
+    parser.add_argument('--auto_pad', action='store_true',
+                        help='Automatically adjust the canvas size of the output stack to best fit the data')
+    parser.add_argument('--z_range', type=int, nargs=2, default=None,
+                        help='Use certain slices of the stack only; Defaults to the entire stack')
     parser.add_argument('-v', '--verbose', action='store_true')
 
     args = parser.parse_args()
@@ -81,6 +85,8 @@ def apply_stack_alignment():
     pattern = args.pattern
     no_adding_of_transforms = args.no_adding_of_transforms
     xy_pivot = args.xy_pivot
+    auto_pad = args.auto_pad
+    z_range = args.z_range
     verbose = args.verbose
 
     from squirrel.workflows.transformation import apply_stack_alignment_on_volume_workflow
@@ -92,6 +98,8 @@ def apply_stack_alignment():
         pattern=pattern,
         no_adding_of_transforms=no_adding_of_transforms,
         xy_pivot=xy_pivot,
+        auto_pad=auto_pad,
+        z_range=z_range,
         verbose=verbose,
     )
 

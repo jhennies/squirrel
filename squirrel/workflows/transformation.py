@@ -481,23 +481,38 @@ def apply_stack_alignment_on_volume_workflow(
         pattern='*.tif',
         no_adding_of_transforms=False,
         xy_pivot=(0., 0.),
+        auto_pad=False,
+        z_range=None,
         verbose=False,
 ):
 
     from squirrel.library.io import load_data_handle, write_h5_container
-    from squirrel.library.transformation import apply_stack_alignment
+    from squirrel.library.transformation import apply_stack_alignment, serialize_affine_sequence
     import json
 
-    stack, stack_size = load_data_handle(stack, key=key, pattern=pattern)
     with open(transform_filepath, mode='r') as f:
         transforms = json.load(f)
+    if not no_adding_of_transforms:
+        transforms = serialize_affine_sequence(transforms, param_order='C', verbose=verbose)
+
+    stack_h, stack_shape = load_data_handle(stack, key=key, pattern=pattern)
+    stack_len = stack_shape[0]
+    if z_range is not None:
+        stack_len = z_range[1] - z_range[0]
+    if auto_pad:
+        from squirrel.library.image import get_bounds_of_stack, apply_auto_pad
+        stack_bounds = get_bounds_of_stack(stack_h, stack_shape, return_ints=True, z_range=z_range)
+        transforms, stack_shape = apply_auto_pad(
+            transforms, [stack_len, *stack_shape[1:]], stack_bounds, extra_padding=16
+        )
 
     result_volume = apply_stack_alignment(
-        stack,
-        stack_size,
+        stack_h,
+        stack_shape,
         transforms,
-        no_adding_of_transforms=no_adding_of_transforms,
+        no_adding_of_transforms=True,
         xy_pivot=xy_pivot,
+        z_range=z_range,
         verbose=verbose
     )
 

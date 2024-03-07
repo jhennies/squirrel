@@ -263,9 +263,7 @@ def elastix_stack_alignment_workflow(
 
     stack, stack_size = load_data_handle(stack, key=key, pattern=pattern)
 
-    transforms = [
-        [1., 0., 0., 0., 1., 0.]
-    ]
+    transforms = []
 
     if z_range is None:
         z_range = [0, stack_size[0]]
@@ -273,6 +271,10 @@ def elastix_stack_alignment_workflow(
     for idx in range(*z_range):
 
         print(f'idx = {idx} / {z_range[1]}')
+
+        if idx == 0:
+            transforms.append([1., 0., 0., 0., 1., 0.])
+            continue
 
         z_slice_fixed, _ = load_data_from_handle_stack(stack, idx - 1)
         z_slice_moving, _ = load_data_from_handle_stack(stack, idx)
