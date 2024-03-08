@@ -58,9 +58,9 @@ def save_transforms(parameters, out_filepath, param_order='M', save_order='M', n
 
     if param_order != save_order:
         if (param_order != 'M' and parameters.ndim == 2) or (param_order == 'M' and parameters.ndim == 3):
-            parameters.tolist()
+            parameters = parameters.tolist()
             for idx, p in enumerate(parameters):
-                parameters[idx] = _change_order(p)
+                parameters[idx] = _change_order(np.array(p))
         else:
             parameters = _change_order(parameters)
 

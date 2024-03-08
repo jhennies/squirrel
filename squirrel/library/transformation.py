@@ -522,7 +522,6 @@ def apply_stack_alignment(
         if verbose:
             print(f'this_transform = {this_transform}')
 
-        # TODO: The data needs to be loaded with shape = max(slice_shape, target_slice_shape)
         z_slice, _ = load_data_from_handle_stack(stack_h, idx, shape=stack_shape[1:])
         result_volume.append(
             apply_affine_transform(

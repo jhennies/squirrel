@@ -34,28 +34,54 @@ def get_bounds_of_stack(stack_h, stack_shape, return_ints=False, z_range=None):
 
 def apply_auto_pad(transforms, stack_shape, stack_bounds, extra_padding=0):
 
-    stack_bounds = np.array(stack_bounds)
-    extra_padding = np.array([extra_padding] * 2)
+    from squirrel.library.elastix import save_transforms
+    from squirrel.library.transformation import validate_and_reshape_matrix
+    transforms = np.array([validate_and_reshape_matrix(transform, ndim=2) for transform in transforms])
 
-    transforms = np.array(transforms)
-    assert transforms.shape == (stack_shape[0], 6), \
-        f'Currently only implemented for affine transforms of "C" layout; ' \
-        f'transforms.shape={transforms.shape}; ' \
-        f'stack_shape.shape={stack_shape}; '
+    def _transform_on_bounds(t, b):
 
-    offsets = np.array([[affine[2], affine[5]] for affine in transforms])
-    assert offsets.shape == (stack_shape[0], 2)
+        min_yx = [b[0], b[1]]
+        min_y_max_x = [b[0], b[3]]
+        max_y_min_x = [b[2], b[1]]
+        max_yx = [b[2], b[3]]
+
+        t_min_yx = np.matmul(np.linalg.inv(t), min_yx + [1.])
+        t_min_y_max_x = np.matmul(np.linalg.inv(t), min_y_max_x + [1.])
+        t_max_y_min_x = np.matmul(np.linalg.inv(t), max_y_min_x + [1.])
+        t_max_yx = np.matmul(np.linalg.inv(t), max_yx + [1.])
+
+        new_bounds = np.array([
+            np.min([t_min_yx, t_min_y_max_x, t_max_y_min_x, t_max_yx], axis=0),
+            np.max([t_min_yx, t_min_y_max_x, t_max_y_min_x, t_max_yx], axis=0)
+        ])[:, :2]
+
+        return new_bounds
+
+    new_bounds = []
+    for idx, t in enumerate(transforms):
+        bounds_ = _transform_on_bounds(t, stack_bounds[idx])
+        new_bounds.append(bounds_)
+
+    new_bounds = np.array(new_bounds)
+    new_bounds = [
+        np.min(new_bounds[:, 0], axis=0),
+        np.max(new_bounds[:, 1], axis=0)
+    ]
 
     # Modify the offsets within the transforms to move everything towards the origin
-    starts = stack_bounds[:, :2]
-    add_offset = -(extra_padding - (starts + offsets).min(axis=0))
-    transforms[:, 2] = add_offset[0]
-    transforms[:, 5] = add_offset[1]
+    from squirrel.library.transformation import setup_translation_matrix
+    for idx, transform in enumerate(transforms):
+        transforms[idx] = np.dot(
+            transform,
+            validate_and_reshape_matrix(setup_translation_matrix(new_bounds[0] - extra_padding, ndim=2), ndim=2)
+        )
+
+    transforms = transforms[:, :2]
+
+    transforms = save_transforms(transforms, None, param_order='M', save_order='C', ndim=2)
 
     # Also modify the stack_shape now to crop or extend the images
-    stops = stack_bounds[:, 2:]
-    new_bounds_yx = (stops + offsets).max(axis=0) + 2 * extra_padding
-    stack_shape[1:] = new_bounds_yx
+    stack_shape[1:] = (new_bounds[1] - new_bounds[0] + 2 * extra_padding).tolist()
 
     return transforms, stack_shape
 
@@ -65,10 +91,15 @@ def image_to_shape(image, shape):
     image_shape = np.array(image.shape)
     shape = np.ceil(np.array(shape)).astype(int)
 
-    new_image = np.zeros(shape, dtype=image.dtype)
+    max_shape = (
+        max(image_shape[0], shape[0]),
+        max(image_shape[1], shape[1])
+    )
+
+    new_image = np.zeros(max_shape, dtype=image.dtype)
     s = np.s_[
-        :min(image_shape[0], shape[0]),
-        :min(image_shape[1], shape[1])
+        :max_shape[0],
+        :max_shape[1]
     ]
     new_image[s] = image[s]
     return new_image
