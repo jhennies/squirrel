@@ -427,11 +427,14 @@ def scale_affine_matrix(affine, scale, xy_pivot):
 
 def scale_sequential_affines(transform_sequence, scale, xy_pivot=(0., 0.)):
 
+    transform_sequence = np.array(transform_sequence)
+
     transform_sequence = [
         scale_affine_matrix(transform, scale, xy_pivot)
         for transform in transform_sequence
     ]
 
+    # FIXME this really only works if the affine sequence is already sequenced (i.e. added up)
     # z-interpolation to extend the stack
     from scipy.ndimage import zoom
     transform_sequence = zoom(transform_sequence, (scale, 1., 1.), order=1)
@@ -439,7 +442,7 @@ def scale_sequential_affines(transform_sequence, scale, xy_pivot=(0., 0.)):
     return transform_sequence
 
 
-def serialize_affine_sequence(transform_sequence, param_order='C', verbose=False):
+def serialize_affine_sequence(transform_sequence, param_order='C', out_param_order='C', verbose=False):
 
     from squirrel.library.elastix import save_transforms
 
@@ -470,7 +473,7 @@ def serialize_affine_sequence(transform_sequence, param_order='C', verbose=False
         result_transforms.append(
             save_transforms(
                 transform, None,
-                param_order='M', save_order='C', ndim=2, verbose=verbose
+                param_order='M', save_order=out_param_order, ndim=2, verbose=verbose
             )[:6].tolist()
         )
 

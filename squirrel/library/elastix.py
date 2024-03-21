@@ -94,6 +94,7 @@ def register_with_elastix(
         number_of_spatial_samples=None,
         maximum_number_of_iterations=None,
         number_of_resolutions=None,
+        return_result_image=False,
         verbose=False
 ):
 
@@ -144,10 +145,18 @@ def register_with_elastix(
         elastixImageFilter.PrintParameterMap()
 
     elastixImageFilter.Execute()
-    result_image = elastixImageFilter.GetResultImage()
-    result_transform_parameters = elastixImageFilter.GetTransformParameterMap()[0]['TransformParameters']
+    result_image = None
+    if return_result_image:
+        result_image = sitk.GetArrayFromImage(elastixImageFilter.GetResultImage())
 
-    result_image = sitk.GetArrayFromImage(result_image)
+    # from h5py import File
+    # from random import randint
+    # with File(f'/media/julian/Data/tmp/tmp_pair_{randint(0, 999)}.h5', mode='w') as f:
+    #     f.create_dataset('moving', data=sitk.GetArrayFromImage(moving_image).astype('uint8'), compression='gzip')
+    #     f.create_dataset('fixed', data=sitk.GetArrayFromImage(fixed_image).astype('uint8'), compression='gzip')
+    #     f.create_dataset('result', data=result_image.astype('uint8'), compression='gzip')
+
+    result_transform_parameters = elastixImageFilter.GetTransformParameterMap()[0]['TransformParameters']
 
     if transform == 'translation':
 

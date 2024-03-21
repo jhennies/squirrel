@@ -187,7 +187,6 @@ def slice_of_downsampling_layer(
     if verbose:
         print(f'source_ome_zarr_handle = {source_ome_zarr_handle}')
         print(f'target_ome_zarr_handle = {target_ome_zarr_handle}')
-        print(f'source_slice_idx = {source_slice_idx}')
         print(f'downsample_factor = {downsample_factor}')
 
     from .transformation import apply_affine_transform, setup_scale_matrix, validate_and_reshape_matrix
