@@ -179,6 +179,8 @@ def stack_to_ome_zarr_workflow(
         )
     if z_range is None:
         z_range = [0, shape_h[0]]
+    else:
+        z_range[1] = min(z_range[1], shape_h[0])
 
     from squirrel.library.ome_zarr import process_slice_to_ome_zarr
     process_slice_to_ome_zarr(
@@ -201,6 +203,7 @@ def stack_to_ome_zarr_workflow(
 
     z_range = np.array(z_range)
     for idx, downsample_factor in enumerate(downsample_factors):
+        z_range = (z_range / downsample_factor).astype(int)
         from squirrel.library.ome_zarr import compute_downsampling_layer
         compute_downsampling_layer(
             ome_zarr_filepath,
@@ -211,5 +214,4 @@ def stack_to_ome_zarr_workflow(
             downsample_order=order,
             verbose=verbose
         )
-        z_range = (z_range / downsample_factor).astype(int)
 

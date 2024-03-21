@@ -199,4 +199,16 @@ def load_data_handle(path, key='data', pattern='*.tif'):
     raise RuntimeError(f'No valid filetype: {filetype}')
 
 
+def crop_roi(h, roi):
+    """
+
+    :param h:
+    :param roi: [min_x, max_x, min_y, max_y, z]
+    :return:
+    """
+
+    assert len(roi == 5)
+    min_x, max_x, min_y, max_y, z = roi
+
+    return load_data_from_handle_stack(h, z)[min_y: max_y, min_x: max_x]
 

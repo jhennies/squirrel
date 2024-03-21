@@ -16,7 +16,14 @@ def create_ome_zarr(
 
     from zarr import open as zarr_open
     handle = zarr_open(filepath, mode='w')
-    handle.create_dataset('s0', shape=shape, compression='gzip', chunks=chunk_size, dtype=dtype)
+    handle.create_dataset(
+        's0',
+        shape=shape,
+        compression='gzip',
+        chunks=chunk_size,
+        dtype=dtype,
+        dimension_separator='/'
+    )
 
     if name == None:
         import os
@@ -69,7 +76,8 @@ def create_ome_zarr(
             shape=(np.array(shape) / scale).astype(int).tolist(),
             compression='gzip',
             chunks=chunk_size,
-            dtype=dtype
+            dtype=dtype,
+            dimension_separator='/'
         )
 
         attrs = handle.attrs
@@ -110,12 +118,14 @@ def slice_to_ome_zarr(
 
     data_handle, shape_h = load_data_handle(stack_path, key=stack_key, pattern=stack_pattern)
     slice_data, _ = load_data_from_handle_stack(data_handle, slice_idx)
+    print(f'loaded slice data...')
 
     if save_bounds:
         # TODO this
         pass
 
     ome_zarr_handle[slice_idx, :] = slice_data
+    print(f'slice data written')
 
 
 def process_slice_to_ome_zarr(
@@ -166,13 +176,14 @@ def process_slice_to_ome_zarr(
 def slice_of_downsampling_layer(
         source_ome_zarr_handle,
         target_ome_zarr_handle,
-        source_slice_idx,
+        # source_slice_idx,
+        target_slice_idx,
         downsample_factor=2,
         downsample_order=1,
         verbose=False
 ):
 
-    print(f'source_slice_idx = {source_slice_idx}')
+    print(f'target_slice_idx = {target_slice_idx}')
     if verbose:
         print(f'source_ome_zarr_handle = {source_ome_zarr_handle}')
         print(f'target_ome_zarr_handle = {target_ome_zarr_handle}')
@@ -181,6 +192,7 @@ def slice_of_downsampling_layer(
 
     from .transformation import apply_affine_transform, setup_scale_matrix, validate_and_reshape_matrix
 
+    source_slice_idx = target_slice_idx * downsample_factor
     source_data = source_ome_zarr_handle[source_slice_idx: source_slice_idx + downsample_factor]
     if downsample_order == 0:
         source_data = source_data[int(downsample_factor / 2) - 1, :]
@@ -214,7 +226,16 @@ def slice_of_downsampling_layer(
     #     no_offset_to_center=True,
     #     verbose=verbose
     # )
-    target_ome_zarr_handle[int(source_slice_idx / downsample_factor), :] = target_data.squeeze()
+
+    # this_slice_idx = int(source_slice_idx / downsample_factor)
+    this_slice_idx = target_slice_idx
+    target_data = target_data.squeeze()
+    try:
+        target_ome_zarr_handle[this_slice_idx, :] = target_data
+    except ValueError:
+        # This happens if, due to downscaling, the target slice is one pixel larger than the ome-zarr dataset
+        this_shape = target_ome_zarr_handle[this_slice_idx].shape
+        target_ome_zarr_handle[this_slice_idx, :] = target_data[:this_shape[0], :this_shape[1]]
 
 
 def compute_downsampling_layer(
@@ -255,7 +276,7 @@ def compute_downsampling_layer(
                     downsample_order,
                     verbose
                 ))
-                for idx in range(*z_range, downsample_factor)
+                for idx in range(*z_range)
             ]
             [task.get() for task in tasks]
 
