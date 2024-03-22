@@ -194,6 +194,8 @@ def elastix_stack_alignment():
                         help='Elastix parameter')
     # parser.add_argument('--extended_output', action='store_true',
     #                     help='Increase information content of the output')
+    parser.add_argument('--pre_fix_big_jumps', action='store_true',
+                        help='Determines big jumps and fixes them using cross-correlation')
     parser.add_argument('--z_range', type=int, nargs=2, default=None,
                         help='Use certain slices of the stack only; Defaults to the entire stack')
     parser.add_argument('-v', '--verbose', action='store_true')
@@ -208,6 +210,7 @@ def elastix_stack_alignment():
     number_of_spatial_samples = args.number_of_spatial_samples
     maximum_number_of_iterations = args.maximum_number_of_iterations
     number_of_resolutions = args.number_of_resolutions
+    pre_fix_big_jumps = args.pre_fix_big_jumps
     z_range = args.z_range
     verbose = args.verbose
 
@@ -223,6 +226,7 @@ def elastix_stack_alignment():
         number_of_spatial_samples=number_of_spatial_samples,
         maximum_number_of_iterations=maximum_number_of_iterations,
         number_of_resolutions=number_of_resolutions,
+        pre_fix_big_jumps=pre_fix_big_jumps,
         z_range=z_range,
         verbose=verbose
     )

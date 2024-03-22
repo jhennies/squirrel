@@ -174,7 +174,7 @@ def stack_to_ome_zarr_workflow(
             downsample_type=downsample_type,
             downsample_factors=downsample_factors,
             chunk_size=chunk_size,
-            dtype=load_data_from_handle_stack(data_h, 0).dtype,
+            dtype=load_data_from_handle_stack(data_h, 0)[0].dtype,
             name=name
         )
     if z_range is None:

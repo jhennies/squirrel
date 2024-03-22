@@ -84,6 +84,37 @@ def make_auto_mask(image):
     return (image > 0).astype('uint8')
 
 
+def big_jump_pre_fix(moving_image, fixed_image):
+
+    union = np.zeros(moving_image.shape, dtype=bool)
+    union[moving_image > 0] = True
+    union[fixed_image > 0] = True
+
+    intersection = np.zeros(moving_image.shape, dtype=bool)
+    intersection[np.logical_and(moving_image > 0, fixed_image > 0)] = True
+
+    iou = intersection.sum() / union.sum()
+    if iou < 0.5:
+        print(f'Fixing big jump!')
+        from skimage.registration import phase_cross_correlation
+        from scipy.ndimage.interpolation import shift
+
+        offsets = phase_cross_correlation(
+            fixed_image, moving_image,
+            reference_mask=fixed_image > 0,
+            moving_mask=moving_image > 0,
+            upsample_factor=1
+        )[0]
+
+        result_image = shift(moving_image, np.round(offsets))
+        # if mask_im is not None:
+        #     mask_im = shift(mask_im, np.round(offsets))
+
+        return np.round(offsets), result_image  # , mask_im
+
+    return (0., 0.), moving_image  # , mask_im
+
+
 def register_with_elastix(
         fixed_image, moving_image,
         transform='affine',
@@ -95,8 +126,18 @@ def register_with_elastix(
         maximum_number_of_iterations=None,
         number_of_resolutions=None,
         return_result_image=False,
+        pre_fix_big_jumps=False,
         verbose=False
 ):
+
+    pre_fix_offsets = np.array((0., 0.))
+    if pre_fix_big_jumps:
+        assert type(fixed_image) == np.ndarray
+        assert type(moving_image) == np.ndarray
+        if transform != 'translation':
+            raise NotImplementedError('Big jump fixing only implemented for translations!')
+        pre_fix_offsets, moving_image = big_jump_pre_fix(moving_image, fixed_image)
+        pre_fix_offsets = np.array(pre_fix_offsets)
 
     if type(fixed_image) == np.ndarray:
         if verbose:
@@ -166,9 +207,11 @@ def register_with_elastix(
             result_image=result_image,
             # affine_parameters=list(np.eye(result_image.ndim).flatten('C')) + list(result_transform_parameters),
             # affine_parameters=[[1., 0, result_transform_parameters[0]], [0., 1., result_transform_parameters[1]]],
-            affine_parameters=setup_translation_matrix([float(x) for x in result_transform_parameters[::-1]], ndim=2),
+            affine_parameters=setup_translation_matrix(
+                [float(x) for x in result_transform_parameters[::-1]] - pre_fix_offsets, ndim=2
+            ),
             affine_param_order='M',
-            translation_parameters=result_transform_parameters
+            # translation_parameters=np.array(result_transform_parameters)
         )
 
     if transform == 'rigid':

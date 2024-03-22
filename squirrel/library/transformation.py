@@ -433,11 +433,17 @@ def scale_sequential_affines(transform_sequence, scale, xy_pivot=(0., 0.)):
         scale_affine_matrix(transform, scale, xy_pivot)
         for transform in transform_sequence
     ]
-
     # FIXME this really only works if the affine sequence is already sequenced (i.e. added up)
-    # z-interpolation to extend the stack
-    from scipy.ndimage import zoom
-    transform_sequence = zoom(transform_sequence, (scale, 1., 1.), order=1)
+    # print(f'scale = {scale}')
+    if scale > 1 or 1/scale - int(1/scale) != 0:
+        # z-interpolation to extend the stack
+        from scipy.ndimage import zoom
+        transform_sequence = zoom(transform_sequence, (scale, 1., 1.), order=1)
+    else:
+        transform_sequence = [
+            transform_sequence[idx]
+            for idx in range(0, len(transform_sequence), int(1/scale))
+        ]
 
     return transform_sequence
 

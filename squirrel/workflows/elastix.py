@@ -249,6 +249,7 @@ def elastix_stack_alignment_workflow(
         number_of_spatial_samples=None,
         maximum_number_of_iterations=None,
         number_of_resolutions=None,
+        pre_fix_big_jumps=False,
         z_range=None,
         verbose=False
 ):
@@ -289,6 +290,7 @@ def elastix_stack_alignment_workflow(
             number_of_spatial_samples=number_of_spatial_samples,
             maximum_number_of_iterations=maximum_number_of_iterations,
             number_of_resolutions=number_of_resolutions,
+            pre_fix_big_jumps=pre_fix_big_jumps,
             verbose=verbose
         )  # ['affine_parameters']
 
