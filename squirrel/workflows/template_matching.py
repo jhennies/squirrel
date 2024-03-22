@@ -1,5 +1,6 @@
 
 import os
+import numpy as np
 
 
 def template_matching_stack_alignment_workflow(
@@ -21,6 +22,7 @@ def template_matching_stack_alignment_workflow(
     from ..library.io import load_data_handle, load_data_from_handle_stack, crop_roi
     from ..library.elastix import save_transforms
     from ..library.template_matching import match_template_on_image
+    from ..library.transformation import save_transformation_matrices
 
     stack_h, stack_size = load_data_handle(stack, key=key, pattern=pattern)
 
@@ -44,12 +46,13 @@ def template_matching_stack_alignment_workflow(
             z_slice,
             template
         )
+        print(transform)
 
-        transforms.append(transform.tolist())
+        transforms.append(transform)
 
-    import json
-    with open(out_filepath, mode='w') as f:
-        json.dump(transforms, f, indent=2)
+    transforms = np.array(transforms).astype(int).tolist()
+
+    save_transformation_matrices(out_filepath, transforms, sequenced=True)
 
     if save_template:
         template_filepath = os.path.splitext(out_filepath)[0] + '.template.tif'

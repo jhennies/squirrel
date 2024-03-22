@@ -10,3 +10,8 @@ def invert_data(data):
         data = data.max() - data
     return data
 
+
+def resolution_to_pixels(value, resolution):
+    if type(value) in [list, tuple, np.array]:
+        return np.array(value) / resolution
+    return value / resolution

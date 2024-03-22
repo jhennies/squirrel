@@ -261,6 +261,7 @@ def elastix_stack_alignment_workflow(
     from ..library.io import load_data_handle, load_data_from_handle_stack
     from ..library.elastix import register_with_elastix
     from ..library.elastix import save_transforms
+    from ..library.transformation import save_transformation_matrices
 
     stack, stack_size = load_data_handle(stack, key=key, pattern=pattern)
 
@@ -304,6 +305,4 @@ def elastix_stack_alignment_workflow(
             ).tolist()
         )
 
-    import json
-    with open(out_filepath, mode='w') as f:
-        json.dump(transforms, f, indent=2)
+    save_transformation_matrices(out_filepath, transforms, sequenced=False)

@@ -207,8 +207,9 @@ def crop_roi(h, roi):
     :return:
     """
 
-    assert len(roi == 5)
-    min_x, max_x, min_y, max_y, z = roi
+    assert len(roi) == 5
+    roi = np.array(roi).astype(int)
+    min_x, min_y, max_x, max_y, z = roi
 
-    return load_data_from_handle_stack(h, z)[min_y: max_y, min_x: max_x]
+    return load_data_from_handle_stack(h, z)[0][min_y: max_y, min_x: max_x]
 

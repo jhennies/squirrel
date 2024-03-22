@@ -65,7 +65,14 @@ def load_transform_matrices(filepath, validate=False, ndim=3):
 
     import json
     with open(filepath, mode='r') as f:
-        transforms = json.load(f)
+        transforms_info = json.load(f)
+
+    sequenced = False
+    if type(transforms_info) == dict:
+        transforms = transforms_info['transforms']
+        sequenced = transforms_info['sequenced'] if 'sequenced' in transforms_info.keys() else False
+    else:
+        transforms = transforms_info
 
     if np.array(transforms).ndim == 1:
         if validate:
@@ -82,8 +89,36 @@ def load_transform_matrices(filepath, validate=False, ndim=3):
         out_transforms = []
         for transform in transforms:
             out_transforms.append(validate_and_reshape_matrix(transform, ndim))
-        return out_transforms
+        return out_transforms, sequenced
     raise RuntimeError(f'Invalid file contents for {filepath}')
+
+
+def load_transform_matrices_from_multiple_files(filepaths, validate=False, ndim=3):
+
+    all_sequenced = None
+    all_transforms = []
+    for filepath in filepaths:
+        transforms, sequenced = load_transform_matrices(filepath, validate=validate, ndim=ndim)
+        all_sequenced = sequenced if all_sequenced is None else all_sequenced
+        assert sequenced == all_sequenced, 'All of the files loaded into the full sequence must be either sequenced ' \
+                                           'or non-sequenced, not mixed in type!'
+        all_transforms.extend(transforms)
+    return all_transforms, all_sequenced
+
+
+def save_transformation_matrices(filepath, transforms, sequenced=None):
+
+    if sequenced is not None:
+        output = dict(
+            transforms=transforms,
+            sequenced=sequenced
+        )
+    else:
+        output = transforms
+
+    import json
+    with open(filepath, mode='w') as f:
+        json.dump(output, f, indent=2)
 
 
 def validate_and_reshape_matrix(matrix, ndim):
