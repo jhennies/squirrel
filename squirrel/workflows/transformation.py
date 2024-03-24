@@ -528,6 +528,7 @@ def dot_product_on_affines_workflow(
 
     from ..library.elastix import save_transforms
     from ..library.transformation import load_transform_matrices
+    from ..library.linalg import dot_product_of_sequences
 
     transforms_a = np.array(load_transform_matrices(transform_filepaths[0], validate=True, ndim=2))
     transforms_b = np.array(load_transform_matrices(transform_filepaths[1], validate=True, ndim=2))
@@ -537,19 +538,8 @@ def dot_product_on_affines_workflow(
         print(f'transforms_b.shape = {transforms_b.shape}')
         print(f'transforms_a[0] = {transforms_a[1]}')
         print(f'transforms_b[0] = {transforms_b[1]}')
-    # assert transforms_a.shape == transforms_b.shape, \
-    #     f'Shapes of the transform sequences have to match: {transforms_a.shape} != {transforms_b.shape}'
-    n_transforms = min(len(transforms_a), len(transforms_b))
 
-    result_transforms = []
-    for idx in range(n_transforms):
-        transform_a = np.linalg.inv(transforms_a[idx]) if inverse[0] else transforms_a[idx]
-        transform_b = np.linalg.inv(transforms_b[idx]) if inverse[1] else transforms_b[idx]
-        result_transforms.append(np.dot(transform_a, transform_b))
-        if verbose:
-            print(f'transform_a = {transform_a}')
-            print(f'transform_b = {transform_b}')
-            print(f'result_transforms[-1] = {result_transforms[-1]}')
+    result_transforms = dot_product_of_sequences(transforms_a, transforms_b, inverse=inverse)
 
     # Prepare for saving
     transforms = [
@@ -647,6 +637,7 @@ def inverse_of_sequence_workflow(
 ):
     from ..library.elastix import save_transforms
     from ..library.transformation import load_transform_matrices
+    from ..library.linalg import inverse_of_sequence
 
     transforms = np.array(load_transform_matrices(transform_filepath, validate=True, ndim=2))
 
@@ -655,9 +646,7 @@ def inverse_of_sequence_workflow(
     # assert transforms_a.shape == transforms_b.shape, \
     #     f'Shapes of the transform sequences have to match: {transforms_a.shape} != {transforms_b.shape}'
 
-    result_transforms = []
-    for idx, transform in enumerate(len(transforms)):
-        result_transforms.append(np.linalg.inv(transform))
+    result_transforms = inverse_of_sequence(transforms)
 
     # Prepare for saving
     transforms = [

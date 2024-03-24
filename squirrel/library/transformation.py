@@ -272,31 +272,31 @@ def smooth_2d_affine_sequence(
         # This on is trivial: the weighted arithmetic mean
         return gaussian_filter1d(seq, sigma, axis=0)
 
-    def _gaussian_geometric(seq):
-        # Easy too: weighted geometric mean (weights are the normal distribution)
-        kernel = [x for x in range(int(np.floor(-sigma * 2)), int(np.ceil(sigma * 2) + 1))]
-        kernel = np.array([1/(sigma * math.sqrt(2 * math.pi)) * math.exp(- x ** 2 / (2 * sigma ** 2)) for x in kernel])
-        kernel /= kernel.sum()
-        return convolve1d(seq, kernel, axis=0)
-
-    def _to_angles(rotations):
-        angles00 = [math.acos(x[0, 0]) for x in rotations]
-        # angles01 = [math.asin(x[0, 1]) for x in rotations]
-        # angles10 = [math.asin(-x[1, 0]) for x in rotations]
-        # angles11 = [math.acos(x[1, 1]) for x in rotations]
-        for idx, x in enumerate(angles00):
-            if -3 * np.pi < x < -np.pi:
-                x += 2 * np.pi
-            elif -np.pi < x < np.pi:
-                pass
-            elif np.pi < x < 3 * np.pi:
-                x -= 2 * np.pi
-            else:
-                ValueError(f'Invalid angle: {x}')
-            angles00[idx] = x
-        for x in angles00:
-            assert -np.pi < x < np.pi
-        return angles00
+    # def _gaussian_geometric(seq):
+    #     # Easy too: weighted geometric mean (weights are the normal distribution)
+    #     kernel = [x for x in range(int(np.floor(-sigma * 2)), int(np.ceil(sigma * 2) + 1))]
+    #     kernel = np.array([1/(sigma * math.sqrt(2 * math.pi)) * math.exp(- x ** 2 / (2 * sigma ** 2)) for x in kernel])
+    #     kernel /= kernel.sum()
+    #     return convolve1d(seq, kernel, axis=0)
+    #
+    # def _to_angles(rotations):
+    #     angles00 = [math.acos(x[0, 0]) for x in rotations]
+    #     # angles01 = [math.asin(x[0, 1]) for x in rotations]
+    #     # angles10 = [math.asin(-x[1, 0]) for x in rotations]
+    #     # angles11 = [math.acos(x[1, 1]) for x in rotations]
+    #     for idx, x in enumerate(angles00):
+    #         if -3 * np.pi < x < -np.pi:
+    #             x += 2 * np.pi
+    #         elif -np.pi < x < np.pi:
+    #             pass
+    #         elif np.pi < x < 3 * np.pi:
+    #             x -= 2 * np.pi
+    #         else:
+    #             ValueError(f'Invalid angle: {x}')
+    #         angles00[idx] = x
+    #     for x in angles00:
+    #         assert -np.pi < x < np.pi
+    #     return angles00
 
     sequence = _gaussian_arithmetic(sequence)
 
@@ -333,11 +333,12 @@ def smooth_2d_affine_sequence(
     #     # np.dot(translations[idx], np.dot(rotations[idx], np.dot(shears[idx], zooms[idx])))[:2]
     #     for idx in range(len(sequence))
     # ]
-    from ..library.elastix import save_transforms
-    sequence = [
-        save_transforms(x, None, 'M', 'C', ndim=2)
-        for x in sequence
-    ]
+
+    # from ..library.elastix import save_transforms
+    # sequence = [
+    #     save_transforms(x, None, 'M', 'C', ndim=2)
+    #     for x in sequence
+    # ]
 
     return sequence
 
