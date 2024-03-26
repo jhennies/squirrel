@@ -687,8 +687,12 @@ def add_translational_drift_workflow(
         print(f'is_serialized = {is_serialized}')
 
     from ..library.elastix import save_transforms
-    from ..library.transformation import load_transform_matrices
-    transforms = np.array(load_transform_matrices(transform_filepath, validate=True, ndim=2))
+    from ..library.transformation import load_transform_matrices, save_transformation_matrices
+    transforms, sequenced = load_transform_matrices(transform_filepath, validate=True, ndim=2)
+    transforms = np.array(transforms)
+
+    if sequenced is not None:
+        is_serialized = sequenced
 
     if is_serialized:
         drift = [np.array(drift) * x for x in range(len(transforms))]
@@ -704,9 +708,11 @@ def add_translational_drift_workflow(
         for x in transforms
     ]
 
-    import json
-    with open(out_filepath, mode='w') as f:
-        json.dump(transforms, f, indent=2)
+    save_transformation_matrices(out_filepath, transforms, sequenced=sequenced)
+
+    # import json
+    # with open(out_filepath, mode='w') as f:
+    #     json.dump(transforms, f, indent=2)
 
 
 def modify_step_in_sequence_workflow(transform_filepath, out_filepath, idx, affine, replace=False, verbose=False):
