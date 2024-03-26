@@ -608,7 +608,7 @@ def apply_stack_alignment(
     else:
 
         from multiprocessing import Pool
-        with Pool(processes=n_threads) as p:
+        with Pool(processes=n_workers) as p:
             tasks = [
                 p.apply_async(apply_stack_alignment_slice, (
                     stack_h,
