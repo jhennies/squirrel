@@ -493,11 +493,11 @@ def apply_stack_alignment_on_volume_workflow(
 
     # with open(transform_filepath, mode='r') as f:
     #     transforms = json.load(f)
-    transforms, sequenced = load_transform_matrices(transform_filepath, validate=False, ndim=2)
+    transforms, sequenced = load_transform_matrices(transform_filepath, validate=True, ndim=2)
     if sequenced is not None:
         no_adding_of_transforms = sequenced
     if not no_adding_of_transforms:
-        transforms = serialize_affine_sequence(transforms, param_order='C', verbose=verbose)
+        transforms = serialize_affine_sequence(transforms, param_order='M', verbose=verbose)
 
     stack_h, stack_shape = load_data_handle(stack, key=key, pattern=pattern)
     stack_len = stack_shape[0]
