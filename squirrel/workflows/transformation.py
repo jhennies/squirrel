@@ -728,3 +728,17 @@ def modify_step_in_sequence_workflow(transform_filepath, out_filepath, idx, affi
         save_transforms(transforms, None, param_order='M', save_order='C', ndim=2),
         sequenced=sequenced
     )
+
+
+def create_affine_sequence_workflow(out_filepath, length, verbose=False):
+
+    if verbose:
+        print(f'out_filepath = {out_filepath}')
+        print(f'length = {length}')
+
+    from ..library.linalg import create_affine_sequence
+    from ..library.transformation import save_transformation_matrices
+
+    transforms = create_affine_sequence(length)
+
+    save_transformation_matrices(out_filepath, transforms, sequenced=False)

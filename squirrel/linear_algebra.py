@@ -200,5 +200,68 @@ def add_translational_drift():
     )
 
 
+def modify_step_in_sequence():
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Modify one element of a sequence of affine transformations',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('transform_filepath', type=str,
+                        help='Json file containing the transformation')
+    parser.add_argument('out_filepath', type=str,
+                        help='Output filepath for the result file (*.json)')
+    parser.add_argument('idx', type=int,
+                        help='The index of the step which will be modified')
+    parser.add_argument('affine', type=float, nargs=6,
+                        help='Affine transform which will be applied to the specified step')
+    parser.add_argument('--replace', action='store_true',
+                        help='If set, the transform at the specified step will be replaced. '
+                             'np.dot will be used otherwise')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    transform_filepath = args.transform_filepath
+    out_filepath = args.out_filepath
+    idx = args.idx
+    affine = args.affine
+    replace = args.replace
+    verbose = args.verbose
+
+    from squirrel.workflows.transformation import modify_step_in_sequence_workflow
+    modify_step_in_sequence_workflow(
+        transform_filepath,
+        out_filepath,
+        idx,
+        affine,
+        replace=replace,
+        verbose=verbose
+    )
+
+
+def create_affine_sequence():
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Create an affine sequence',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('out_filepath', type=str,
+                        help='Where the result will be saved')
+    parser.add_argument('length', type=int,
+                        help='The length of the sequence')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    out_filepath = args.out_filepath
+    length = args.length
+    verbose = args.verbose
+
+    from squirrel.workflows.transformation import create_affine_sequence_workflow
+    create_affine_sequence_workflow(out_filepath, length, verbose=verbose)
+
+
 if __name__ == '__main__':
     add_translational_drift()

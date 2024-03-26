@@ -46,3 +46,8 @@ def modify_step_in_sequence(transforms, idx, affine, replace=False):
         return transforms
 
     transforms[idx] = np.dot(transforms[idx], affine)
+
+
+def create_affine_sequence(length):
+
+    return [[1., 0., 0., 0., 1., 0.]] * length
