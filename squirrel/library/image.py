@@ -102,12 +102,43 @@ def image_to_shape(image, shape):
     )
 
     new_image = np.zeros(max_shape, dtype=image.dtype)
-    s = np.s_[
-        :max_shape[0],
-        :max_shape[1]
-    ]
-    new_image[s] = image[s]
-    return new_image
+    try:
+        s = np.s_[
+            :max_shape[0],
+            :max_shape[1]
+        ]
+        new_image[s] = image[s]
+        return new_image
+    except ValueError:
+        pass
+    try:
+        s = np.s_[
+            :image_shape[0],
+            :max_shape[1]
+        ]
+        new_image[s] = image[s]
+        return new_image
+    except ValueError:
+        pass
+    try:
+        s = np.s_[
+            :max_shape[0],
+            :image_shape[1]
+        ]
+        new_image[s] = image[s]
+        return new_image
+    except ValueError:
+        pass
+    try:
+        s = np.s_[
+            :image_shape[0],
+            :image_shape[1]
+        ]
+        new_image[s] = image[s]
+        return new_image
+    except ValueError:
+        pass
+
 
 
 

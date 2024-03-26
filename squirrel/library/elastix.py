@@ -130,6 +130,17 @@ def register_with_elastix(
         verbose=False
 ):
 
+    normalize_images = False
+    if normalize_images:
+        assert type(fixed_image) == np.ndarray
+        assert type(moving_image) == np.ndarray
+        from ..library.data import norm_8bit
+        fixed_image = norm_8bit(fixed_image, (0.1, 0.9), ignore_zeros=True)
+        moving_image = norm_8bit(moving_image, (0.1, 0.9), ignore_zeros=True)
+        # from tifffile import imwrite
+        # imwrite('/media/julian/Data/tmp/fixed_image.tif', fixed_image)
+        # imwrite('/media/julian/Data/tmp/moving_image.tif', moving_image)
+
     pre_fix_offsets = np.array((0., 0.))
     if pre_fix_big_jumps:
         assert type(fixed_image) == np.ndarray
