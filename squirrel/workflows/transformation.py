@@ -540,11 +540,15 @@ def dot_product_on_affines_workflow(
 ):
 
     from ..library.elastix import save_transforms
-    from ..library.transformation import load_transform_matrices
+    from ..library.transformation import load_transform_matrices, save_transformation_matrices
     from ..library.linalg import dot_product_of_sequences
 
-    transforms_a = np.array(load_transform_matrices(transform_filepaths[0], validate=True, ndim=2))
-    transforms_b = np.array(load_transform_matrices(transform_filepaths[1], validate=True, ndim=2))
+    transforms_a, sequenced_a = load_transform_matrices(transform_filepaths[0], validate=True, ndim=2)
+    transforms_a = np.array(transforms_a)
+    transforms_b, sequenced_b = load_transform_matrices(transform_filepaths[1], validate=True, ndim=2)
+    transforms_b = np.array(transforms_b)
+
+    assert sequenced_a == sequenced_b, 'Sequenced and non-sequenced sequenced cannot be combined!'
 
     if verbose:
         print(f'transforms_a.shape = {transforms_a.shape}')
@@ -560,9 +564,7 @@ def dot_product_on_affines_workflow(
         for x in result_transforms
     ]
 
-    import json
-    with open(out_filepath, mode='w') as f:
-        json.dump(transforms, f, indent=2)
+    save_transformation_matrices(out_filepath, transforms, sequenced=sequenced_a)
 
 
 def scale_sequential_affines_workflow(
