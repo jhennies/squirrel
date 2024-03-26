@@ -75,6 +75,8 @@ def apply_stack_alignment():
                         help='Automatically adjust the canvas size of the output stack to best fit the data')
     parser.add_argument('--z_range', type=int, nargs=2, default=None,
                         help='Use certain slices of the stack only; Defaults to the entire stack')
+    parser.add_argument('--n_workers', type=int, default=1,
+                        help='The number of cores to use for processing')
     parser.add_argument('-v', '--verbose', action='store_true')
 
     args = parser.parse_args()
@@ -87,6 +89,7 @@ def apply_stack_alignment():
     xy_pivot = args.xy_pivot
     auto_pad = args.auto_pad
     z_range = args.z_range
+    n_workers = args.n_workers
     verbose = args.verbose
 
     from squirrel.workflows.transformation import apply_stack_alignment_on_volume_workflow
@@ -100,6 +103,7 @@ def apply_stack_alignment():
         xy_pivot=xy_pivot,
         auto_pad=auto_pad,
         z_range=z_range,
+        n_workers=n_workers,
         verbose=verbose,
     )
 

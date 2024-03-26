@@ -483,6 +483,7 @@ def apply_stack_alignment_on_volume_workflow(
         xy_pivot=(0., 0.),
         auto_pad=False,
         z_range=None,
+        n_workers=1,
         verbose=False,
 ):
 
@@ -517,6 +518,7 @@ def apply_stack_alignment_on_volume_workflow(
         no_adding_of_transforms=True,
         xy_pivot=xy_pivot,
         z_range=z_range,
+        n_workers=n_workers,
         verbose=verbose
     )
 

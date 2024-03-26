@@ -522,6 +522,49 @@ def serialize_affine_sequence(transform_sequence, param_order='C', out_param_ord
     return result_transforms
 
 
+def apply_stack_alignment_slice(
+        stack_h,
+        stack_shape,
+        transform,
+        idx,
+        xy_pivot=(0., 0.),
+        param_order='C',
+        n_slices=None,
+        verbose=False
+):
+
+    from squirrel.library.io import load_data_from_handle_stack
+    from squirrel.library.elastix import save_transforms
+
+    print(f'idx = {idx} / {n_slices}')
+
+    this_transform = save_transforms(
+        transform,
+        None,
+        param_order=param_order,
+        save_order='M',
+        ndim=2,
+        verbose=verbose
+    )
+    if verbose:
+        print(f'this_transform = {this_transform}')
+    this_transform = validate_and_reshape_matrix(
+        this_transform, ndim=2
+    )
+
+    if verbose:
+        print(f'this_transform = {this_transform}')
+
+    z_slice, _ = load_data_from_handle_stack(stack_h, idx, shape=stack_shape[1:])
+    return apply_affine_transform(
+        z_slice, this_transform,
+        pivot=xy_pivot,
+        fill_mode='constant',
+        cval=0,
+        verbose=verbose
+    )[:stack_shape[1], :stack_shape[2]]
+
+
 def apply_stack_alignment(
         stack_h,
         stack_shape,
@@ -530,6 +573,7 @@ def apply_stack_alignment(
         xy_pivot=(0., 0.),
         param_order='C',
         z_range=None,
+        n_workers=1,
         verbose=False
 ):
 
@@ -546,36 +590,39 @@ def apply_stack_alignment(
     if z_range is None:
         z_range = [0, stack_shape[0]]
 
-    for idx in range(*z_range):
+    if n_workers == 1:
 
-        print(f'idx = {idx} / {z_range[1]}')
+        for idx in range(*z_range):
 
-        this_transform = save_transforms(
-            transform_sequence[idx],
-            None,
-            param_order=param_order,
-            save_order='M',
-            ndim=2,
-            verbose=verbose
-        )
-        if verbose:
-            print(f'this_transform = {this_transform}')
-        this_transform = validate_and_reshape_matrix(
-            this_transform, ndim=2
-        )
-
-        if verbose:
-            print(f'this_transform = {this_transform}')
-
-        z_slice, _ = load_data_from_handle_stack(stack_h, idx, shape=stack_shape[1:])
-        result_volume.append(
-            apply_affine_transform(
-                z_slice, this_transform,
-                pivot=xy_pivot,
-                fill_mode='constant',
-                cval=0,
+            result_volume.append(apply_stack_alignment_slice(
+                stack_h,
+                stack_shape,
+                transform_sequence[idx],
+                idx,
+                xy_pivot=xy_pivot,
+                param_order=param_order,
+                n_slices=z_range[1],
                 verbose=verbose
-            )[:stack_shape[1], :stack_shape[2]]
-        )
+            ))
+
+    else:
+
+        from multiprocessing import Pool
+        with Pool(processes=n_threads) as p:
+            tasks = [
+                p.apply_async(apply_stack_alignment_slice, (
+                    stack_h,
+                    stack_shape,
+                    transform_sequence[idx],
+                    idx,
+                    xy_pivot,
+                    param_order,
+                    z_range[1],
+                    verbose
+                ))
+                for idx in range(*z_range)
+            ]
+            [task.get() for task in tasks]
 
     return np.array(result_volume)
+
