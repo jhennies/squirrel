@@ -609,10 +609,28 @@ def apply_stack_alignment(
 
     else:
 
-        from multiprocessing import Pool
-        with Pool(processes=n_workers) as p:
+        # from multiprocessing import Pool
+        # with Pool(processes=n_workers) as p:
+        #     tasks = [
+        #         p.apply_async(apply_stack_alignment_slice, (
+        #             stack_h,
+        #             stack_shape,
+        #             transform_sequence[idx],
+        #             idx,
+        #             xy_pivot,
+        #             param_order,
+        #             z_range[1],
+        #             verbose
+        #         ))
+        #         for idx in range(*z_range)
+        #     ]
+        #     result_volume = [task.get() for task in tasks]
+
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=n_workers) as tpe:
             tasks = [
-                p.apply_async(apply_stack_alignment_slice, (
+                tpe.submit(
+                    apply_stack_alignment_slice,
                     stack_h,
                     stack_shape,
                     transform_sequence[idx],
@@ -621,10 +639,10 @@ def apply_stack_alignment(
                     param_order,
                     z_range[1],
                     verbose
-                ))
+                )
                 for idx in range(*z_range)
             ]
-            result_volume = [task.get() for task in tasks]
+            result_volume = [task.result() for task in tasks]
 
     return np.array(result_volume)
 
