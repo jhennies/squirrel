@@ -214,7 +214,7 @@ def modify_step_in_sequence():
                         help='Output filepath for the result file (*.json)')
     parser.add_argument('idx', type=int,
                         help='The index of the step which will be modified')
-    parser.add_argument('affine', type=float, nargs=6,
+    parser.add_argument('--affine', type=float, nargs=6, default=[1., 0., 0., 0., 1., 0.],
                         help='Affine transform which will be applied to the specified step')
     parser.add_argument('--replace', action='store_true',
                         help='If set, the transform at the specified step will be replaced. '
