@@ -108,7 +108,7 @@ def load_transform_matrices_from_multiple_files(filepaths, validate=False, ndim=
 
 def save_transformation_matrices(filepath, transforms, sequenced=None):
 
-    transforms = np.array(transforms).tolist()
+    transforms = np.array(transforms)[:, :6].tolist()
 
     if sequenced is not None:
         output = dict(
