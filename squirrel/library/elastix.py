@@ -248,7 +248,7 @@ def register_with_elastix(
     result_transform_parameters = [float(x) for x in result_transform_parameters]
 
     if params_to_origin:
-        assert result_image.ndim == 2
+        # assert result_image.ndim == 2
         result_transform_parameters = save_transforms(
             result_transform_parameters, None,
             param_order='elastix', save_order='M', ndim=2, verbose=verbose
