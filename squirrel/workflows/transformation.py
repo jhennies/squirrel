@@ -516,6 +516,7 @@ def apply_stack_alignment_on_volume_workflow(
         )
         if verbose:
             print(f'transforms = {transforms}')
+            print(f'stack_shape = {stack_shape}')
 
     result_volume = apply_stack_alignment(
         stack_h,
