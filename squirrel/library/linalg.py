@@ -30,3 +30,19 @@ def dot_product_of_sequences(transforms_a, transforms_b, inverse=(0, 0)):
         result_transforms.append(np.dot(transform_a, transform_b))
 
     return result_transforms
+
+
+def modify_step_in_sequence(transforms, idx, affine, replace=False):
+
+    transforms = np.array(transforms)
+    assert transforms[idx].shape == (3, 3)
+
+    affine = list(affine)
+    affine.extend([0, 0, 1])
+    affine = np.reshape(affine, (3, 3))
+
+    if replace:
+        transforms[idx] = affine
+        return transforms
+
+    transforms[idx] = np.dot(transforms[idx], affine)

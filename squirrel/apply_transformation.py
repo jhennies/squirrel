@@ -315,5 +315,46 @@ def apply_rotation_and_scale():
     )
 
 
+def modify_step_in_sequence():
+
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Applies an average of multiple affine transforms to a volume.',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('transform_filepath', type=str,
+                        help='Json file containing the transformation')
+    parser.add_argument('out_filepath', type=str,
+                        help='Output filepath for the result file (*.json)')
+    parser.add_argument('idx', type=int,
+                        help='The index of the step which will be modified')
+    parser.add_argument('affine', type=float, nargs=6,
+                        help='Affine transform which will be applied to the specified step')
+    parser.add_argument('--replace', action='store_true',
+                        help='If set, the transform at the specified step will be replaced. '
+                             'np.dot will be used otherwise')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    transform_filepath = args.transform_filepath
+    out_filepath = args.out_filepath
+    idx = args.idx
+    affine = args.affine
+    replace = args.replace
+    verbose = args.verbose
+
+    from squirrel.workflows.transformation import modify_step_in_sequence_workflow
+    modify_step_in_sequence_workflow(
+        transform_filepath,
+        out_filepath,
+        idx,
+        affine,
+        replace=replace,
+        verbose=verbose
+    )
+
+
 if __name__ == '__main__':
     apply_stack_alignment()

@@ -488,10 +488,14 @@ def apply_stack_alignment_on_volume_workflow(
 
     from squirrel.library.io import load_data_handle, write_h5_container
     from squirrel.library.transformation import apply_stack_alignment, serialize_affine_sequence
-    import json
+    from squirrel.library.transformation import load_transform_matrices
+    # import json
 
-    with open(transform_filepath, mode='r') as f:
-        transforms = json.load(f)
+    # with open(transform_filepath, mode='r') as f:
+    #     transforms = json.load(f)
+    transforms, sequenced = load_transform_matrices(transform_filepath, validate=False, ndim=2)
+    if sequenced is not None:
+        no_adding_of_transforms = sequenced
     if not no_adding_of_transforms:
         transforms = serialize_affine_sequence(transforms, param_order='C', verbose=verbose)
 
@@ -695,3 +699,23 @@ def add_translational_drift_workflow(
     with open(out_filepath, mode='w') as f:
         json.dump(transforms, f, indent=2)
 
+
+def modify_step_in_sequence_workflow(transform_filepath, out_filepath, idx, affine, replace=False, verbose=False):
+
+    if verbose:
+        print(f'transform_filepath = {transform_filepath}')
+        print(f'idx = {idx}')
+        print(f'affine = {affine}')
+        print(f'replace = {replace}')
+
+    from ..library.linalg import modify_step_in_sequence
+    from ..library.transformation import load_transform_matrices, save_transformation_matrices
+    from ..library.elastix import save_transforms
+
+    transforms, sequenced = load_transform_matrices(transform_filepath, validate=True, ndim=2)
+    transforms = modify_step_in_sequence(transforms, idx, affine, replace=replace)
+    save_transformation_matrices(
+        out_filepath,
+        save_transforms(transforms, None, param_order='M', save_order='C', ndim=2),
+        sequenced=sequenced
+    )
