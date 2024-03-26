@@ -622,7 +622,7 @@ def apply_stack_alignment(
                 ))
                 for idx in range(*z_range)
             ]
-            [task.get() for task in tasks]
+            result_volume = [task.get() for task in tasks]
 
     return np.array(result_volume)
 

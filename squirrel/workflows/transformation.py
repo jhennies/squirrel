@@ -512,7 +512,7 @@ def apply_stack_alignment_on_volume_workflow(
         if verbose:
             print(f'stack_bounds = {stack_bounds}')
         transforms, stack_shape = apply_auto_pad(
-            transforms, [stack_len, *stack_shape[1:]], stack_bounds, extra_padding=16
+            transforms, [stack_len, *stack_shape[1:]], stack_bounds, extra_padding=16, z_range=z_range
         )
         if verbose:
             print(f'transforms = {transforms}')

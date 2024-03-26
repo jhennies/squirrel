@@ -32,7 +32,7 @@ def get_bounds_of_stack(stack_h, stack_shape, return_ints=False, z_range=None):
     ]
 
 
-def apply_auto_pad(transforms, stack_shape, stack_bounds, extra_padding=0):
+def apply_auto_pad(transforms, stack_shape, stack_bounds, extra_padding=0, z_range=None):
 
     from squirrel.library.elastix import save_transforms
     from squirrel.library.transformation import validate_and_reshape_matrix
@@ -57,8 +57,12 @@ def apply_auto_pad(transforms, stack_shape, stack_bounds, extra_padding=0):
 
         return new_bounds
 
+    if z_range is None:
+        z_range = [0, stack_shape[0]]
+
     new_bounds = []
-    for idx, t in enumerate(transforms):
+    for idx in range(*z_range):
+        t = transforms[idx]
         bounds_ = _transform_on_bounds(t, stack_bounds[idx])
         new_bounds.append(bounds_)
 
@@ -70,7 +74,8 @@ def apply_auto_pad(transforms, stack_shape, stack_bounds, extra_padding=0):
 
     # Modify the offsets within the transforms to move everything towards the origin
     from squirrel.library.transformation import setup_translation_matrix
-    for idx, transform in enumerate(transforms):
+    for idx in range(*z_range):
+        transform = transforms[idx]
         transforms[idx] = np.dot(
             transform,
             validate_and_reshape_matrix(setup_translation_matrix(new_bounds[0] - extra_padding, ndim=2), ndim=2)
