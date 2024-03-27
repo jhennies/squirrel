@@ -488,7 +488,7 @@ def apply_stack_alignment_on_volume_workflow(
 ):
 
     from squirrel.library.io import load_data_handle, write_h5_container
-    from squirrel.library.transformation import apply_stack_alignment, serialize_affine_sequence
+    from squirrel.library.transformation import apply_stack_alignment, sequence_affine_stack
     from squirrel.library.transformation import load_transform_matrices
     # import json
 
@@ -498,7 +498,7 @@ def apply_stack_alignment_on_volume_workflow(
     if sequenced is not None:
         no_adding_of_transforms = sequenced
     if not no_adding_of_transforms:
-        transforms = serialize_affine_sequence(transforms, param_order='M', verbose=verbose)
+        transforms = sequence_affine_stack(transforms, param_order='M', verbose=verbose)
 
     stack_h, stack_shape = load_data_handle(stack, key=key, pattern=pattern)
     stack_len = stack_shape[0]
@@ -609,8 +609,8 @@ def serialize_affine_sequence_workflow(
     with open(transform_filepath, mode='r') as f:
         transforms = json.load(f)
 
-    from squirrel.library.transformation import serialize_affine_sequence
-    result_transforms = serialize_affine_sequence(transforms, verbose=verbose)
+    from squirrel.library.transformation import sequence_affine_stack
+    result_transforms = sequence_affine_stack(transforms, verbose=verbose)
 
     with open(out_filepath, mode='w') as f:
         json.dump(result_transforms, f, indent=2)

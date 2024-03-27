@@ -4,40 +4,59 @@ import numpy as np
 
 class AffineStack:
 
-    def __init__(self, stack=None, filepath=None, is_sequenced=None):
+    def __init__(
+            self,
+            stack=None,
+            filepath=None,
+            is_sequenced=None,
+            pivot=None
+    ):
 
         self._filepath = None
         self._stack = None
         self._ndim = None
         self.is_sequenced = None
         self._it = 0
+        self._pivot = None
         if stack is not None:
             assert filepath is None
-            self.set_from_stack(stack, is_sequenced=is_sequenced)
+            self.set_from_stack(stack, is_sequenced=is_sequenced, pivot=pivot)
         if filepath is not None:
             assert stack is None
-            self.set_from_file(filepath, is_sequenced=is_sequenced)
+            self.set_from_file(filepath, is_sequenced=is_sequenced, pivot=pivot)
 
-    def _validate_stack(self, stack):
-        ndims = np.array([m.get_ndim() for m in stack])
-        if (ndims == 2).all():
-            self._ndim = 2
-            return True
-        if (ndims == 3).all():
-            self._ndim = 3
-            return True
-        return False
+    def _validate_stack(self):
+        pivots = [m.get_pivot() for m in self[:]]
+        if not np.array((x == pivots[0]).all() for x in pivots).all():
+            print(f'All pivots of stack must be equal!')
+            return False
+        if not (self._pivot == pivots[0]).all():
+            print('Pivots in stack must match stack pivot')
+            return False
+        if len(self._pivot) != self._ndim:
+            print(f'Pivot shape must match number of dimensions! pivot={self._pivot}; ndim={self._ndim}')
+            return False
+        ndims = np.array([m.get_ndim() for m in self[:]])
+        if not np.array(x == ndims for x in ndims).all():
+            print('All ndims of stack must be equal!')
+            return False
+        if self._ndim != ndims[0]:
+            print(f'ndims in stack must match stack ndim! {ndims[0]} != {self._ndim}')
+            return False
+        return True
 
-    def set_from_stack(self, stack, is_sequenced=None):
+    def set_from_stack(self, stack, is_sequenced=None, pivot=None):
         if not isinstance(stack[0], AffineMatrix):
-            stack = [AffineMatrix(parameters=parameters) for parameters in stack]
-        if self._validate_stack(stack):
-            self._stack = stack
+            stack = [AffineMatrix(parameters=parameters, pivot=pivot) for parameters in stack]
+        self._stack = stack
+        self._set_ndim()
+        self.set_pivot(pivot)
+        if self._validate_stack():
             self.is_sequenced = is_sequenced
             return
         raise RuntimeError('Validation of stack failed!')
 
-    def set_from_file(self, filepath, is_sequenced=None):
+    def set_from_file(self, filepath, is_sequenced=None, pivot=None):
         import json
         with open(filepath, mode='r') as f:
             stack_data = json.load(f)
@@ -45,21 +64,43 @@ class AffineStack:
         stack = stack_data['transforms']
         if is_sequenced is None:
             is_sequenced = stack_data['sequenced']
+        if pivot is None:
+            pivot = stack_data['pivot']
 
-        self.set_from_stack(stack, is_sequenced=is_sequenced)
+        self.set_from_stack(stack, is_sequenced=is_sequenced, pivot=pivot)
 
     def to_file(self, filepath):
         import json
         out_data = dict(
             transforms=self['C', :].tolist(),
-            sequenced=self.is_sequenced
+            sequenced=self.is_sequenced,
+            pivot=self.get_pivot().tolist()
         )
         with open(filepath, 'w') as f:
             json.dump(out_data, f, indent=2)
-    
-    def smooth(self, sigma):
-        from scipy.ndimage import gaussian_filter1d
-        return AffineStack(stack=gaussian_filter1d(self['C', :], sigma, axis=0))
+
+    def set_pivot(self, pivot=None):
+        if pivot is None and self._stack is not None:
+            pivots = [m.get_pivot() for m in self[:]]
+            assert np.array((x == np.array(pivots[0])).all() for x in pivots).all(), 'Not all pivots are equal!'
+            self._pivot = np.array(pivots[0])
+            return
+        if pivot is None and self._stack is None:
+            self._pivot = np.array([0.] * self._ndim)
+            return
+        assert len(pivot) == self._ndim
+        self._pivot = np.array(pivot, dtype=float)
+
+    def _set_ndim(self):
+        ndims = np.array([m.get_ndim() for m in self[:]])
+        if (ndims == 2).all():
+            self._ndim = 2
+            return
+        if (ndims == 3).all():
+            self._ndim = 3
+
+    def get_pivot(self):
+        return self._pivot
 
     def append(self, other):
         assert self.is_sequenced == other.is_sequenced
@@ -92,6 +133,9 @@ class AffineStack:
             return self._stack[item]
         raise ValueError('Invalid indexing!')
 
+    def __setitem__(self, key, value):
+        self._stack[key] = value
+
     def __neg__(self):
         return AffineStack(
             stack=[-x for x in self[:]],
@@ -119,20 +163,48 @@ class AffineStack:
             is_sequenced=self.is_sequenced
         )
 
+    def __copy__(self):
+        return AffineStack(stack=self._stack.copy())
+
+    def get_smoothed_stack(self, sigma):
+        from scipy.ndimage import gaussian_filter1d
+        return AffineStack(stack=gaussian_filter1d(self['C', :], sigma, axis=0))
+
+    def get_sequenced_stack(self):
+
+        assert not self.is_sequenced, 'A sequenced stack cannot be sequenced again!'
+
+        stack = []
+        for idx, matrix in enumerate(self[:]):
+            if idx == 0:
+                stack.append(self[0])
+                continue
+            stack.append(stack[idx - 1] * self[idx])
+
+        return AffineStack(stack=stack, is_sequenced=True)
+
 
 class AffineMatrix:
 
-    def __init__(self, parameters=None, elastix_parameters=None, filepath=None):
+    def __init__(
+            self,
+            parameters=None,
+            elastix_parameters=None,
+            filepath=None,
+            pivot=None
+    ):
         self._parameters = None
         self._ndim = None
+        self._pivot = None
         if parameters is not None:
-            self.set_from_parameters(parameters)
+            self.set_from_parameters(parameters, pivot=pivot)
         if elastix_parameters is not None:
             self.set_from_elastix(elastix_parameters)
         if filepath is not None:
             self.set_from_file(filepath)
 
     def _validate_parameters(self, parameters):
+        parameters = np.array(parameters).flatten()
         if len(parameters) == 6:
             self._ndim = 2
             return True
@@ -141,9 +213,10 @@ class AffineMatrix:
             return True
         return False
 
-    def set_from_parameters(self, parameters):
+    def set_from_parameters(self, parameters, pivot=None):
         if self._validate_parameters(parameters):
             self._parameters = np.array(parameters, dtype=float)
+            self.set_pivot(pivot)
             return
         raise RuntimeError(f'Validation of parameters failed! {parameters}')
 
@@ -164,14 +237,38 @@ class AffineMatrix:
             return out_matrix
 
     def set_from_file(self, filepath):
-        import json
-        with open(filepath, mode='r') as f:
-            self.set_from_parameters(json.load(f))
+        from squirrel.library.io import get_filetype
+        filetype = get_filetype(filepath)
+
+        if filetype == 'json':
+            import json
+            with open(filepath, mode='r') as f:
+                matrix_data = json.load(f)
+                self.set_from_parameters(parameters=matrix_data['transform'], pivot=matrix_data['pivot'])
+            return
+
+        if filetype == 'csv':
+            from numpy import genfromtxt
+            self.set_from_parameters(genfromtxt(filepath, delimiter=','))
+            return
+
+        raise ValueError(f'Invalid filetype: {filetype}')
+
+    def set_pivot(self, pivot):
+        self._pivot = np.array(pivot, dtype=float) if pivot is not None else np.array([0.] * self._ndim)
+        assert len(self._pivot) == self._ndim
+
+    def get_pivot(self):
+        return self._pivot
 
     def to_file(self, filepath):
         import json
+        out_data = dict(
+            transform=self.get_matrix(order='C').tolist(),
+            pivot=self._pivot.tolist()
+        )
         with open(filepath, mode='w') as f:
-            json.dump(self.get_matrix(order='C').tolist(), f, indent=2)
+            json.dump(out_data, f, indent=2)
 
     def _ms_to_c(self, matrix):
         if self._ndim == 2:
@@ -204,6 +301,9 @@ class AffineMatrix:
     def __mul__(self, other):
         return self.dot(other)
 
+    def get_scaled(self, scale):
+        pass
+
 
 if __name__ == '__main__':
 
@@ -234,9 +334,11 @@ if __name__ == '__main__':
         print(f'(stk * -stk)["Ms", :] = {(stk * -stk)["Ms", :]}')
         stk.append(-stk_loaded)
         print(f'Appended: stk["Ms", :] = {stk["Ms", :]}')
-        print(f'stk.smooth(2)["Ms", :] = {stk.smooth(2)["Ms", :]}')
+        print(f'stk.smooth(2)["Ms", :] = {stk.get_smoothed_stack(2)["Ms", :]}')
+        print(f'before: stk["Ms", :] = {stk["C", :]}')
+        print(f'sequenced: stk["Ms", :] = {stk.get_sequenced_stack()["C", :]}')
 
-    if False:
+    if True:
         print('Testing the matrix object')
         am = AffineMatrix(parameters=[1.1, 0., 5, 0., 1.3, 2])
         print(am.get_matrix(order='C'))
@@ -254,4 +356,6 @@ if __name__ == '__main__':
         am_loaded = AffineMatrix()
         am_loaded.set_from_file(fp)
         print(am_loaded.get_matrix(order='Ms'))
+        am3d = AffineMatrix(parameters=[1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0], pivot=[100, 0, 0])
+        am3d.to_file('/media/julian/Data/tmp/affine_matrix_test_3d.json')
 

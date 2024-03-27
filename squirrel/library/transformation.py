@@ -33,116 +33,116 @@ def transform_matrix_offset_center(matrix, shape, ndim=3):
         return transform_matrix
 
 
-def validate_matrix(matrix, ndim):
-    matrix = np.array(matrix)
-    if matrix.ndim == 1:
-        if len(matrix) == ndim ** 2 + ndim and len(matrix) == (ndim + 1) ** 2:
-            raise ValueError(f'Length of matrix={len(matrix)} does not match image dimension={ndim}!')
-    if matrix.ndim == 2:
-        if matrix.shape != (ndim, ndim + 1) and matrix.shape != (ndim + 1, ndim + 1):
-            raise ValueError(f'Matrix shape={matrix.shape} does not match image dimension={ndim}')
+# def validate_matrix(matrix, ndim):
+#     matrix = np.array(matrix)
+#     if matrix.ndim == 1:
+#         if len(matrix) == ndim ** 2 + ndim and len(matrix) == (ndim + 1) ** 2:
+#             raise ValueError(f'Length of matrix={len(matrix)} does not match image dimension={ndim}!')
+#     if matrix.ndim == 2:
+#         if matrix.shape != (ndim, ndim + 1) and matrix.shape != (ndim + 1, ndim + 1):
+#             raise ValueError(f'Matrix shape={matrix.shape} does not match image dimension={ndim}')
+#
+
+# def load_transform_matrix(filepath, validate=False):
+#
+#     from squirrel.library.io import get_filetype
+#     filetype = get_filetype(filepath)
+#
+#     if filetype == 'json':
+#         import json
+#         with open(filepath, mode='r') as f:
+#             return json.load(f)
+#
+#     if filetype == 'csv':
+#         from numpy import genfromtxt
+#         return genfromtxt(filepath, delimiter=',')
 
 
-def load_transform_matrix(filepath, validate=False):
-
-    from squirrel.library.io import get_filetype
-    filetype = get_filetype(filepath)
-
-    if filetype == 'json':
-        import json
-        with open(filepath, mode='r') as f:
-            return json.load(f)
-
-    if filetype == 'csv':
-        from numpy import genfromtxt
-        return genfromtxt(filepath, delimiter=',')
-
-
-def load_transform_matrices(filepath, validate=False, ndim=3):
-
-    from squirrel.library.io import get_filetype
-    assert get_filetype(filepath) == 'json', 'Multiple transforms in one file only supported for json files'
-
-    import json
-    with open(filepath, mode='r') as f:
-        transforms_info = json.load(f)
-
-    sequenced = False
-    if type(transforms_info) == dict:
-        transforms = transforms_info['transforms']
-        sequenced = transforms_info['sequenced'] if 'sequenced' in transforms_info.keys() else False
-    else:
-        transforms = transforms_info
-
-    if np.array(transforms).ndim == 1:
-        if validate:
-            return [validate_and_reshape_matrix(transforms, ndim)]
-        return transforms
-    if np.array(transforms).ndim >= 2:
-        if not validate:
-            return transforms
-        try:
-            # If this works it was one transform in matrix shape
-            return [validate_and_reshape_matrix(transforms, ndim)]
-        except ValueError:
-            pass
-        out_transforms = []
-        for transform in transforms:
-            out_transforms.append(validate_and_reshape_matrix(transform, ndim))
-        return out_transforms, sequenced
-    raise RuntimeError(f'Invalid file contents for {filepath}')
+# def load_transform_matrices(filepath, validate=False, ndim=3):
+#
+#     from squirrel.library.io import get_filetype
+#     assert get_filetype(filepath) == 'json', 'Multiple transforms in one file only supported for json files'
+#
+#     import json
+#     with open(filepath, mode='r') as f:
+#         transforms_info = json.load(f)
+#
+#     sequenced = False
+#     if type(transforms_info) == dict:
+#         transforms = transforms_info['transforms']
+#         sequenced = transforms_info['sequenced'] if 'sequenced' in transforms_info.keys() else False
+#     else:
+#         transforms = transforms_info
+#
+#     if np.array(transforms).ndim == 1:
+#         if validate:
+#             return [validate_and_reshape_matrix(transforms, ndim)]
+#         return transforms
+#     if np.array(transforms).ndim >= 2:
+#         if not validate:
+#             return transforms
+#         try:
+#             # If this works it was one transform in matrix shape
+#             return [validate_and_reshape_matrix(transforms, ndim)]
+#         except ValueError:
+#             pass
+#         out_transforms = []
+#         for transform in transforms:
+#             out_transforms.append(validate_and_reshape_matrix(transform, ndim))
+#         return out_transforms, sequenced
+#     raise RuntimeError(f'Invalid file contents for {filepath}')
 
 
-def load_transform_matrices_from_multiple_files(filepaths, validate=False, ndim=3):
-
-    all_sequenced = None
-    all_transforms = []
-    for filepath in filepaths:
-        transforms, sequenced = load_transform_matrices(filepath, validate=validate, ndim=ndim)
-        all_sequenced = sequenced if all_sequenced is None else all_sequenced
-        assert sequenced == all_sequenced, 'All of the files loaded into the full sequence must be either sequenced ' \
-                                           'or non-sequenced, not mixed in type!'
-        all_transforms.extend(transforms)
-    return all_transforms, all_sequenced
-
-
-def save_transformation_matrices(filepath, transforms, sequenced=None):
-
-    transforms = np.array(transforms)[:, :6].tolist()
-
-    if sequenced is not None:
-        output = dict(
-            transforms=transforms,
-            sequenced=sequenced
-        )
-    else:
-        output = transforms
-
-    import json
-    with open(filepath, mode='w') as f:
-        json.dump(output, f, indent=2)
+# def load_transform_matrices_from_multiple_files(filepaths, validate=False, ndim=3):
+#
+#     all_sequenced = None
+#     all_transforms = []
+#     for filepath in filepaths:
+#         transforms, sequenced = load_transform_matrices(filepath, validate=validate, ndim=ndim)
+#         all_sequenced = sequenced if all_sequenced is None else all_sequenced
+#         assert sequenced == all_sequenced, 'All of the files loaded into the full sequence must be either sequenced ' \
+#                                            'or non-sequenced, not mixed in type!'
+#         all_transforms.extend(transforms)
+#     return all_transforms, all_sequenced
 
 
-def validate_and_reshape_matrix(matrix, ndim):
+# def save_transformation_matrices(filepath, transforms, sequenced=None):
+#
+#     transforms = np.array(transforms)[:, :6].tolist()
+#
+#     if sequenced is not None:
+#         output = dict(
+#             transforms=transforms,
+#             sequenced=sequenced
+#         )
+#     else:
+#         output = transforms
+#
+#     import json
+#     with open(filepath, mode='w') as f:
+#         json.dump(output, f, indent=2)
 
-    matrix = np.array(matrix)
-    validate_matrix(matrix, ndim)
 
-    if matrix.ndim == 1:
-        try:
-            matrix = np.reshape(matrix, (ndim, ndim + 1))
-            return np.concatenate([matrix, [[0] * ndim + [1]]], axis=0)
-        except ValueError:
-            return np.reshape(matrix, (ndim + 1, ndim + 1))
-
-    if matrix.ndim == 2:
-        if matrix.shape == (ndim + 1, ndim + 1):
-            return matrix
-        if matrix.shape == (ndim, ndim + 1):
-            return np.concatenate([matrix, [[0] * ndim + [1]]], axis=0)
-        raise ValueError(f'Matrix shape={matrix.shape} does not match image dimension={ndim}')
-
-    raise ValueError(f'Matrix has invalid number of dimensions: {matrix.ndim}')
+# def validate_and_reshape_matrix(matrix, ndim):
+#
+#     matrix = np.array(matrix)
+#     validate_matrix(matrix, ndim)
+#
+#     if matrix.ndim == 1:
+#         try:
+#             matrix = np.reshape(matrix, (ndim, ndim + 1))
+#             return np.concatenate([matrix, [[0] * ndim + [1]]], axis=0)
+#         except ValueError:
+#             return np.reshape(matrix, (ndim + 1, ndim + 1))
+#
+#     if matrix.ndim == 2:
+#         if matrix.shape == (ndim + 1, ndim + 1):
+#             return matrix
+#         if matrix.shape == (ndim, ndim + 1):
+#             return np.concatenate([matrix, [[0] * ndim + [1]]], axis=0)
+#         raise ValueError(f'Matrix shape={matrix.shape} does not match image dimension={ndim}')
+#
+#     raise ValueError(f'Matrix has invalid number of dimensions: {matrix.ndim}')
 
 
 def setup_translation_matrix(translation_zyx, ndim=3):
@@ -261,88 +261,88 @@ def decompose_sequence(sequence):
     return translations, rotations, zooms, shears
 
 
-def smooth_2d_affine_sequence(
-        sequence,
-        sigma=1.0,
-        components=None
-):
-
-    from scipy.ndimage import gaussian_filter1d
-    from scipy.ndimage import convolve1d
-
-    def _gaussian_arithmetic(seq):
-        # This on is trivial: the weighted arithmetic mean
-        return gaussian_filter1d(seq, sigma, axis=0)
-
-    # def _gaussian_geometric(seq):
-    #     # Easy too: weighted geometric mean (weights are the normal distribution)
-    #     kernel = [x for x in range(int(np.floor(-sigma * 2)), int(np.ceil(sigma * 2) + 1))]
-    #     kernel = np.array([1/(sigma * math.sqrt(2 * math.pi)) * math.exp(- x ** 2 / (2 * sigma ** 2)) for x in kernel])
-    #     kernel /= kernel.sum()
-    #     return convolve1d(seq, kernel, axis=0)
-    #
-    # def _to_angles(rotations):
-    #     angles00 = [math.acos(x[0, 0]) for x in rotations]
-    #     # angles01 = [math.asin(x[0, 1]) for x in rotations]
-    #     # angles10 = [math.asin(-x[1, 0]) for x in rotations]
-    #     # angles11 = [math.acos(x[1, 1]) for x in rotations]
-    #     for idx, x in enumerate(angles00):
-    #         if -3 * np.pi < x < -np.pi:
-    #             x += 2 * np.pi
-    #         elif -np.pi < x < np.pi:
-    #             pass
-    #         elif np.pi < x < 3 * np.pi:
-    #             x -= 2 * np.pi
-    #         else:
-    #             ValueError(f'Invalid angle: {x}')
-    #         angles00[idx] = x
-    #     for x in angles00:
-    #         assert -np.pi < x < np.pi
-    #     return angles00
-
-    sequence = _gaussian_arithmetic(sequence)
-
-    # if components is None:
-    #     components = ['translation', 'rotation', 'shear', 'scale']
-    #
-    # sequence = np.array(sequence, dtype='float64')
-    # # Decompose matrices
-    # translations, rotations, zooms, shears = decompose_sequence(sequence)
-    # # Convert the rotation matrices to angles
-    # rotations = _to_angles(rotations)
-    # # print(rotations)
-    #
-    # if sigma > 0:
-    #     # Filter the components
-    #     if 'translation' in components:
-    #         translations = _gaussian_arithmetic(translations)
-    #     if 'scale' in components:
-    #         zooms = _gaussian_geometric(zooms)
-    #     if 'rotation' in components:
-    #         rotations = _gaussian_arithmetic(rotations)
-    #     if 'shear' in components:
-    #         shears = _gaussian_arithmetic(shears)
-    #
-    # # Now convert everything back to one affine matrix per element
-    # translations = [validate_and_reshape_matrix(setup_translation_matrix(x, 2), ndim=2) for x in translations]
-    # rotations = [validate_and_reshape_matrix(setup_2d_rotation_matrix_from_angle(x), ndim=2) for x in rotations]
-    # zooms = [validate_and_reshape_matrix(setup_scale_matrix(x, 2), ndim=2) for x in zooms]
-    # shears = [validate_and_reshape_matrix(setup_shear_matrix(x, 2), ndim=2) for x in shears]
-    # sequence = [
-    #     # np.dot(translations[idx], np.dot(rotations[idx], np.dot(zooms[idx], shears[idx])))[:2]
-    #     np.dot(np.dot(np.dot(translations[idx], rotations[idx]), zooms[idx]), shears[idx])[:2]
-    #     # np.dot(shears[idx], np.dot(zooms[idx], np.dot(rotations[idx], translations[idx])))[:2]
-    #     # np.dot(translations[idx], np.dot(rotations[idx], np.dot(shears[idx], zooms[idx])))[:2]
-    #     for idx in range(len(sequence))
-    # ]
-
-    # from ..library.elastix import save_transforms
-    # sequence = [
-    #     save_transforms(x, None, 'M', 'C', ndim=2)
-    #     for x in sequence
-    # ]
-
-    return sequence
+# def smooth_2d_affine_sequence(
+#         sequence,
+#         sigma=1.0,
+#         components=None
+# ):
+#
+#     from scipy.ndimage import gaussian_filter1d
+#     from scipy.ndimage import convolve1d
+#
+#     def _gaussian_arithmetic(seq):
+#         # This on is trivial: the weighted arithmetic mean
+#         return gaussian_filter1d(seq, sigma, axis=0)
+#
+#     # def _gaussian_geometric(seq):
+#     #     # Easy too: weighted geometric mean (weights are the normal distribution)
+#     #     kernel = [x for x in range(int(np.floor(-sigma * 2)), int(np.ceil(sigma * 2) + 1))]
+#     #     kernel = np.array([1/(sigma * math.sqrt(2 * math.pi)) * math.exp(- x ** 2 / (2 * sigma ** 2)) for x in kernel])
+#     #     kernel /= kernel.sum()
+#     #     return convolve1d(seq, kernel, axis=0)
+#     #
+#     # def _to_angles(rotations):
+#     #     angles00 = [math.acos(x[0, 0]) for x in rotations]
+#     #     # angles01 = [math.asin(x[0, 1]) for x in rotations]
+#     #     # angles10 = [math.asin(-x[1, 0]) for x in rotations]
+#     #     # angles11 = [math.acos(x[1, 1]) for x in rotations]
+#     #     for idx, x in enumerate(angles00):
+#     #         if -3 * np.pi < x < -np.pi:
+#     #             x += 2 * np.pi
+#     #         elif -np.pi < x < np.pi:
+#     #             pass
+#     #         elif np.pi < x < 3 * np.pi:
+#     #             x -= 2 * np.pi
+#     #         else:
+#     #             ValueError(f'Invalid angle: {x}')
+#     #         angles00[idx] = x
+#     #     for x in angles00:
+#     #         assert -np.pi < x < np.pi
+#     #     return angles00
+#
+#     sequence = _gaussian_arithmetic(sequence)
+#
+#     # if components is None:
+#     #     components = ['translation', 'rotation', 'shear', 'scale']
+#     #
+#     # sequence = np.array(sequence, dtype='float64')
+#     # # Decompose matrices
+#     # translations, rotations, zooms, shears = decompose_sequence(sequence)
+#     # # Convert the rotation matrices to angles
+#     # rotations = _to_angles(rotations)
+#     # # print(rotations)
+#     #
+#     # if sigma > 0:
+#     #     # Filter the components
+#     #     if 'translation' in components:
+#     #         translations = _gaussian_arithmetic(translations)
+#     #     if 'scale' in components:
+#     #         zooms = _gaussian_geometric(zooms)
+#     #     if 'rotation' in components:
+#     #         rotations = _gaussian_arithmetic(rotations)
+#     #     if 'shear' in components:
+#     #         shears = _gaussian_arithmetic(shears)
+#     #
+#     # # Now convert everything back to one affine matrix per element
+#     # translations = [validate_and_reshape_matrix(setup_translation_matrix(x, 2), ndim=2) for x in translations]
+#     # rotations = [validate_and_reshape_matrix(setup_2d_rotation_matrix_from_angle(x), ndim=2) for x in rotations]
+#     # zooms = [validate_and_reshape_matrix(setup_scale_matrix(x, 2), ndim=2) for x in zooms]
+#     # shears = [validate_and_reshape_matrix(setup_shear_matrix(x, 2), ndim=2) for x in shears]
+#     # sequence = [
+#     #     # np.dot(translations[idx], np.dot(rotations[idx], np.dot(zooms[idx], shears[idx])))[:2]
+#     #     np.dot(np.dot(np.dot(translations[idx], rotations[idx]), zooms[idx]), shears[idx])[:2]
+#     #     # np.dot(shears[idx], np.dot(zooms[idx], np.dot(rotations[idx], translations[idx])))[:2]
+#     #     # np.dot(translations[idx], np.dot(rotations[idx], np.dot(shears[idx], zooms[idx])))[:2]
+#     #     for idx in range(len(sequence))
+#     # ]
+#
+#     # from ..library.elastix import save_transforms
+#     # sequence = [
+#     #     save_transforms(x, None, 'M', 'C', ndim=2)
+#     #     for x in sequence
+#     # ]
+#
+#     return sequence
 
 
 def extract_approximate_rotation_affine(transform, coerce_affine_dimension):
@@ -486,42 +486,42 @@ def scale_sequential_affines(transform_sequence, scale, xy_pivot=(0., 0.)):
     return transform_sequence
 
 
-def serialize_affine_sequence(transform_sequence, param_order='C', out_param_order='C', verbose=False):
-
-    from squirrel.library.elastix import save_transforms
-
-    result_transforms = []
-    transform = None
-
-    for this_transform in transform_sequence:
-
-        this_transform = save_transforms(
-            this_transform,
-            None,
-            param_order=param_order,
-            save_order='M',
-            ndim=2,
-            verbose=verbose
-        )
-        if verbose:
-            print(f'this_transform = {this_transform}')
-        this_transform = validate_and_reshape_matrix(
-            this_transform, ndim=2
-        )
-
-        if transform is not None:
-            transform = np.dot(this_transform, transform)
-        else:
-            transform = this_transform
-
-        result_transforms.append(
-            save_transforms(
-                transform, None,
-                param_order='M', save_order=out_param_order, ndim=2, verbose=verbose
-            )[:6].tolist()
-        )
-
-    return result_transforms
+# def sequence_affine_stack(transform_sequence, param_order='C', out_param_order='C', verbose=False):
+#
+#     from squirrel.library.elastix import save_transforms
+#
+#     result_transforms = []
+#     transform = None
+#
+#     for this_transform in transform_sequence:
+#
+#         this_transform = save_transforms(
+#             this_transform,
+#             None,
+#             param_order=param_order,
+#             save_order='M',
+#             ndim=2,
+#             verbose=verbose
+#         )
+#         if verbose:
+#             print(f'this_transform = {this_transform}')
+#         this_transform = validate_and_reshape_matrix(
+#             this_transform, ndim=2
+#         )
+#
+#         if transform is not None:
+#             transform = np.dot(this_transform, transform)
+#         else:
+#             transform = this_transform
+#
+#         result_transforms.append(
+#             save_transforms(
+#                 transform, None,
+#                 param_order='M', save_order=out_param_order, ndim=2, verbose=verbose
+#             )[:6].tolist()
+#         )
+#
+#     return result_transforms
 
 
 def apply_stack_alignment_slice(
@@ -583,7 +583,7 @@ def apply_stack_alignment(
     from squirrel.library.elastix import save_transforms
 
     if not no_adding_of_transforms:
-        transform_sequence = serialize_affine_sequence(transform_sequence, param_order=param_order, verbose=verbose)
+        transform_sequence = sequence_affine_stack(transform_sequence, param_order=param_order, verbose=verbose)
 
     stack_shape = np.ceil(np.array(stack_shape)).astype(int)
 
