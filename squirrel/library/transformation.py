@@ -223,42 +223,42 @@ def setup_shear_matrix(shear_zyx, ndim=3):
     raise ValueError(f'Invalid number of dimensions = {ndim}')
 
 
-def decompose_3d_transform(transform, return_matrices=False, ndim=3, verbose=False):
+# def decompose_3d_transform(transform, return_matrices=False, ndim=3, verbose=False):
+#
+#     from transforms3d.affines import decompose
+#
+#     transform = validate_and_reshape_matrix(transform, ndim=ndim)
+#     decomp = decompose(transform)
+#
+#     if not return_matrices:
+#         return decomp
+#
+#     return (
+#         setup_translation_matrix(decomp[0]),
+#         decomp[1],
+#         setup_scale_matrix(decomp[2]),
+#         setup_shear_matrix(decomp[3])
+#     )
 
-    from transforms3d.affines import decompose
 
-    transform = validate_and_reshape_matrix(transform, ndim=ndim)
-    decomp = decompose(transform)
-
-    if not return_matrices:
-        return decomp
-
-    return (
-        setup_translation_matrix(decomp[0]),
-        decomp[1],
-        setup_scale_matrix(decomp[2]),
-        setup_shear_matrix(decomp[3])
-    )
-
-
-def decompose_sequence(sequence):
-
-    from ..library.elastix import save_transforms
-
-    from transforms3d.affines import decompose
-    translations = []
-    rotations = []
-    zooms = []
-    shears = []
-    for m in sequence:
-        m = save_transforms(m, None, param_order='C', save_order='M', ndim=2)
-        m = validate_and_reshape_matrix(m, 2)
-        t, r, z, s = decompose(m)
-        translations.append(t)
-        rotations.append(r)
-        zooms.append(z)
-        shears.append(s)
-    return translations, rotations, zooms, shears
+# def decompose_sequence(sequence):
+#
+#     from ..library.elastix import save_transforms
+#
+#     from transforms3d.affines import decompose
+#     translations = []
+#     rotations = []
+#     zooms = []
+#     shears = []
+#     for m in sequence:
+#         m = save_transforms(m, None, param_order='C', save_order='M', ndim=2)
+#         m = validate_and_reshape_matrix(m, 2)
+#         t, r, z, s = decompose(m)
+#         translations.append(t)
+#         rotations.append(r)
+#         zooms.append(z)
+#         shears.append(s)
+#     return translations, rotations, zooms, shears
 
 
 # def smooth_2d_affine_sequence(
@@ -442,48 +442,48 @@ def apply_affine_transform(
     return x
 
 
-def scale_affine_matrix(affine, scale, xy_pivot):
-    # Translations are stored in pixels so need to be adjusted
-    affine[:2, 2] = np.array(affine)[:2, 2] * scale
-    # Move the pivot according to the scale
-    pivot_matrix = np.array([
-        [1., 0., xy_pivot[0]],
-        [0., 1., xy_pivot[1]],
-        [0., 0., 1.]
-    ])
-    affine = np.dot(
-        affine,
-        pivot_matrix
-    )
-    pivot_matrix[:2, 2] *= scale
-    affine = np.dot(
-        np.linalg.inv(pivot_matrix),
-        affine
-    )
-    return affine
-
-
-def scale_sequential_affines(transform_sequence, scale, xy_pivot=(0., 0.)):
-
-    transform_sequence = np.array(transform_sequence)
-
-    transform_sequence = [
-        scale_affine_matrix(transform, scale, xy_pivot)
-        for transform in transform_sequence
-    ]
-    # FIXME this really only works if the affine sequence is already sequenced (i.e. added up)
-    # print(f'scale = {scale}')
-    if scale > 1 or 1/scale - int(1/scale) != 0:
-        # z-interpolation to extend the stack
-        from scipy.ndimage import zoom
-        transform_sequence = zoom(transform_sequence, (scale, 1., 1.), order=1)
-    else:
-        transform_sequence = [
-            transform_sequence[idx]
-            for idx in range(0, len(transform_sequence), int(1/scale))
-        ]
-
-    return transform_sequence
+# def scale_affine_matrix(affine, scale, xy_pivot):
+#     # Translations are stored in pixels so need to be adjusted
+#     affine[:2, 2] = np.array(affine)[:2, 2] * scale
+#     # Move the pivot according to the scale
+#     pivot_matrix = np.array([
+#         [1., 0., xy_pivot[0]],
+#         [0., 1., xy_pivot[1]],
+#         [0., 0., 1.]
+#     ])
+#     affine = np.dot(
+#         affine,
+#         pivot_matrix
+#     )
+#     pivot_matrix[:2, 2] *= scale
+#     affine = np.dot(
+#         np.linalg.inv(pivot_matrix),
+#         affine
+#     )
+#     return affine
+#
+#
+# def scale_sequential_affines(transform_sequence, scale, xy_pivot=(0., 0.)):
+#
+#     transform_sequence = np.array(transform_sequence)
+#
+#     transform_sequence = [
+#         scale_affine_matrix(transform, scale, xy_pivot)
+#         for transform in transform_sequence
+#     ]
+#     # FIXME this really only works if the affine sequence is already sequenced (i.e. added up)
+#     # print(f'scale = {scale}')
+#     if scale > 1 or 1/scale - int(1/scale) != 0:
+#         # z-interpolation to extend the stack
+#         from scipy.ndimage import zoom
+#         transform_sequence = zoom(transform_sequence, (scale, 1., 1.), order=1)
+#     else:
+#         transform_sequence = [
+#             transform_sequence[idx]
+#             for idx in range(0, len(transform_sequence), int(1/scale))
+#         ]
+#
+#     return transform_sequence
 
 
 # def sequence_affine_stack(transform_sequence, param_order='C', out_param_order='C', verbose=False):

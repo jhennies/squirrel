@@ -21,9 +21,13 @@ class AffineStack:
         if stack is not None:
             assert filepath is None
             self.set_from_stack(stack, is_sequenced=is_sequenced, pivot=pivot)
+            return
         if filepath is not None:
             assert stack is None
             self.set_from_file(filepath, is_sequenced=is_sequenced, pivot=pivot)
+            return
+        self.is_sequenced = is_sequenced
+        self.set_pivot(pivot)
 
     def _validate_stack(self):
         pivots = [m.get_pivot() for m in self[:]]
@@ -88,8 +92,13 @@ class AffineStack:
         if pivot is None and self._stack is None:
             self._pivot = np.array([0.] * self._ndim)
             return
-        assert len(pivot) == self._ndim
-        self._pivot = np.array(pivot, dtype=float)
+        if pivot is not None and self._stack is not None:
+            assert len(pivot) == self._ndim
+            self._pivot = np.array(pivot, dtype=float)
+            return
+        if pivot is not None and self._stack is None:
+            self._pivot = np.array(pivot, dtype=float)
+            self._ndim = len(pivot)
 
     def _set_ndim(self):
         ndims = np.array([m.get_ndim() for m in self[:]])
@@ -103,8 +112,14 @@ class AffineStack:
         return self._pivot
 
     def append(self, other):
-        assert self.is_sequenced == other.is_sequenced
-        self.set_from_stack(self[:] + other[:])
+        if isinstance(other, AffineStack):
+            assert self.is_sequenced == other.is_sequenced
+            assert (self.get_pivot() == other.get_pivot()).all(), f'{self.get_pivot()} != {other.get_pivot()}'
+            self.set_from_stack(self[:] + other[:], is_sequenced=self.is_sequenced, pivot=self.get_pivot())
+            return
+        if isinstance(other, AffineMatrix):
+            assert (self.get_pivot() == other.get_pivot()).all(), f'{self.get_pivot()} != {other.get_pivot()}'
+            self.set_from_stack(self[:] + [other], is_sequenced=self.is_sequenced, pivot=self.get_pivot())
 
     def get_ndim(self):
         return self._ndim
@@ -130,7 +145,10 @@ class AffineStack:
                 return items.get_matrix(order=item[0])
             return np.array([x.get_matrix(order=item[0]) for x in items])
         if isinstance(item, slice):
-            return self._stack[item]
+            if self._stack is not None:
+                return self._stack[item]
+            else:
+                return []
         raise ValueError('Invalid indexing!')
 
     def __setitem__(self, key, value):
@@ -163,8 +181,12 @@ class AffineStack:
             is_sequenced=self.is_sequenced
         )
 
-    def __copy__(self):
-        return AffineStack(stack=self._stack.copy())
+    def copy(self):
+        return AffineStack(
+            stack=self._stack.copy(),
+            is_sequenced=self.is_sequenced,
+            pivot=self.get_pivot()
+        )
 
     def get_smoothed_stack(self, sigma):
         from scipy.ndimage import gaussian_filter1d
@@ -182,6 +204,27 @@ class AffineStack:
             stack.append(stack[idx - 1] * self[idx])
 
         return AffineStack(stack=stack, is_sequenced=True)
+
+    def get_scaled(self, scale):
+
+        assert self.is_sequenced, 'Scaling only works for sequenced stacks!'
+
+        scaled_stack = [item.get_scaled(scale).get_matrix('C') for item in self]
+
+        if scale > 1 or 1/scale - int(1/scale) != 0:
+            # z-interpolation to extend the stack
+            from scipy.ndimage import zoom
+            scaled_stack = zoom(
+                scaled_stack, (scale, 1.),
+                order=1, grid_mode=True, mode='grid-constant'
+            )
+        else:
+            scaled_stack = [
+                scaled_stack[idx]
+                for idx in range(0, len(scaled_stack), int(1/scale))
+            ]
+
+        return AffineStack(scaled_stack, is_sequenced=self.is_sequenced, pivot=self.get_pivot())
 
 
 class AffineMatrix:
@@ -204,7 +247,7 @@ class AffineMatrix:
             self.set_from_file(filepath)
 
     def _validate_parameters(self, parameters):
-        parameters = np.array(parameters).flatten()
+        parameters = np.array(parameters)
         if len(parameters) == 6:
             self._ndim = 2
             return True
@@ -221,17 +264,21 @@ class AffineMatrix:
         raise RuntimeError(f'Validation of parameters failed! {parameters}')
 
     def set_from_elastix(self, parameters):
-        parameters = self._elastix_to_c(parameters)
+        assert isinstance(parameters[0], str), \
+            'Elastix parameters must be in the format: ["transform", [parameters, ...]]'
+        assert parameters[0] in ['translation', 'rigid', 'SimilarityTransform', 'affine']
+        from ..library.elastix import elastix_to_c
+        parameters = elastix_to_c(*parameters)
         self.set_from_parameters(parameters)
 
     def get_matrix(self, order='C'):
 
         if order[0] == 'C':
             if len(order) == 2 and order[1] == 's':
-                return np.concatenate((self._parameters, [0., 0., 1.]), axis=0)
-            return self._parameters
+                return np.concatenate((self._parameters.copy(), [0., 0., 1.]), axis=0)
+            return self._parameters.copy()
         if order[0] == 'M':
-            out_matrix = np.reshape(self._parameters, (self._ndim, self._ndim + 1), order='C')
+            out_matrix = np.reshape(self._parameters.copy(), (self._ndim, self._ndim + 1), order='C')
             if len(order) == 2 and order[1] == 's':
                 return np.concatenate((out_matrix, [[0., 0., 1.]]), axis=0)
             return out_matrix
@@ -250,6 +297,7 @@ class AffineMatrix:
         if filetype == 'csv':
             from numpy import genfromtxt
             self.set_from_parameters(genfromtxt(filepath, delimiter=','))
+            raise NotImplementedError
             return
 
         raise ValueError(f'Invalid filetype: {filetype}')
@@ -278,9 +326,6 @@ class AffineMatrix:
             assert (matrix[3] == [0., 0., 0., 1]).all()
             return matrix[:3].flatten()
 
-    def _elastix_to_c(self, parameters):
-        raise NotImplementedError
-
     def get_ndim(self):
         return self._ndim
 
@@ -301,8 +346,54 @@ class AffineMatrix:
     def __mul__(self, other):
         return self.dot(other)
 
+    def copy(self):
+        return AffineMatrix(self.get_matrix(), pivot=self.get_pivot())
+
+    def get_translation(self):
+        return self.get_matrix('M')[:self._ndim, self._ndim]
+
+    def set_translation(self, translation):
+        assert len(translation) == self._ndim
+        matrix = self.get_matrix('M')
+        matrix[:self._ndim, self._ndim] = translation
+        self.set_from_parameters(matrix.flatten(), pivot=self.get_pivot())
+
     def get_scaled(self, scale):
-        pass
+        matrix = self.copy()
+        matrix.set_translation(matrix.get_translation() * scale)
+        pivot_matrix = AffineMatrix([1., 0., matrix.get_pivot()[0], 0., 1., matrix.get_pivot()[1]])
+        matrix = matrix * pivot_matrix
+        pivot_matrix.set_translation(pivot_matrix.get_translation() * scale)
+        return (-pivot_matrix) * matrix
+
+    def decompose(self):
+        from transforms3d.affines import decompose
+        from squirrel.library.transformation import (
+            setup_translation_matrix,
+            setup_scale_matrix,
+            setup_shear_matrix
+        )
+        t, r, z, s = decompose(self.get_matrix('Ms'))
+        r_ = np.zeros([self._ndim, self._ndim + 1], dtype=float)
+        r_[:r.shape[0], :r.shape[1]] = r
+        return (
+            AffineMatrix(setup_translation_matrix(t, ndim=self.get_ndim()).flatten()),
+            AffineMatrix(r_.flatten()),
+            AffineMatrix(setup_scale_matrix(z, ndim=self.get_ndim()).flatten()),
+            AffineMatrix(setup_shear_matrix(s, ndim=self.get_ndim()).flatten())
+        )
+
+    def shift_pivot_to_origin(self):
+        matrix = self.get_matrix('Ms')
+        pivot = self.get_pivot()
+        offset = pivot - np.dot(matrix[:2, :2], pivot)
+        pivot_matrix = np.array([
+            [1., 0., offset[0]],
+            [0., 1., offset[1]],
+            [0., 0., 1.]
+        ])
+        matrix = np.dot(pivot_matrix, matrix)[:2]
+        self.set_from_parameters(matrix.flatten(), pivot=[0., 0.])
 
 
 if __name__ == '__main__':
@@ -315,14 +406,14 @@ if __name__ == '__main__':
             stack=[[1.1, 0., 5, 0., 1.3, 2], [0.8, 0., -3, 0., 0.75, 1.5]],
             is_sequenced=False
         )
-        print(f'stk.get_ndim = {stk.get_ndim()}')
-        print(f'stk[0] = {stk[0]}')
-        print(f'stk[0].get_matrix() = {stk[0].get_matrix()}')
-        print(f'stk[1].get_matrix() = {stk[1].get_matrix()}')
-        print(f'stk["Ms", 0] = {stk["Ms", 0]}')
-        print(f'stk[:] = {stk[:]}')
-        print(f'stk["Ms", :] = {stk["Ms", :]}')
-        print(f'\nStack IO ---------------------')
+        # print(f'stk.get_ndim = {stk.get_ndim()}')
+        # print(f'stk[0] = {stk[0]}')
+        # print(f'stk[0].get_matrix() = {stk[0].get_matrix()}')
+        # print(f'stk[1].get_matrix() = {stk[1].get_matrix()}')
+        # print(f'stk["Ms", 0] = {stk["Ms", 0]}')
+        # print(f'stk[:] = {stk[:]}')
+        # print(f'stk["Ms", :] = {stk["Ms", :]}')
+        # print(f'\nStack IO ---------------------')
         fp = '/media/julian/Data/tmp/affine_stack_test.json'
         stk.to_file(fp)
         stk_loaded = AffineStack(filepath=fp)
@@ -333,29 +424,43 @@ if __name__ == '__main__':
         print(f'(stk * stk)["Ms", :] = {(stk * stk)["Ms", :]}')
         print(f'(stk * -stk)["Ms", :] = {(stk * -stk)["Ms", :]}')
         stk.append(-stk_loaded)
-        print(f'Appended: stk["Ms", :] = {stk["Ms", :]}')
-        print(f'stk.smooth(2)["Ms", :] = {stk.get_smoothed_stack(2)["Ms", :]}')
-        print(f'before: stk["Ms", :] = {stk["C", :]}')
-        print(f'sequenced: stk["Ms", :] = {stk.get_sequenced_stack()["C", :]}')
+        print(f'Appended: stk["C", :] = {stk["C", :]}')
+        # print(f'stk.smooth(2)["Ms", :] = {stk.get_smoothed_stack(2)["Ms", :]}')
+        # print(f'before: stk["Ms", :] = {stk["C", :]}')
+        # print(f'sequenced: stk["Ms", :] = {stk.get_sequenced_stack()["C", :]}')
+        stk.is_sequenced = True
+        print(f'scaled: {stk.get_scaled(2)["C", :]}')
+        print(f'scaled: {stk.get_scaled(0.5)["C", :]}')
 
     if True:
         print('Testing the matrix object')
         am = AffineMatrix(parameters=[1.1, 0., 5, 0., 1.3, 2])
-        print(am.get_matrix(order='C'))
-        print(am.get_matrix(order='Cs'))
-        print(am.get_matrix(order='M'))
-        print(am.get_matrix(order='Ms'))
-        print((-am).get_matrix(order='Ms'))
-        print((am * am).get_matrix(order='Ms'))
-        print((am * -am).get_matrix(order='Ms'))
-        print((-am * am).get_matrix(order='Ms'))
-        print(am.get_matrix(order='Ms'))
-        print('\nTesting IO')
-        fp = '/media/julian/Data/tmp/affine_matrix_test.json'
-        am.to_file(fp)
-        am_loaded = AffineMatrix()
-        am_loaded.set_from_file(fp)
-        print(am_loaded.get_matrix(order='Ms'))
-        am3d = AffineMatrix(parameters=[1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0], pivot=[100, 0, 0])
-        am3d.to_file('/media/julian/Data/tmp/affine_matrix_test_3d.json')
+        # print(am.get_matrix(order='C'))
+        # print(am.get_matrix(order='Cs'))
+        # print(am.get_matrix(order='M'))
+        # print(am.get_matrix(order='Ms'))
+        # print((-am).get_matrix(order='Ms'))
+        # print((am * am).get_matrix(order='Ms'))
+        # print((am * -am).get_matrix(order='Ms'))
+        # print((-am * am).get_matrix(order='Ms'))
+        # print(am.get_matrix(order='Ms'))
+        # print('\nTesting IO')
+        # fp = '/media/julian/Data/tmp/affine_matrix_test.json'
+        # am.to_file(fp)
+        # am_loaded = AffineMatrix()
+        # am_loaded.set_from_file(fp)
+        # print(am_loaded.get_matrix(order='Ms'))
+        # am3d = AffineMatrix(parameters=[1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0], pivot=[100, 0, 0])
+        # am3d.to_file('/media/julian/Data/tmp/affine_matrix_test_3d.json')
+
+        print(f'non-scaled: {am.get_matrix("Ms")}')
+        print(f'scaled: {am.get_scaled(2).get_matrix("Ms")}')
+        print(f'non-scaled: {am.get_matrix("Ms")}')
+        # from squirrel.library.transformation import scale_affine_matrix
+        # print(scale_affine_matrix(am.get_matrix('Ms'), 2, [0., 0.]))
+
+        print(f'decomposed:')
+        decomp = am.decompose()
+        for d in decomp:
+            print(d.get_matrix())
 

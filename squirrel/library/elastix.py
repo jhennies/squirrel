@@ -11,69 +11,69 @@ def apply_transform(
     pass
 
 
-def save_transforms(parameters, out_filepath, param_order='M', save_order='M', ndim=3, verbose=False):
-
-    parameters = np.array(parameters)
-    if verbose:
-        print(f'parameters = {parameters}')
-
-    def _elastix2m(param):
-        pr = np.zeros(param.shape, dtype=param.dtype)
-        pr[:ndim ** 2] = param[:ndim ** 2][::-1]
-        pr[ndim ** 2:] = param[ndim ** 2:][::-1]
-        param = pr
-
-        pr = np.reshape(param[: ndim ** 2], (ndim, ndim), order='C')
-        pr = np.concatenate([pr, np.array([param[ndim ** 2:]]).swapaxes(0, 1)], axis=1)
-        return pr
-
-    def _c2m(param):
-        return np.reshape(param, (ndim, ndim + 1), order='C')
-
-    def _f2m(param):
-        return np.reshape(param, (ndim, ndim + 1), order='F')
-
-    def _m2c(param):
-        return param.flatten(order='C')
-
-    def _m2f(param):
-        return param.flatten(order='F')
-
-    def _change_order(params):
-        if param_order == 'elastix':
-            params = _elastix2m(params)
-        if param_order == 'C':
-            params = _c2m(params)
-        if param_order == 'F':
-            params = _f2m(params)
-        if save_order == 'C':
-            params = _m2c(params)
-        if save_order == 'F':
-            params = _m2f(params)
-        return params
-
-    if verbose:
-        print(f'parameters.shape = {parameters.shape}')
-        print(f'parameters.ndim = {parameters.ndim}')
-
-    if param_order != save_order:
-        if (param_order != 'M' and parameters.ndim == 2) or (param_order == 'M' and parameters.ndim == 3):
-            parameters = parameters.tolist()
-            for idx, p in enumerate(parameters):
-                parameters[idx] = _change_order(np.array(p))
-        else:
-            parameters = _change_order(parameters)
-
-    import json
-
-    if verbose:
-        print(f'parameters.shape = {parameters.shape}')
-
-    if out_filepath is not None:
-        with open(out_filepath, mode='w') as f:
-            json.dump(parameters.tolist(), f, indent=2)
-
-    return parameters
+# def save_transforms(parameters, out_filepath, param_order='M', save_order='M', ndim=3, verbose=False):
+#
+#     parameters = np.array(parameters)
+#     if verbose:
+#         print(f'parameters = {parameters}')
+#
+#     def _elastix2m(param):
+#         pr = np.zeros(param.shape, dtype=param.dtype)
+#         pr[:ndim ** 2] = param[:ndim ** 2][::-1]
+#         pr[ndim ** 2:] = param[ndim ** 2:][::-1]
+#         param = pr
+#
+#         pr = np.reshape(param[: ndim ** 2], (ndim, ndim), order='C')
+#         pr = np.concatenate([pr, np.array([param[ndim ** 2:]]).swapaxes(0, 1)], axis=1)
+#         return pr
+#
+#     def _c2m(param):
+#         return np.reshape(param, (ndim, ndim + 1), order='C')
+#
+#     def _f2m(param):
+#         return np.reshape(param, (ndim, ndim + 1), order='F')
+#
+#     def _m2c(param):
+#         return param.flatten(order='C')
+#
+#     def _m2f(param):
+#         return param.flatten(order='F')
+#
+#     def _change_order(params):
+#         if param_order == 'elastix':
+#             params = _elastix2m(params)
+#         if param_order == 'C':
+#             params = _c2m(params)
+#         if param_order == 'F':
+#             params = _f2m(params)
+#         if save_order == 'C':
+#             params = _m2c(params)
+#         if save_order == 'F':
+#             params = _m2f(params)
+#         return params
+#
+#     if verbose:
+#         print(f'parameters.shape = {parameters.shape}')
+#         print(f'parameters.ndim = {parameters.ndim}')
+#
+#     if param_order != save_order:
+#         if (param_order != 'M' and parameters.ndim == 2) or (param_order == 'M' and parameters.ndim == 3):
+#             parameters = parameters.tolist()
+#             for idx, p in enumerate(parameters):
+#                 parameters[idx] = _change_order(np.array(p))
+#         else:
+#             parameters = _change_order(parameters)
+#
+#     import json
+#
+#     if verbose:
+#         print(f'parameters.shape = {parameters.shape}')
+#
+#     if out_filepath is not None:
+#         with open(out_filepath, mode='w') as f:
+#             json.dump(parameters.tolist(), f, indent=2)
+#
+#     return parameters
 
 
 def get_affine_rotation_parameters(euler_angles):
@@ -120,7 +120,7 @@ def register_with_elastix(
         transform='affine',
         automatic_transform_initialization=False,
         out_dir=None,
-        params_to_origin=False,
+        # params_to_origin=False,
         auto_mask=False,
         number_of_spatial_samples=None,
         maximum_number_of_iterations=None,
@@ -137,9 +137,6 @@ def register_with_elastix(
         from ..library.data import norm_8bit
         fixed_image = norm_8bit(fixed_image, (0.1, 0.9), ignore_zeros=True)
         moving_image = norm_8bit(moving_image, (0.1, 0.9), ignore_zeros=True)
-        # from tifffile import imwrite
-        # imwrite('/media/julian/Data/tmp/fixed_image.tif', fixed_image)
-        # imwrite('/media/julian/Data/tmp/moving_image.tif', moving_image)
 
     pre_fix_offsets = np.array((0., 0.))
     if pre_fix_big_jumps:
@@ -201,89 +198,143 @@ def register_with_elastix(
     if return_result_image:
         result_image = sitk.GetArrayFromImage(elastixImageFilter.GetResultImage())
 
-    # from h5py import File
-    # from random import randint
-    # with File(f'/media/julian/Data/tmp/tmp_pair_{randint(0, 999)}.h5', mode='w') as f:
-    #     f.create_dataset('moving', data=sitk.GetArrayFromImage(moving_image).astype('uint8'), compression='gzip')
-    #     f.create_dataset('fixed', data=sitk.GetArrayFromImage(fixed_image).astype('uint8'), compression='gzip')
-    #     f.create_dataset('result', data=result_image.astype('uint8'), compression='gzip')
-
     result_transform_parameters = elastixImageFilter.GetTransformParameterMap()[0]['TransformParameters']
+    try:
+        pivot = [float(x) for x in elastixImageFilter.GetTransformParameterMap()[0]['CenterOfRotationPoint']]
+    except IndexError:
+        pivot = [0., 0.]
 
+    from ..library.affine_matrices import AffineMatrix
+    result_matrix = AffineMatrix(
+        elastix_parameters=[transform, [float(x) for x in result_transform_parameters]],
+        pivot=pivot
+    ) * -AffineMatrix(parameters=[1., 0., pre_fix_offsets[0], 0., 1., pre_fix_offsets[1]])
+
+    return result_matrix, result_image
+
+
+    # if transform == 'translation':
+    #
+    #     from ..library.transformation import setup_translation_matrix
+    #
+    #     return dict(
+    #         result_image=result_image,
+    #         # affine_parameters=list(np.eye(result_image.ndim).flatten('C')) + list(result_transform_parameters),
+    #         # affine_parameters=[[1., 0, result_transform_parameters[0]], [0., 1., result_transform_parameters[1]]],
+    #         affine_parameters=setup_translation_matrix(
+    #             [float(x) for x in result_transform_parameters[::-1]] - pre_fix_offsets, ndim=2
+    #         ),
+    #         affine_param_order='M',
+    #         # translation_parameters=np.array(result_transform_parameters)
+    #     )
+    #
+    # if transform == 'rigid':
+    #
+    #     assert result_image.ndim == 3, 'Rigid only implemented for volumes'
+    #
+    #     rotation = get_affine_rotation_parameters([float(x) for x in result_transform_parameters[:3]])
+    #     affine_parameters = list(rotation) + [float(x) for x in result_transform_parameters[3:]]
+    #
+    #     return dict(
+    #         result_image=result_image,
+    #         affine_parameters=affine_parameters,
+    #         affine_param_order='elastix',
+    #         rigid_parameters=result_transform_parameters
+    #     )
+    #
+    # if transform == 'SimilarityTransform':
+    #
+    #     assert result_image.ndim == 3, 'SimilarityTransform only implemented for volumes'
+    #
+    #     rotation = get_affine_rotation_parameters([float(x) for x in result_transform_parameters[:3]])
+    #     affine_parameters = list(rotation) + [float(x) for x in result_transform_parameters[3:6]]
+    #     affine_parameters[0] = affine_parameters[0] * float(result_transform_parameters[6])
+    #     affine_parameters[3] = affine_parameters[3] * float(result_transform_parameters[6])
+    #     affine_parameters[6] = affine_parameters[6] * float(result_transform_parameters[6])
+    #
+    #     return dict(
+    #         result_image=result_image,
+    #         affine_parameters=affine_parameters,
+    #         affine_param_order='elastix',
+    #         similarity_parameters=result_transform_parameters
+    #     )
+    #
+    # result_transform_parameters = [float(x) for x in result_transform_parameters]
+    #
+    # if params_to_origin:
+    #     # assert result_image.ndim == 2
+    #     result_transform_parameters = save_transforms(
+    #         result_transform_parameters, None,
+    #         param_order='elastix', save_order='M', ndim=2, verbose=verbose
+    #     )
+    #     from squirrel.library.transformation import validate_and_reshape_matrix
+    #     result_transform_parameters = validate_and_reshape_matrix(result_transform_parameters, 2)
+    #     pivot = elastixImageFilter.GetTransformParameterMap()[0]['CenterOfRotationPoint']
+    #     pivot = [float(x) for x in pivot]
+    #     offset = np.array(pivot) - np.dot(result_transform_parameters[:2, :2], np.array(pivot))
+    #     pivot_matrix = np.array([
+    #         [1., 0., offset[0]],
+    #         [0., 1., offset[1]],
+    #         [0., 0., 1.]
+    #     ])
+    #     result_transform_parameters = np.dot(pivot_matrix, result_transform_parameters)[:2].tolist()
+    #
+    #     return dict(
+    #         result_image=result_image,
+    #         affine_parameters=result_transform_parameters,
+    #         affine_param_order='M'
+    #     )
+    #
+    # return dict(
+    #     result_image=result_image,
+    #     affine_parameters=result_transform_parameters,
+    #     affine_param_order='elastix'
+    # )
+
+
+def translation_to_c(parameters):
+    from ..library.transformation import setup_translation_matrix
+    return setup_translation_matrix([float(x) for x in parameters[::-1]], ndim=2).flatten()
+
+
+def affine_to_c(parameters):
+
+    parameters = np.array(parameters)
+    ndim = 0
+    if len(parameters) == 6:
+        ndim = 2
+    if len(parameters) == 12:
+        ndim = 3
+    assert ndim in [2, 3], f'Invalid parameters: {parameters}'
+
+    pr = np.zeros(parameters.shape, dtype=parameters.dtype)
+    pr[:ndim ** 2] = parameters[:ndim ** 2][::-1]
+    pr[ndim ** 2:] = parameters[ndim ** 2:][::-1]
+    param = pr
+
+    pr = np.reshape(param[: ndim ** 2], (ndim, ndim), order='C')
+    pr = np.concatenate([pr, np.array([param[ndim ** 2:]]).swapaxes(0, 1)], axis=1)
+    return pr.flatten()
+
+
+def rigid_to_c(parameters):
+    raise NotImplementedError
+
+
+def similarity_to_c(parameters):
+    raise NotImplementedError
+
+
+def elastix_to_c(transform, parameters):
+    func = None
     if transform == 'translation':
-
-        from ..library.transformation import setup_translation_matrix
-
-        return dict(
-            result_image=result_image,
-            # affine_parameters=list(np.eye(result_image.ndim).flatten('C')) + list(result_transform_parameters),
-            # affine_parameters=[[1., 0, result_transform_parameters[0]], [0., 1., result_transform_parameters[1]]],
-            affine_parameters=setup_translation_matrix(
-                [float(x) for x in result_transform_parameters[::-1]] - pre_fix_offsets, ndim=2
-            ),
-            affine_param_order='M',
-            # translation_parameters=np.array(result_transform_parameters)
-        )
-
+        func = translation_to_c
+    if transform == 'affine':
+        func = affine_to_c
     if transform == 'rigid':
-
-        assert result_image.ndim == 3, 'Rigid only implemented for volumes'
-
-        rotation = get_affine_rotation_parameters([float(x) for x in result_transform_parameters[:3]])
-        affine_parameters = list(rotation) + [float(x) for x in result_transform_parameters[3:]]
-
-        return dict(
-            result_image=result_image,
-            affine_parameters=affine_parameters,
-            affine_param_order='elastix',
-            rigid_parameters=result_transform_parameters
-        )
-
+        func = rigid_to_c
     if transform == 'SimilarityTransform':
-
-        assert result_image.ndim == 3, 'SimilarityTransform only implemented for volumes'
-
-        rotation = get_affine_rotation_parameters([float(x) for x in result_transform_parameters[:3]])
-        affine_parameters = list(rotation) + [float(x) for x in result_transform_parameters[3:6]]
-        affine_parameters[0] = affine_parameters[0] * float(result_transform_parameters[6])
-        affine_parameters[3] = affine_parameters[3] * float(result_transform_parameters[6])
-        affine_parameters[6] = affine_parameters[6] * float(result_transform_parameters[6])
-
-        return dict(
-            result_image=result_image,
-            affine_parameters=affine_parameters,
-            affine_param_order='elastix',
-            similarity_parameters=result_transform_parameters
-        )
-
-    result_transform_parameters = [float(x) for x in result_transform_parameters]
-
-    if params_to_origin:
-        # assert result_image.ndim == 2
-        result_transform_parameters = save_transforms(
-            result_transform_parameters, None,
-            param_order='elastix', save_order='M', ndim=2, verbose=verbose
-        )
-        from squirrel.library.transformation import validate_and_reshape_matrix
-        result_transform_parameters = validate_and_reshape_matrix(result_transform_parameters, 2)
-        pivot = elastixImageFilter.GetTransformParameterMap()[0]['CenterOfRotationPoint']
-        pivot = [float(x) for x in pivot]
-        offset = np.array(pivot) - np.dot(result_transform_parameters[:2, :2], np.array(pivot))
-        pivot_matrix = np.array([
-            [1., 0., offset[0]],
-            [0., 1., offset[1]],
-            [0., 0., 1.]
-        ])
-        result_transform_parameters = np.dot(pivot_matrix, result_transform_parameters)[:2].tolist()
-
-        return dict(
-            result_image=result_image,
-            affine_parameters=result_transform_parameters,
-            affine_param_order='M'
-        )
-
-    return dict(
-        result_image=result_image,
-        affine_parameters=result_transform_parameters,
-        affine_param_order='elastix'
-    )
+        func = similarity_to_c
+    if func is None:
+        raise ValueError(f'Invalid transform: {transform}')
+    return func(parameters)

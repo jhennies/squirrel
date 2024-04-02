@@ -260,12 +260,13 @@ def elastix_stack_alignment_workflow(
 
     from ..library.io import load_data_handle, load_data_from_handle_stack
     from ..library.elastix import register_with_elastix
-    from ..library.elastix import save_transforms
-    from ..library.transformation import save_transformation_matrices
+    # from ..library.elastix import save_transforms
+    # from ..library.transformation import save_transformation_matrices
+    from ..library.affine_matrices import AffineMatrix, AffineStack
 
     stack, stack_size = load_data_handle(stack, key=key, pattern=pattern)
 
-    transforms = []
+    transforms = AffineStack(is_sequenced=False, pivot=[0., 0.])
 
     if z_range is None:
         z_range = [0, stack_size[0]]
@@ -275,34 +276,39 @@ def elastix_stack_alignment_workflow(
         print(f'idx = {idx} / {z_range[1]}')
 
         if idx == 0:
-            transforms.append([1., 0., 0., 0., 1., 0.])
+            transforms.append(AffineMatrix([1., 0., 0., 0., 1., 0.], pivot=[0., 0.]))
             continue
 
         z_slice_fixed, _ = load_data_from_handle_stack(stack, idx - 1)
         z_slice_moving, _ = load_data_from_handle_stack(stack, idx)
 
-        transform_params = register_with_elastix(
+        result_matrix, _ = register_with_elastix(
             z_slice_fixed,
             z_slice_moving,
             transform=transform,
             automatic_transform_initialization=False,
-            params_to_origin=True,
+            # params_to_origin=True,
             auto_mask=auto_mask,
             number_of_spatial_samples=number_of_spatial_samples,
             maximum_number_of_iterations=maximum_number_of_iterations,
             number_of_resolutions=number_of_resolutions,
             pre_fix_big_jumps=pre_fix_big_jumps,
+            return_result_image=False,
             verbose=verbose
         )  # ['affine_parameters']
+        result_matrix.shift_pivot_to_origin()
+        transforms.append(result_matrix)
 
-        transforms.append(
-            save_transforms(
-                transform_params['affine_parameters'], None,
-                param_order=transform_params['affine_param_order'],
-                save_order='C',
-                ndim=2,
-                verbose=verbose
-            ).tolist()
-        )
+    transforms.to_file(out_filepath)
 
-    save_transformation_matrices(out_filepath, transforms, sequenced=False)
+    #     transforms.append(
+    #         save_transforms(
+    #             transform_params['affine_parameters'], None,
+    #             param_order=transform_params['affine_param_order'],
+    #             save_order='C',
+    #             ndim=2,
+    #             verbose=verbose
+    #         ).tolist()
+    #     )
+    #
+    # save_transformation_matrices(out_filepath, transforms, sequenced=False)

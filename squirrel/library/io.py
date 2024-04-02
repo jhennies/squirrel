@@ -110,10 +110,10 @@ def get_filetype(filepath):
     tif_extensions = ['.tif', '.TIF', '.tiff', '.TIFF']
     json_extensions = ['.json', '.JSON']
     csv_extensions = ['.csv', '.CSV']
-    zarr_extensions = ['.zarr', '.ZARR']
+    zarr_extensions = ['.zarr', '.ZARR', '.zarr/', '.ZARR/']
     ome_zarr_sub_extensions = ['.ome', '.OME']
 
-    basename, ext = os.path.splitext(filepath)
+    basename, ext = os.path.splitext(filepath.strip("/"))
     sub_ext = ''
     if ext in h5_extensions:
         return 'h5'
