@@ -480,7 +480,6 @@ def apply_stack_alignment_on_volume_workflow(
         key='data',
         pattern='*.tif',
         no_adding_of_transforms=False,
-        xy_pivot=(0., 0.),
         auto_pad=False,
         z_range=None,
         n_workers=1,
@@ -488,17 +487,12 @@ def apply_stack_alignment_on_volume_workflow(
 ):
 
     from squirrel.library.io import load_data_handle, write_h5_container
-    from squirrel.library.transformation import apply_stack_alignment, sequence_affine_stack
-    from squirrel.library.transformation import load_transform_matrices
-    # import json
+    from squirrel.library.transformation import apply_stack_alignment
+    from squirrel.library.affine_matrices import AffineMatrix, AffineStack
 
-    # with open(transform_filepath, mode='r') as f:
-    #     transforms = json.load(f)
-    transforms, sequenced = load_transform_matrices(transform_filepath, validate=True, ndim=2)
-    if sequenced is not None:
-        no_adding_of_transforms = sequenced
-    if not no_adding_of_transforms:
-        transforms = sequence_affine_stack(transforms, param_order='M', verbose=verbose)
+    transforms = AffineStack(filepath=transform_filepath)
+    if not transforms.is_sequenced and not no_adding_of_transforms:
+        transforms = transforms.get_sequenced_stack()
 
     stack_h, stack_shape = load_data_handle(stack, key=key, pattern=pattern)
     stack_len = stack_shape[0]
@@ -506,16 +500,16 @@ def apply_stack_alignment_on_volume_workflow(
         stack_len = z_range[1] - z_range[0]
     if auto_pad:
         if verbose:
-            print(f'transforms = {transforms}')
+            print(f'transforms = {transforms["M", :]}')
         from squirrel.library.image import get_bounds_of_stack, apply_auto_pad
         stack_bounds = get_bounds_of_stack(stack_h, stack_shape, return_ints=True, z_range=z_range)
         if verbose:
             print(f'stack_bounds = {stack_bounds}')
         transforms, stack_shape = apply_auto_pad(
-            transforms, [stack_len, *stack_shape[1:]], stack_bounds, extra_padding=16, z_range=z_range
+            transforms, [stack_len, *stack_shape[1:]], stack_bounds, extra_padding=16
         )
         if verbose:
-            print(f'transforms = {transforms}')
+            print(f'transforms = {transforms["M", :]}')
             print(f'stack_shape = {stack_shape}')
 
     result_volume = apply_stack_alignment(
@@ -523,7 +517,6 @@ def apply_stack_alignment_on_volume_workflow(
         stack_shape,
         transforms,
         no_adding_of_transforms=True,
-        xy_pivot=xy_pivot,
         z_range=z_range,
         n_workers=n_workers,
         verbose=verbose

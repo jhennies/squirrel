@@ -60,6 +60,9 @@ class AffineStack:
             return
         raise RuntimeError('Validation of stack failed!')
 
+    def update_stack(self, stack):
+        self.set_from_stack(stack, is_sequenced=self.is_sequenced, pivot=self.get_pivot())
+
     def set_from_file(self, filepath, is_sequenced=None, pivot=None):
         import json
         with open(filepath, mode='r') as f:
@@ -132,7 +135,7 @@ class AffineStack:
         as['M', i]  -> [[a, b, ty], [c, d, tx]]
         as['Cs', i] -> [a, b, ty, c, d, tx, 0, 0, 1]
         as['C', i]  -> [a, b, ty, c, d, tx]
-        as[:]       -> [AffineMatrixA, AffineMatrixB, ...]
+        as[:]       -> AffineStack[AffineMatrixA, AffineMatrixB, ...]
         as['Ms', :] -> [[[a, b, ty], [c, d, tx], [0, 0, 1]], ...]
         :return:
         """
@@ -203,7 +206,7 @@ class AffineStack:
                 continue
             stack.append(stack[idx - 1] * self[idx])
 
-        return AffineStack(stack=stack, is_sequenced=True)
+        return AffineStack(stack=stack, is_sequenced=True, pivot=self.get_pivot())
 
     def get_scaled(self, scale):
 
@@ -262,6 +265,9 @@ class AffineMatrix:
             self.set_pivot(pivot)
             return
         raise RuntimeError(f'Validation of parameters failed! {parameters}')
+
+    def update_parameters(self, parameters):
+        self.set_from_parameters(parameters, pivot=self.get_pivot())
 
     def set_from_elastix(self, parameters):
         assert isinstance(parameters[0], str), \

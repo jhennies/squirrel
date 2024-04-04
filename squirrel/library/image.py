@@ -32,11 +32,7 @@ def get_bounds_of_stack(stack_h, stack_shape, return_ints=False, z_range=None):
     ]
 
 
-def apply_auto_pad(transforms, stack_shape, stack_bounds, extra_padding=0, z_range=None):
-
-    from squirrel.library.elastix import save_transforms
-    from squirrel.library.transformation import validate_and_reshape_matrix
-    transforms = np.array([validate_and_reshape_matrix(transform, ndim=2) for transform in transforms])
+def apply_auto_pad(transforms, stack_shape, stack_bounds, extra_padding=0):
 
     def _transform_on_bounds(t, b):
 
@@ -50,40 +46,32 @@ def apply_auto_pad(transforms, stack_shape, stack_bounds, extra_padding=0, z_ran
         t_max_y_min_x = np.matmul(np.linalg.inv(t), max_y_min_x + [1.])
         t_max_yx = np.matmul(np.linalg.inv(t), max_yx + [1.])
 
-        new_bounds = np.array([
+        new_b = np.array([
             np.min([t_min_yx, t_min_y_max_x, t_max_y_min_x, t_max_yx], axis=0),
             np.max([t_min_yx, t_min_y_max_x, t_max_y_min_x, t_max_yx], axis=0)
         ])[:, :2]
 
-        return new_bounds
+        return new_b
 
-    if z_range is None:
-        z_range = [0, stack_shape[0]]
+    new_bounds = np.array([
+        _transform_on_bounds(matrix.get_matrix('Ms'), stack_bounds[idx])
+        for idx, matrix in enumerate(transforms)
+    ])
 
-    new_bounds = []
-    for idx in range(*z_range):
-        t = transforms[idx]
-        bounds_ = _transform_on_bounds(t, stack_bounds[idx])
-        new_bounds.append(bounds_)
-
-    new_bounds = np.array(new_bounds)
     new_bounds = [
         np.min(new_bounds[:, 0], axis=0),
         np.max(new_bounds[:, 1], axis=0)
     ]
 
     # Modify the offsets within the transforms to move everything towards the origin
-    from squirrel.library.transformation import setup_translation_matrix
-    for idx in range(*z_range):
-        transform = transforms[idx]
-        transforms[idx] = np.dot(
-            transform,
-            validate_and_reshape_matrix(setup_translation_matrix(new_bounds[0] - extra_padding, ndim=2), ndim=2)
+    from ..library.affine_matrices import AffineMatrix
+    from ..library.transformation import setup_translation_matrix
+    new_transforms = []
+    for matrix in transforms:
+        new_transforms.append(
+            matrix * AffineMatrix(parameters=setup_translation_matrix(new_bounds[0] - extra_padding, ndim=2).flatten())
         )
-
-    transforms = transforms[:, :2]
-
-    transforms = save_transforms(transforms, None, param_order='M', save_order='C', ndim=2)
+    transforms.update_stack(new_transforms)
 
     # Also modify the stack_shape now to crop or extend the images
     stack_shape[1:] = (new_bounds[1] - new_bounds[0] + 2 * extra_padding).tolist()

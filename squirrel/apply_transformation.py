@@ -69,8 +69,6 @@ def apply_stack_alignment():
     parser.add_argument('--no_adding_of_transforms', action='store_true',
                         help='By default each transformation is treated as the dot product of the previous.'
                              'If this flag is set, each transform is applied as it is')
-    parser.add_argument('--xy_pivot', nargs=2, type=float, default=(0., 0.),
-                        help='A pivot point of the 2D affine transformations')
     parser.add_argument('--auto_pad', action='store_true',
                         help='Automatically adjust the canvas size of the output stack to best fit the data')
     parser.add_argument('--z_range', type=int, nargs=2, default=None,
@@ -86,7 +84,6 @@ def apply_stack_alignment():
     key = args.key
     pattern = args.pattern
     no_adding_of_transforms = args.no_adding_of_transforms
-    xy_pivot = args.xy_pivot
     auto_pad = args.auto_pad
     z_range = args.z_range
     n_workers = args.n_workers
@@ -100,7 +97,6 @@ def apply_stack_alignment():
         key=key,
         pattern=pattern,
         no_adding_of_transforms=no_adding_of_transforms,
-        xy_pivot=xy_pivot,
         auto_pad=auto_pad,
         z_range=z_range,
         n_workers=n_workers,

@@ -388,12 +388,11 @@ def extract_approximate_rotation_affine(transform, coerce_affine_dimension):
 
 def apply_affine_transform(
         x,
-        transform_matrix,
+        transform,
         fill_mode='nearest',
         cval=0.,
         order=3,
         no_offset_to_center=False,
-        pivot=None,
         apply='all',
         scale_canvas=False,
         verbose=False
@@ -401,43 +400,52 @@ def apply_affine_transform(
 
     if verbose:
         print(f'x.ndim = {x.ndim}')
-        print(f'transform_matrix = {transform_matrix}')
+        print(f'transform_matrix = {transform}')
 
-    transform_matrix_ = validate_and_reshape_matrix(transform_matrix, x.ndim)
+    # transform_matrix_ = validate_and_reshape_matrix(transform_matrix, x.ndim)
 
     if verbose:
-        print(f'transform_matrix = {transform_matrix_}')
+        # print(f'transform_matrix = {transform_matrix_}')
         print(f'x.shape = {x.shape}')
-    if pivot is None and not no_offset_to_center:
-        transform_matrix_ = transform_matrix_offset_center(transform_matrix_, x.shape, ndim=x.ndim)
-    if pivot is not None:
-        transform_matrix_ = transform_matrix_offset_center(transform_matrix_, np.array(pivot) * 2, ndim=x.ndim)
+
+    if transform.get_pivot() is None and not no_offset_to_center:
+        transform.update_parameters(
+            transform_matrix_offset_center(transform.get_matrix('Ms'), x.shape, ndim=x.ndim)
+        )
+    if transform.get_pivot() is not None:
+        transform.update_parameters(
+            transform_matrix_offset_center(
+                transform.get_matrix('Ms'), transform.get_pivot() * 2, ndim=x.ndim
+            ).flatten()[:(x.ndim + 1) * x.ndim]
+        )
 
     if apply == 'rotation':
-        transform_matrix_ = extract_approximate_rotation_affine(transform_matrix_, 0)
+        raise NotImplementedError
+        # transform_matrix = extract_approximate_rotation_affine(transform_matrix, 0)
 
     import scipy.ndimage as ndi
     x = ndi.affine_transform(
         x,
-        transform_matrix_,
+        transform.get_matrix('Ms'),
         order=order,
         mode=fill_mode,
         cval=cval)
 
     if scale_canvas:
-        assert no_offset_to_center and pivot is None, 'Canvas scaling only implemented when scaling with reference to image origin!'
-        _, _, scale, _ = decompose_3d_transform(transform_matrix_, ndim=x.ndim)
-        if verbose:
-            print(f'scale = {scale}')
-        crop = (np.ceil(np.array(x.shape) / np.array(scale))).astype(int)
-        if verbose:
-            print(f'crop = {crop}')
-        if x.ndim == 3:
-            x = x[:crop[0], :crop[1], :crop[2]]
-        elif x.ndim == 2:
-            x = x[:crop[0], :crop[1]]
-        else:
-            raise RuntimeError(f'Invalid number of dimensions: {x.ndim}')
+        raise NotImplementedError
+        # assert no_offset_to_center and pivot is None, 'Canvas scaling only implemented when scaling with reference to image origin!'
+        # _, _, scale, _ = decompose_3d_transform(transform_matrix_, ndim=x.ndim)
+        # if verbose:
+        #     print(f'scale = {scale}')
+        # crop = (np.ceil(np.array(x.shape) / np.array(scale))).astype(int)
+        # if verbose:
+        #     print(f'crop = {crop}')
+        # if x.ndim == 3:
+        #     x = x[:crop[0], :crop[1], :crop[2]]
+        # elif x.ndim == 2:
+        #     x = x[:crop[0], :crop[1]]
+        # else:
+        #     raise RuntimeError(f'Invalid number of dimensions: {x.ndim}')
 
     return x
 
@@ -529,38 +537,17 @@ def apply_stack_alignment_slice(
         stack_shape,
         transform,
         idx,
-        xy_pivot=(0., 0.),
-        param_order='C',
         n_slices=None,
         verbose=False
 ):
 
     from squirrel.library.io import load_data_from_handle_stack
-    from squirrel.library.elastix import save_transforms
 
     print(f'idx = {idx} / {n_slices}')
 
-    this_transform = save_transforms(
-        transform,
-        None,
-        param_order=param_order,
-        save_order='M',
-        ndim=2,
-        verbose=verbose
-    )
-    if verbose:
-        print(f'this_transform = {this_transform}')
-    this_transform = validate_and_reshape_matrix(
-        this_transform, ndim=2
-    )
-
-    if verbose:
-        print(f'this_transform = {this_transform}')
-
     z_slice, _ = load_data_from_handle_stack(stack_h, idx, shape=stack_shape[1:])
     return apply_affine_transform(
-        z_slice, this_transform,
-        pivot=xy_pivot,
+        z_slice, transform,
         fill_mode='constant',
         cval=0,
         verbose=verbose
@@ -570,20 +557,15 @@ def apply_stack_alignment_slice(
 def apply_stack_alignment(
         stack_h,
         stack_shape,
-        transform_sequence,
+        transform_stack,
         no_adding_of_transforms=False,
-        xy_pivot=(0., 0.),
-        param_order='C',
         z_range=None,
         n_workers=1,
         verbose=False
 ):
 
-    from squirrel.library.io import load_data_from_handle_stack
-    from squirrel.library.elastix import save_transforms
-
-    if not no_adding_of_transforms:
-        transform_sequence = sequence_affine_stack(transform_sequence, param_order=param_order, verbose=verbose)
+    if not transform_stack.is_sequenced and not no_adding_of_transforms:
+        transform_stack = transform_stack.get_sequenced_stack()
 
     stack_shape = np.ceil(np.array(stack_shape)).astype(int)
 
@@ -594,15 +576,13 @@ def apply_stack_alignment(
 
     if n_workers == 1:
 
-        for idx in range(*z_range):
+        for stack_idx, idx in enumerate(range(*z_range)):
 
             result_volume.append(apply_stack_alignment_slice(
                 stack_h,
                 stack_shape,
-                transform_sequence[idx],
+                transform_stack[stack_idx],
                 idx,
-                xy_pivot=xy_pivot,
-                param_order=param_order,
                 n_slices=z_range[1],
                 verbose=verbose
             ))
@@ -633,14 +613,14 @@ def apply_stack_alignment(
                     apply_stack_alignment_slice,
                     stack_h,
                     stack_shape,
-                    transform_sequence[idx],
+                    transform_stack[stack_idx],
                     idx,
                     xy_pivot,
                     param_order,
                     z_range[1],
                     verbose
                 )
-                for idx in range(*z_range)
+                for stack_idx, idx in enumerate(range(*z_range))
             ]
             result_volume = [task.result() for task in tasks]
 
