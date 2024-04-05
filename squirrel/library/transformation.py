@@ -400,13 +400,8 @@ def apply_affine_transform(
 
     if verbose:
         print(f'x.ndim = {x.ndim}')
-        print(f'transform_matrix = {transform}')
-
-    # transform_matrix_ = validate_and_reshape_matrix(transform_matrix, x.ndim)
-
-    if verbose:
-        # print(f'transform_matrix = {transform_matrix_}')
         print(f'x.shape = {x.shape}')
+        print(f'transform_matrix = {transform}')
 
     if transform.get_pivot() is None and not no_offset_to_center:
         transform.update_parameters(
@@ -421,6 +416,7 @@ def apply_affine_transform(
 
     if apply == 'rotation':
         raise NotImplementedError
+        # TODO
         # transform_matrix = extract_approximate_rotation_affine(transform_matrix, 0)
 
     import scipy.ndimage as ndi
@@ -433,6 +429,7 @@ def apply_affine_transform(
 
     if scale_canvas:
         raise NotImplementedError
+        # TODO
         # assert no_offset_to_center and pivot is None, 'Canvas scaling only implemented when scaling with reference to image origin!'
         # _, _, scale, _ = decompose_3d_transform(transform_matrix_, ndim=x.ndim)
         # if verbose:

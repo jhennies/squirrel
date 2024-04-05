@@ -260,8 +260,6 @@ def elastix_stack_alignment_workflow(
 
     from ..library.io import load_data_handle, load_data_from_handle_stack
     from ..library.elastix import register_with_elastix
-    # from ..library.elastix import save_transforms
-    # from ..library.transformation import save_transformation_matrices
     from ..library.affine_matrices import AffineMatrix, AffineStack
 
     stack, stack_size = load_data_handle(stack, key=key, pattern=pattern)
@@ -295,20 +293,9 @@ def elastix_stack_alignment_workflow(
             pre_fix_big_jumps=pre_fix_big_jumps,
             return_result_image=False,
             verbose=verbose
-        )  # ['affine_parameters']
+        )
         result_matrix.shift_pivot_to_origin()
         transforms.append(result_matrix)
 
     transforms.to_file(out_filepath)
 
-    #     transforms.append(
-    #         save_transforms(
-    #             transform_params['affine_parameters'], None,
-    #             param_order=transform_params['affine_param_order'],
-    #             save_order='C',
-    #             ndim=2,
-    #             verbose=verbose
-    #         ).tolist()
-    #     )
-    #
-    # save_transformation_matrices(out_filepath, transforms, sequenced=False)

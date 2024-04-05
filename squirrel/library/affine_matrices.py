@@ -2,6 +2,15 @@
 import numpy as np
 
 
+def load_affine_stack_from_multiple_files(filepaths):
+
+    stack = AffineStack()
+    for filepath in filepaths:
+        stack.append(AffineStack(filepath=filepath))
+
+    return stack
+
+
 class AffineStack:
 
     def __init__(
