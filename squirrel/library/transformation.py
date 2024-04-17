@@ -182,6 +182,11 @@ def setup_2d_rotation_matrix_from_angle(angle):
 
 def setup_scale_matrix(scale_zyx, ndim=3):
 
+    import numbers
+
+    assert len(scale_zyx) == ndim
+    assert isinstance(scale_zyx[0], numbers.Number)
+
     if ndim == 3:
         return np.array(
             [
@@ -428,21 +433,20 @@ def apply_affine_transform(
         cval=cval)
 
     if scale_canvas:
-        raise NotImplementedError
-        # TODO
-        # assert no_offset_to_center and pivot is None, 'Canvas scaling only implemented when scaling with reference to image origin!'
-        # _, _, scale, _ = decompose_3d_transform(transform_matrix_, ndim=x.ndim)
-        # if verbose:
-        #     print(f'scale = {scale}')
-        # crop = (np.ceil(np.array(x.shape) / np.array(scale))).astype(int)
-        # if verbose:
-        #     print(f'crop = {crop}')
-        # if x.ndim == 3:
-        #     x = x[:crop[0], :crop[1], :crop[2]]
-        # elif x.ndim == 2:
-        #     x = x[:crop[0], :crop[1]]
-        # else:
-        #     raise RuntimeError(f'Invalid number of dimensions: {x.ndim}')
+        assert no_offset_to_center and (transform.get_pivot() == np.array([0., 0., 0.])).all()
+        _, _, scale, _ = transform.decompose()
+        if verbose:
+            print(f'scale = {scale}')
+        # This purposely rounds down, changing this to np.ceil(...) will break stuff!
+        crop = np.dot(x.shape, (-scale).get_matrix('M'))[:x.ndim].astype(int)
+        if verbose:
+            print(f'crop = {crop}')
+        if x.ndim == 3:
+            x = x[:crop[0], :crop[1], :crop[2]]
+        elif x.ndim == 2:
+            x = x[:crop[0], :crop[1]]
+        else:
+            raise RuntimeError(f'Invalid number of dimensions: {x.ndim}')
 
     return x
 
@@ -564,12 +568,12 @@ def apply_stack_alignment(
     if not transform_stack.is_sequenced and not no_adding_of_transforms:
         transform_stack = transform_stack.get_sequenced_stack()
 
-    stack_shape = np.ceil(np.array(stack_shape)).astype(int)
+    stack_size = np.ceil(np.array(stack_shape)).astype(int)
 
     result_volume = []
 
-    if z_range is None:
-        z_range = [0, stack_shape[0]]
+    from ..library.data import norm_z_range
+    z_range = norm_z_range(z_range, stack_size[0])
 
     if n_workers == 1:
 
@@ -577,7 +581,7 @@ def apply_stack_alignment(
 
             result_volume.append(apply_stack_alignment_slice(
                 stack_h,
-                stack_shape,
+                stack_size,
                 transform_stack[stack_idx],
                 idx,
                 n_slices=z_range[1],
@@ -609,11 +613,9 @@ def apply_stack_alignment(
                 tpe.submit(
                     apply_stack_alignment_slice,
                     stack_h,
-                    stack_shape,
+                    stack_size,
                     transform_stack[stack_idx],
                     idx,
-                    xy_pivot,
-                    param_order,
                     z_range[1],
                     verbose
                 )

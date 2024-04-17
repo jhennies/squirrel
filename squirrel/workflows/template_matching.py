@@ -13,6 +13,7 @@ def template_matching_stack_alignment_workflow(
         pattern='*.tif',
         z_range=None,
         save_template=False,
+        determine_bounds=False,
         verbose=False
 ):
 
@@ -34,7 +35,7 @@ def template_matching_stack_alignment_workflow(
     from ..library.io import load_data_handle, load_data_from_handle_stack, crop_roi
     from ..library.template_matching import match_template_on_image
     from ..library.affine_matrices import AffineStack
-    from ..library.data import resolution_to_pixels
+    from ..library.data import resolution_to_pixels, norm_z_range
 
     template_roi = np.array(template_roi)
     template_roi[[0, 2]] = resolution_to_pixels(template_roi[[0, 2]], resolution[2])
@@ -57,9 +58,9 @@ def template_matching_stack_alignment_workflow(
     template = crop_roi(stack_h, template_roi)
 
     transforms = AffineStack(is_sequenced=True, pivot=[0., 0.])
+    bounds = []
 
-    if z_range is None:
-        z_range = [0, stack_size[0]]
+    z_range = norm_z_range(z_range, stack_size[0])
 
     for idx in range(*z_range):
 
@@ -76,7 +77,11 @@ def template_matching_stack_alignment_workflow(
         )
 
         transforms.append(transform)
+        if determine_bounds:
+            from ..library.image import get_bounds
+            bounds.append(get_bounds(z_slice, return_ints=True))
 
+    transforms.set_meta('bounds', np.array(bounds))
     transforms.to_file(out_filepath)
 
     if save_template:

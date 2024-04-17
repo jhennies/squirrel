@@ -251,6 +251,7 @@ def elastix_stack_alignment_workflow(
         number_of_resolutions=None,
         pre_fix_big_jumps=False,
         z_range=None,
+        determine_bounds=False,
         verbose=False
 ):
 
@@ -261,41 +262,47 @@ def elastix_stack_alignment_workflow(
     from ..library.io import load_data_handle, load_data_from_handle_stack
     from ..library.elastix import register_with_elastix
     from ..library.affine_matrices import AffineMatrix, AffineStack
+    from ..library.data import norm_z_range
 
     stack, stack_size = load_data_handle(stack, key=key, pattern=pattern)
 
     transforms = AffineStack(is_sequenced=False, pivot=[0., 0.])
+    bounds = []
 
-    if z_range is None:
-        z_range = [0, stack_size[0]]
+    z_range = norm_z_range(z_range, stack_size[0])
 
     for idx in range(*z_range):
 
         print(f'idx = {idx} / {z_range[1]}')
+        z_slice_moving, _ = load_data_from_handle_stack(stack, idx)
 
         if idx == 0:
             transforms.append(AffineMatrix([1., 0., 0., 0., 1., 0.], pivot=[0., 0.]))
-            continue
+        else:
 
-        z_slice_fixed, _ = load_data_from_handle_stack(stack, idx - 1)
-        z_slice_moving, _ = load_data_from_handle_stack(stack, idx)
+            z_slice_fixed, _ = load_data_from_handle_stack(stack, idx - 1)
 
-        result_matrix, _ = register_with_elastix(
-            z_slice_fixed,
-            z_slice_moving,
-            transform=transform,
-            automatic_transform_initialization=False,
-            # params_to_origin=True,
-            auto_mask=auto_mask,
-            number_of_spatial_samples=number_of_spatial_samples,
-            maximum_number_of_iterations=maximum_number_of_iterations,
-            number_of_resolutions=number_of_resolutions,
-            pre_fix_big_jumps=pre_fix_big_jumps,
-            return_result_image=False,
-            verbose=verbose
-        )
-        result_matrix.shift_pivot_to_origin()
-        transforms.append(result_matrix)
+            result_matrix, _ = register_with_elastix(
+                z_slice_fixed,
+                z_slice_moving,
+                transform=transform,
+                automatic_transform_initialization=False,
+                # params_to_origin=True,
+                auto_mask=auto_mask,
+                number_of_spatial_samples=number_of_spatial_samples,
+                maximum_number_of_iterations=maximum_number_of_iterations,
+                number_of_resolutions=number_of_resolutions,
+                pre_fix_big_jumps=pre_fix_big_jumps,
+                return_result_image=False,
+                verbose=verbose
+            )
+            result_matrix.shift_pivot_to_origin()
+            transforms.append(result_matrix)
 
+        if determine_bounds:
+            from ..library.image import get_bounds
+            bounds.append(get_bounds(z_slice_moving, return_ints=True))
+
+    transforms.set_meta('bounds', np.array(bounds))
     transforms.to_file(out_filepath)
 

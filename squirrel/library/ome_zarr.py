@@ -2,6 +2,16 @@
 import numpy as np
 
 
+def _normalize_chunk_size(chunk_size, n_levels):
+    chunk_size = np.array(chunk_size).tolist()
+    if isinstance(chunk_size[0], int):
+        return np.array(chunk_size * n_levels)
+    if isinstance(chunk_size[0], list):
+        assert len(chunk_size) == n_levels
+        return np.array(chunk_size)
+    raise ValueError(f'Invalid chunk size: {chunk_size}')
+
+
 def create_ome_zarr(
         filepath,
         shape,
@@ -14,13 +24,15 @@ def create_ome_zarr(
         name=None
 ):
 
+    chunk_size = _normalize_chunk_size(chunk_size, len(downsample_factors) + 1)
+
     from zarr import open as zarr_open
     handle = zarr_open(filepath, mode='w')
     handle.create_dataset(
         's0',
         shape=shape,
         compression='gzip',
-        chunks=chunk_size,
+        chunks=chunk_size[0],
         dtype=dtype,
         dimension_separator='/'
     )
@@ -75,7 +87,7 @@ def create_ome_zarr(
             f's{s_idx}',
             shape=(np.array(shape) / scale).astype(int).tolist(),
             compression='gzip',
-            chunks=chunk_size,
+            chunks=chunk_size[s_idx],
             dtype=dtype,
             dimension_separator='/'
         )
@@ -99,6 +111,104 @@ def get_ome_zarr_handle(
     return zarr_open(filepath, mode=mode)
 
 
+def downsample_ome_zarr_chunk(
+        chunk_position,
+        chunk_shape,
+        ome_zarr_handle,
+        downsample_order=1,
+        verbose=False
+):
+
+    from ..library.affine_matrices import AffineMatrix
+    from ..library.transformation import setup_scale_matrix, apply_affine_transform
+
+    downsample_factors = [1] + get_downsample_factors(ome_zarr_handle)
+
+    print(f'chunk_position = {chunk_position}')
+    print(f'chunk_shape = {chunk_shape}')
+    print(f'downsample_factors = {downsample_factors}')
+
+    chunk_position = np.array(chunk_position)
+    chunk_shape = np.array(chunk_shape)
+    prev_v = None
+
+    for idx, (k, v) in enumerate(ome_zarr_handle.items()):
+        chunks = np.array(v.chunks)
+        shape = np.array(v.shape)
+        prev_chunk_position = chunk_position.copy()
+        prev_chunk_shape = chunk_shape.copy()
+        chunk_position = (chunk_position / downsample_factors[idx]).astype(int)
+        chunk_shape = (chunk_shape / downsample_factors[idx]).astype(int)
+
+        # Some assertions to make sure the chunks boundaries match the requested location
+        for dim in range(v.ndim):
+            assert chunk_shape[dim] / chunks[dim] == int(chunk_shape[dim] / chunks[dim]) or chunk_position[dim] + chunk_shape[dim] == shape[dim], \
+                f"Given chunk size and ome_zarr chunks boundaries don't match for {k} in dimension {dim}; " \
+                f"{chunk_shape[dim] / chunks[dim]} != {int(chunk_shape[dim] / chunks[dim])} and " \
+                f"{chunk_position[dim] + chunk_shape[dim]} != {shape[dim]}"
+            assert chunk_position[dim] / chunks[dim] == int(chunk_position[dim] / chunks[dim]), \
+                f"Given chunk position and ome_zarr chunks boundaries don't match for {k} in dimension {dim}; " \
+                f"{chunk_position[dim] / chunks[dim]} != {int(chunk_position[dim] / chunks[dim])}"
+
+        if idx > 0:
+
+            downsample_factor = downsample_factors[idx]
+
+            transform_matrix = AffineMatrix(
+                parameters=setup_scale_matrix([downsample_factor] * 3, ndim=3).flatten()
+            )
+
+            source_data = prev_v[prev_chunk_position[0]: prev_chunk_position[0] + prev_chunk_shape[0],
+                                 prev_chunk_position[1]: prev_chunk_position[1] + prev_chunk_shape[1],
+                                 prev_chunk_position[2]: prev_chunk_position[2] + prev_chunk_shape[2]]
+
+            print(f'source_data.shape = {source_data.shape}')
+            target_data = apply_affine_transform(
+                source_data,
+                transform_matrix,
+                order=downsample_order,
+                scale_canvas=True,
+                no_offset_to_center=True,
+                verbose=verbose
+            )
+            print(f'target_data.shape = {target_data.shape}')
+
+            v[chunk_position[0]: chunk_position[0] + chunk_shape[0],
+              chunk_position[1]: chunk_position[1] + chunk_shape[1],
+              chunk_position[2]: chunk_position[2] + chunk_shape[2]] = target_data
+
+        prev_v = v
+
+
+def chunk_to_ome_zarr(
+        chunk_data,
+        chunk_position,
+        ome_zarr_handle,
+        key='s0',
+        populate_downsample_layers=False,
+        downsample_order=1,
+        verbose=False
+):
+
+    sl = np.s_[
+        chunk_position[0]: chunk_position[0] + chunk_data.shape[0],
+        chunk_position[1]: chunk_position[1] + chunk_data.shape[1],
+        chunk_position[2]: chunk_position[2] + chunk_data.shape[2]
+    ]
+    print(f'sl = {sl}')
+    ome_zarr_handle[key][sl] = chunk_data
+
+    if populate_downsample_layers:
+        assert key == 's0'
+        downsample_ome_zarr_chunk(
+            chunk_position,
+            chunk_data.shape,
+            ome_zarr_handle,
+            downsample_order=downsample_order,
+            verbose=verbose
+        )
+
+
 def slice_to_ome_zarr(
         stack_path,
         slice_idx,
@@ -118,14 +228,16 @@ def slice_to_ome_zarr(
 
     data_handle, shape_h = load_data_handle(stack_path, key=stack_key, pattern=stack_pattern)
     slice_data, _ = load_data_from_handle_stack(data_handle, slice_idx)
-    print(f'loaded slice data...')
+    if verbose:
+        print(f'loaded slice data...')
 
     if save_bounds:
         # TODO this
         pass
 
     ome_zarr_handle[slice_idx, :] = slice_data
-    print(f'slice data written')
+    if verbose:
+        print(f'slice data written')
 
 
 def process_slice_to_ome_zarr(
@@ -289,3 +401,35 @@ def get_scale_of_downsample_level(handle, downsample_level):
         f'Invalid path to downsample level combination: {this_path} != s{downsample_level}'
 
     return this_dataset['coordinateTransformations'][0]['scale']
+
+
+def get_unit_of_dataset(handle):
+    units = [x['unit'] for x in handle.attrs['multiscales'][0]['axes']]
+    assert units[0] == units[1] == units[2]
+    return units[0]
+
+
+def get_downsample_factors(handle):
+    def _get_res_from_dataset(ds):
+        return np.array(ds['coordinateTransformations'][0]['scale'])
+    datasets = handle.attrs['multiscales'][0]['datasets']
+
+    resolutions = [_get_res_from_dataset(downsampled_dataset) for downsampled_dataset in datasets]
+
+    scales = []
+    for idx in range(len(resolutions) - 1):
+        resolution = resolutions[idx + 1]
+        ref_resolution = resolutions[idx]
+        this_scale = (resolution / ref_resolution).astype(int).tolist()
+        assert this_scale[0] == this_scale[1] == this_scale[2]
+        this_scale = this_scale[0]
+        scales.append(this_scale)
+
+    return scales
+
+
+if __name__ == '__main__':
+    
+    ozh = get_ome_zarr_handle('/media/julian/Data/tmp/amst2_test_4t_3/pre-align-2.ome.zarr', mode='a')
+    shp = ozh.s0.shape
+    downsample_ome_zarr_chunk([16, 0, 0], [16, shp[1], shp[2]], ozh)

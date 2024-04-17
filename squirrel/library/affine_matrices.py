@@ -4,8 +4,8 @@ import numpy as np
 
 def load_affine_stack_from_multiple_files(filepaths):
 
-    stack = AffineStack()
-    for filepath in filepaths:
+    stack = AffineStack(filepath=filepaths[0])
+    for filepath in filepaths[1:]:
         stack.append(AffineStack(filepath=filepath))
 
     return stack
@@ -27,6 +27,7 @@ class AffineStack:
         self.is_sequenced = None
         self._it = 0
         self._pivot = None
+        self._meta = dict()
         if stack is not None:
             assert filepath is None
             self.set_from_stack(stack, is_sequenced=is_sequenced, pivot=pivot)
@@ -83,6 +84,9 @@ class AffineStack:
         if pivot is None:
             pivot = stack_data['pivot']
 
+        if 'meta' in stack_data:
+            self._meta = stack_data['meta']
+
         self.set_from_stack(stack, is_sequenced=is_sequenced, pivot=pivot)
 
     def to_file(self, filepath):
@@ -90,10 +94,15 @@ class AffineStack:
         out_data = dict(
             transforms=self['C', :].tolist(),
             sequenced=self.is_sequenced,
-            pivot=self.get_pivot().tolist()
+            pivot=self.get_pivot().tolist(),
+            meta=self._meta
         )
-        with open(filepath, 'w') as f:
-            json.dump(out_data, f, indent=2)
+        try:
+            with open(filepath, 'w') as f:
+                json.dump(out_data, f, indent=2)
+        except TypeError:
+            print(out_data)
+            raise
 
     def set_pivot(self, pivot=None):
         if pivot is None and self._stack is not None:
@@ -123,11 +132,19 @@ class AffineStack:
     def get_pivot(self):
         return self._pivot
 
+    def _append_meta(self, other):
+        for k, v in self._meta.items():
+            if k in other._meta:
+                if type(self._meta[k]) == list:
+                    assert type(other._meta[k]) == list
+                    self._meta[k].extend(other._meta[k])
+
     def append(self, other):
         if isinstance(other, AffineStack):
             assert self.is_sequenced == other.is_sequenced
             assert (self.get_pivot() == other.get_pivot()).all(), f'{self.get_pivot()} != {other.get_pivot()}'
             self.set_from_stack(self[:] + other[:], is_sequenced=self.is_sequenced, pivot=self.get_pivot())
+            self._append_meta(other)
             return
         if isinstance(other, AffineMatrix):
             assert (self.get_pivot() == other.get_pivot()).all(), f'{self.get_pivot()} != {other.get_pivot()}'
@@ -193,16 +210,17 @@ class AffineStack:
             is_sequenced=self.is_sequenced
         )
 
+    def _new_stack_with_same_meta(self, new_stack):
+        ns = AffineStack(stack=new_stack, is_sequenced=self.is_sequenced, pivot=self.get_pivot())
+        ns._meta = self._meta
+        return ns
+
     def copy(self):
-        return AffineStack(
-            stack=self._stack.copy(),
-            is_sequenced=self.is_sequenced,
-            pivot=self.get_pivot()
-        )
+        return self._new_stack_with_same_meta(self._stack.copy())
 
     def get_smoothed_stack(self, sigma):
         from scipy.ndimage import gaussian_filter1d
-        return AffineStack(stack=gaussian_filter1d(self['C', :], sigma, axis=0))
+        return self._new_stack_with_same_meta(gaussian_filter1d(self['C', :], sigma, axis=0))
 
     def get_sequenced_stack(self):
 
@@ -215,7 +233,9 @@ class AffineStack:
                 continue
             stack.append(stack[idx - 1] * self[idx])
 
-        return AffineStack(stack=stack, is_sequenced=True, pivot=self.get_pivot())
+        out_stack = self._new_stack_with_same_meta(stack)
+        out_stack.is_sequenced = True
+        return out_stack
 
     def get_scaled(self, scale):
 
@@ -236,7 +256,20 @@ class AffineStack:
                 for idx in range(0, len(scaled_stack), int(1/scale))
             ]
 
-        return AffineStack(scaled_stack, is_sequenced=self.is_sequenced, pivot=self.get_pivot())
+        return self._new_stack_with_same_meta(scaled_stack)
+
+    def set_meta(self, name, data):
+        if type(data) == np.ndarray:
+            data = data.tolist()
+        self._meta[name] = data
+
+    def get_meta(self, name):
+        return self._meta[name]
+
+    def exists_meta(self, name):
+        if name in self._meta.keys():
+            return True
+        return False
 
 
 class AffineMatrix:
@@ -290,12 +323,12 @@ class AffineMatrix:
 
         if order[0] == 'C':
             if len(order) == 2 and order[1] == 's':
-                return np.concatenate((self._parameters.copy(), [0., 0., 1.]), axis=0)
+                return np.concatenate((self._parameters.copy(), [0.] * self._ndim + [1.]), axis=0)
             return self._parameters.copy()
         if order[0] == 'M':
             out_matrix = np.reshape(self._parameters.copy(), (self._ndim, self._ndim + 1), order='C')
             if len(order) == 2 and order[1] == 's':
-                return np.concatenate((out_matrix, [[0., 0., 1.]]), axis=0)
+                return np.concatenate((out_matrix, [[0.] * self._ndim + [1.]]), axis=0)
             return out_matrix
 
     def set_from_file(self, filepath):
@@ -429,6 +462,7 @@ if __name__ == '__main__':
         # print(f'stk[:] = {stk[:]}')
         # print(f'stk["Ms", :] = {stk["Ms", :]}')
         # print(f'\nStack IO ---------------------')
+        stk.set_meta('test', np.array([1, 2, 4]))
         fp = '/media/julian/Data/tmp/affine_stack_test.json'
         stk.to_file(fp)
         stk_loaded = AffineStack(filepath=fp)
@@ -446,6 +480,7 @@ if __name__ == '__main__':
         stk.is_sequenced = True
         print(f'scaled: {stk.get_scaled(2)["C", :]}')
         print(f'scaled: {stk.get_scaled(0.5)["C", :]}')
+
 
     if True:
         print('Testing the matrix object')

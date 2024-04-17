@@ -74,7 +74,7 @@ def apply_auto_pad(transforms, stack_shape, stack_bounds, extra_padding=0):
     transforms.update_stack(new_transforms)
 
     # Also modify the stack_shape now to crop or extend the images
-    stack_shape[1:] = (new_bounds[1] - new_bounds[0] + 2 * extra_padding).tolist()
+    stack_shape[1:] = (new_bounds[1] - new_bounds[0] + 2 * extra_padding).astype(int).tolist()
 
     return transforms, stack_shape
 

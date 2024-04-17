@@ -31,3 +31,13 @@ def norm_8bit(im, quantiles, ignore_zeros=False):
     im[im > 255] = 255
     im[im < 0] = 0
     return im.astype('uint8')
+
+
+def norm_z_range(z_range, len_stack):
+
+    if z_range is None:
+        z_range = [0, len_stack]
+    if z_range[1] > len_stack:
+        z_range[1] = len_stack
+
+    return z_range
