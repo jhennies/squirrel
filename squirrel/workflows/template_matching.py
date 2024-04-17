@@ -14,6 +14,7 @@ def template_matching_stack_alignment_workflow(
         z_range=None,
         save_template=False,
         determine_bounds=False,
+        n_threads=1,
         verbose=False
 ):
 
@@ -33,7 +34,7 @@ def template_matching_stack_alignment_workflow(
         print(f'save_template = {save_template}')
 
     from ..library.io import load_data_handle, crop_roi
-    from ..library.template_matching import match_template_on_image
+    from ..library.template_matching import match_template_on_stack_slice
     from ..library.affine_matrices import AffineStack
     from ..library.data import resolution_to_pixels, norm_z_range
 
@@ -62,24 +63,53 @@ def template_matching_stack_alignment_workflow(
 
     z_range = norm_z_range(z_range, stack_size[0])
 
-    for idx in range(*z_range):
+    if n_threads == 1:
 
-        print(f'idx = {idx} / {z_range[1]}')
+        for idx in range(*z_range):
+            print(f'idx = {idx} / {z_range[1]}')
+            this_transform, this_bounds = match_template_on_stack_slice(
+                stack_h, idx, search_roi, template, determine_bounds=determine_bounds
+            )
+            transforms.append(this_transform)
+            if determine_bounds:
+                bounds.append(this_bounds)
 
-        if search_roi is None:
-            z_slice = stack_h[idx]
-        else:
-            z_slice, _ = crop_roi(stack_h, search_roi + [idx])
+    else:
+        from concurrent.futures import ThreadPoolExecutor
 
-        transform = match_template_on_image(
-            z_slice,
-            template
-        )
+        with ThreadPoolExecutor(max_workers=n_threads) as tpe:
+            tasks = [
+                tpe.submit(
+                    match_template_on_stack_slice,
+                    stack_h, idx, search_roi, template, determine_bounds=determine_bounds
+                )
+                for idx in range(*z_range)
+            ]
+            for idx, task in enumerate(tasks):
+                print(f'idx = {idx} / {len(tasks) - 1}')
+                this_transform, this_bounds = task.result()
+                transforms.append(this_transform)
+                if determine_bounds:
+                    bounds.append(this_bounds)
 
-        transforms.append(transform)
-        if determine_bounds:
-            from ..library.image import get_bounds
-            bounds.append(get_bounds(z_slice, return_ints=True))
+    # for idx in range(*z_range):
+    #
+    #     print(f'idx = {idx} / {z_range[1]}')
+    #
+    #     if search_roi is None:
+    #         z_slice = stack_h[idx]
+    #     else:
+    #         z_slice, _ = crop_roi(stack_h, search_roi + [idx])
+    #
+    #     transform = match_template_on_image(
+    #         z_slice,
+    #         template
+    #     )
+    #
+    #     transforms.append(transform)
+    #     if determine_bounds:
+    #         from ..library.image import get_bounds
+    #         bounds.append(get_bounds(z_slice, return_ints=True))
 
     transforms.set_meta('bounds', np.array(bounds))
     transforms.to_file(out_filepath)
