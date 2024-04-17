@@ -542,11 +542,11 @@ def apply_stack_alignment_slice(
         verbose=False
 ):
 
-    from squirrel.library.io import load_data_from_handle_stack
+    from squirrel.library.io import get_reshaped_data
 
     print(f'idx = {idx} / {n_slices}')
 
-    z_slice, _ = load_data_from_handle_stack(stack_h, idx, shape=stack_shape[1:])
+    z_slice = get_reshaped_data(stack_h, idx, stack_shape[1:])
     return apply_affine_transform(
         z_slice, transform,
         fill_mode='constant',

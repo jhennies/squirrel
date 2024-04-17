@@ -137,7 +137,7 @@ def stack_to_ome_zarr_workflow(
         downsample_type='Average',
         downsample_factors=(2, 2, 2),
         name=None,
-        chunk_size=(1, 256, 256),
+        chunk_size=(64, 64, 64),
         z_range=None,
         save_bounds=False,
         append=False,
@@ -154,64 +154,102 @@ def stack_to_ome_zarr_workflow(
         print(f'z_range = {z_range}')
         print(f'n_threads = {n_threads}')
 
-    assert n_threads == 1 or chunk_size[0] == 1, 'Multiprocessing is not safe when chunks are wider than a slice!\n' \
-                                                 'Either use n_threads=1 or chunk_size=(1, y, x)'
+    from squirrel.library.data import norm_z_range
 
-    from squirrel.library.io import load_data_handle, load_data_from_handle_stack
-    from squirrel.library.ome_zarr import create_ome_zarr
+    # Load the stack slices
+    from ..library.io import load_data_handle
+    input_stack_handle, input_stack_shape = load_data_handle(stack_path, key=stack_key, pattern=stack_pattern)
 
-    if name is None:
-        # This is not entirely correct but who puts a file extension like ome.zarr multiple times into the filename?
-        name = str.replace(os.path.split(ome_zarr_filepath)[1], '.ome.zarr', '')
+    z_range = norm_z_range(z_range, input_stack_shape[0])
+    chunk_data = input_stack_handle[z_range[0]: z_range[1]]
 
-    data_h, shape_h = load_data_handle(stack_path, key=stack_key, pattern=stack_pattern)
+    # Create ome zarr if necessary
     if not append:
         create_ome_zarr(
             ome_zarr_filepath,
-            shape=shape_h,
+            shape=input_stack_shape,
             resolution=resolution,
             unit=unit,
             downsample_type=downsample_type,
             downsample_factors=downsample_factors,
             chunk_size=chunk_size,
-            dtype=load_data_from_handle_stack(data_h, 0)[0].dtype,
+            dtype=input_stack_handle[0].dtype,
             name=name
         )
-    if z_range is None:
-        z_range = [0, shape_h[0]]
-    else:
-        z_range[1] = min(z_range[1], shape_h[0])
 
-    from squirrel.library.ome_zarr import process_slice_to_ome_zarr
-    process_slice_to_ome_zarr(
-        stack_path,
-        z_range,
-        ome_zarr_filepath,
-        stack_key=stack_key,
-        stack_pattern=stack_pattern,
-        save_bounds=save_bounds,
-        n_threads=n_threads,
+    # Write the stack to ome_zarr
+    from squirrel.library.ome_zarr import chunk_to_ome_zarr, get_ome_zarr_handle
+    chunk_to_ome_zarr(
+        chunk_data,
+        [z_range[0], 0, 0],
+        get_ome_zarr_handle(ome_zarr_filepath, mode='a'),
+        key='s0',
+        populate_downsample_layers=True,
         verbose=verbose
     )
 
-    if downsample_type == 'Average':
-        order = 1
-    elif downsample_type == 'Sample':
-        order = 0
-    else:
-        raise ValueError(f'Invalid downsample_type = {downsample_type}')
-
-    z_range = np.array(z_range)
-    for idx, downsample_factor in enumerate(downsample_factors):
-        z_range = (z_range / downsample_factor).astype(int)
-        from squirrel.library.ome_zarr import compute_downsampling_layer
-        compute_downsampling_layer(
-            ome_zarr_filepath,
-            z_range,
-            f's{idx}', f's{idx + 1}',
-            downsample_factor=downsample_factor,
-            n_threads=n_threads,
-            downsample_order=order,
-            verbose=verbose
-        )
+    #
+    # return
+    # # Below is the old implementation
+    #
+    # assert n_threads == 1 or chunk_size[0] == 1, 'Multiprocessing is not safe when chunks are wider than a slice!\n' \
+    #                                              'Either use n_threads=1 or chunk_size=(1, y, x)'
+    #
+    # from squirrel.library.io import load_data_handle, load_data_from_handle_stack
+    # from squirrel.library.ome_zarr import create_ome_zarr
+    #
+    # if name is None:
+    #     # This is not entirely correct but who puts a file extension like ome.zarr multiple times into the filename?
+    #     name = str.replace(os.path.split(ome_zarr_filepath)[1], '.ome.zarr', '')
+    #
+    # data_h, shape_h = load_data_handle(stack_path, key=stack_key, pattern=stack_pattern)
+    # if not append:
+    #     create_ome_zarr(
+    #         ome_zarr_filepath,
+    #         shape=shape_h,
+    #         resolution=resolution,
+    #         unit=unit,
+    #         downsample_type=downsample_type,
+    #         downsample_factors=downsample_factors,
+    #         chunk_size=chunk_size,
+    #         dtype=load_data_from_handle_stack(data_h, 0)[0].dtype,
+    #         name=name
+    #     )
+    # if z_range is None:
+    #     z_range = [0, shape_h[0]]
+    # else:
+    #     z_range[1] = min(z_range[1], shape_h[0])
+    #
+    # from squirrel.library.ome_zarr import process_slice_to_ome_zarr
+    # process_slice_to_ome_zarr(
+    #     stack_path,
+    #     z_range,
+    #     ome_zarr_filepath,
+    #     stack_key=stack_key,
+    #     stack_pattern=stack_pattern,
+    #     save_bounds=save_bounds,
+    #     n_threads=n_threads,
+    #     verbose=verbose
+    # )
+    #
+    # if downsample_type == 'Average':
+    #     order = 1
+    # elif downsample_type == 'Sample':
+    #     order = 0
+    # else:
+    #     raise ValueError(f'Invalid downsample_type = {downsample_type}')
+    #
+    # z_range = np.array(z_range)
+    # for idx, downsample_factor in enumerate(downsample_factors):
+    #     z_range = (z_range / downsample_factor).astype(int)
+    #     from squirrel.library.ome_zarr import compute_downsampling_layer
+    #     compute_downsampling_layer(
+    #         ome_zarr_filepath,
+    #         z_range,
+    #         f's{idx}', f's{idx + 1}',
+    #         downsample_factor=downsample_factor,
+    #         n_threads=n_threads,
+    #         downsample_order=order,
+    #         verbose=verbose
+    #     )
 

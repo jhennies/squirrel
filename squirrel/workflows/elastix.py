@@ -259,7 +259,7 @@ def elastix_stack_alignment_workflow(
         print(f'Target file exists: {out_filepath}\nSkipping elastix stack alignment workflow ...')
         return
 
-    from ..library.io import load_data_handle, load_data_from_handle_stack
+    from ..library.io import load_data_handle
     from ..library.elastix import register_with_elastix
     from ..library.affine_matrices import AffineMatrix, AffineStack
     from ..library.data import norm_z_range
@@ -274,13 +274,13 @@ def elastix_stack_alignment_workflow(
     for idx in range(*z_range):
 
         print(f'idx = {idx} / {z_range[1]}')
-        z_slice_moving, _ = load_data_from_handle_stack(stack, idx)
+        z_slice_moving = stack[idx]
 
         if idx == 0:
             transforms.append(AffineMatrix([1., 0., 0., 0., 1., 0.], pivot=[0., 0.]))
         else:
 
-            z_slice_fixed, _ = load_data_from_handle_stack(stack, idx - 1)
+            z_slice_fixed = stack[idx - 1]
 
             result_matrix, _ = register_with_elastix(
                 z_slice_fixed,

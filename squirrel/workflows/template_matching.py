@@ -32,7 +32,7 @@ def template_matching_stack_alignment_workflow(
         print(f'z_range = {z_range}')
         print(f'save_template = {save_template}')
 
-    from ..library.io import load_data_handle, load_data_from_handle_stack, crop_roi
+    from ..library.io import load_data_handle, crop_roi
     from ..library.template_matching import match_template_on_image
     from ..library.affine_matrices import AffineStack
     from ..library.data import resolution_to_pixels, norm_z_range
@@ -67,7 +67,7 @@ def template_matching_stack_alignment_workflow(
         print(f'idx = {idx} / {z_range[1]}')
 
         if search_roi is None:
-            z_slice, _ = load_data_from_handle_stack(stack_h, idx)
+            z_slice = stack_h[idx]
         else:
             z_slice, _ = crop_roi(stack_h, search_roi + [idx])
 
