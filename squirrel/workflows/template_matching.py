@@ -92,25 +92,6 @@ def template_matching_stack_alignment_workflow(
                 if determine_bounds:
                     bounds.append(this_bounds)
 
-    # for idx in range(*z_range):
-    #
-    #     print(f'idx = {idx} / {z_range[1]}')
-    #
-    #     if search_roi is None:
-    #         z_slice = stack_h[idx]
-    #     else:
-    #         z_slice, _ = crop_roi(stack_h, search_roi + [idx])
-    #
-    #     transform = match_template_on_image(
-    #         z_slice,
-    #         template
-    #     )
-    #
-    #     transforms.append(transform)
-    #     if determine_bounds:
-    #         from ..library.image import get_bounds
-    #         bounds.append(get_bounds(z_slice, return_ints=True))
-
     transforms.set_meta('bounds', np.array(bounds))
     transforms.to_file(out_filepath)
 
