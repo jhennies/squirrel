@@ -58,6 +58,11 @@ def template_matching_stack_alignment_workflow(
 
     template = crop_roi(stack_h, template_roi)
 
+    if save_template:
+        template_filepath = os.path.splitext(out_filepath)[0] + '.template.tif'
+        from tifffile import imwrite
+        imwrite(template_filepath, template)
+
     transforms = AffineStack(is_sequenced=True, pivot=[0., 0.])
     bounds = []
 
@@ -94,8 +99,3 @@ def template_matching_stack_alignment_workflow(
 
     transforms.set_meta('bounds', np.array(bounds))
     transforms.to_file(out_filepath)
-
-    if save_template:
-        template_filepath = os.path.splitext(out_filepath)[0] + '.template.tif'
-        from tifffile import imwrite
-        imwrite(template_filepath, template)

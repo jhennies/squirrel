@@ -48,6 +48,7 @@ setup(
         'numpy',
         'h5py',
         'tifffile',
-        'scipy'
+        'scipy',
+        'scikit-image'
     ]
 )
