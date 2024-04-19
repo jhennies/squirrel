@@ -51,10 +51,10 @@ def write_h5_container(filepath, data, key='data', append=False):
         f.create_dataset(key, data=data, compression='gzip')
 
 
-def write_tif_stack(data, out_folder):
+def write_tif_stack(data, out_folder, id_offset=0, slice_name='slice_{:04d}.tif'):
 
     for idx, section in enumerate(data):
-        write_tif_slice(section, out_folder, 'slice_{:04d}.tif'.format(idx))
+        write_tif_slice(section, out_folder, slice_name.format(idx + id_offset))
 
 
 def read_tif_slice(filepath, return_filepath=True):
