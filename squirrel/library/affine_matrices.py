@@ -279,10 +279,9 @@ class AffineStack:
         for idx, m in enumerate(self):
             m.set_translation(translations[idx])
 
-    def add_to_translations(self, translation):
-        assert len(translation) == self._ndim
+    def add_to_translations(self, values):
         translations = np.array(self.get_translations())
-        self.set_translations(translations + np.array(translation))
+        self.set_translations(translations + np.array(values))
 
 
 class AffineMatrix:

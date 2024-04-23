@@ -686,11 +686,9 @@ def add_translational_drift_workflow(
     transforms = AffineStack(filepath=transform_filepath)
 
     if transforms.is_sequenced:
-        drift = [np.array(drift) * x for x in range(len(transforms))]
+        transforms.add_to_translations([np.array(drift) * x for x in range(len(transforms))])
     else:
-        drift = [drift] * len(transforms)
-
-    transforms.add_to_translations(drift)
+        transforms.add_to_translations(drift)
 
     transforms.to_file(out_filepath)
 
