@@ -1,19 +1,19 @@
 
-import SimpleITK
 import numpy as np
 import os
 
 
-def _load_data(filepath, key='data'):
-
-    from ..library.io import get_filetype
-
-    if get_filetype(filepath) == 'h5':
-        from ..library.io import load_h5_container
-        return load_h5_container(filepath, key)
-    if get_filetype(filepath) == 'nii':
-        from ..library.io import load_nii_file
-        return load_nii_file(filepath)
+# NOTE: deprecated
+# def _load_data(filepath, key='data'):
+#
+#     from ..library.io import get_filetype
+#
+#     if get_filetype(filepath) == 'h5':
+#         from ..library.io import load_h5_container
+#         return load_h5_container(filepath, key)
+#     if get_filetype(filepath) == 'nii':
+#         from ..library.io import load_nii_file
+#         return load_nii_file(filepath)
 
 
 def elastix3d(
@@ -172,29 +172,41 @@ def register_z_chunks(
         )
 
 
-def slices_to_volume(
-        moving_filepath,
-        fixed_filepath,
+def slices_to_volume(*args, **kwargs):
+    raise RuntimeError('This function was renamed, please use "slice_wise_stack_to_stack_alignment_workflow!"')
+
+
+def slice_wise_stack_to_stack_alignment_workflow(
+        moving_path,
+        fixed_path,
         out_filepath,
         moving_key='data',
         fixed_key='data',
-        z_chunk_size=16,
+        moving_pattern='*.tif',
+        fixed_pattern='*.tif',
         transform='affine',
         automatic_transform_initialization=False,
+        auto_mask=False,
+        number_of_spatial_samples=None,
+        maximum_number_of_iterations=None,
+        number_of_resolutions=None,
+        pre_fix_big_jumps=False,
+        z_range=None,
         verbose=False
 ):
 
-    from ..library.elastix import register_with_elastix, save_transforms
-    from ..library.io import write_h5_container
-    from ..library.io import make_directory
+    from ..library.io import write_h5_container, make_directory, load_data_handle
+    from ..library.elastix import slice_wise_stack_to_stack_alignment
 
     out_basename = os.path.splitext(out_filepath)[0]
 
     elastix_cache = out_basename + '.elastix_cache'
     make_directory(elastix_cache, exist_ok=True)
 
-    fixed_volume = _load_data(fixed_filepath, key=fixed_key)
-    moving_volume = _load_data(moving_filepath, key=moving_key)
+    fixed_handle, fixed_shape = load_data_handle(fixed_path, fixed_key, fixed_pattern)
+    moving_handle, moving_shape = load_data_handle(moving_path, moving_key, moving_pattern)
+    fixed_volume = fixed_handle[z_range[0]: z_range[1]]
+    moving_volume = moving_handle[z_range[0]: z_range[1]]
 
     def _cast_to_uint8(image):
         if image.dtype != 'uint8':
@@ -207,35 +219,22 @@ def slices_to_volume(
 
     assert fixed_volume.shape[0] >= moving_volume.shape[0]
 
-    result_volume = []
-    result_transforms = []
+    result_transforms, result_volume = slice_wise_stack_to_stack_alignment(
+        moving_volume,
+        fixed_volume,
+        transform=transform,
+        automatic_transform_initialization=automatic_transform_initialization,
+        out_dir=elastix_cache,
+        auto_mask=auto_mask,
+        number_of_spatial_samples=number_of_spatial_samples,
+        maximum_number_of_iterations=maximum_number_of_iterations,
+        number_of_resolutions=number_of_resolutions,
+        return_result_image=True,
+        pre_fix_big_jumps=pre_fix_big_jumps,
+        verbose=verbose
+    )
 
-    for zidx, z_slice_moving in enumerate(moving_volume):
-
-        z_slice_fixed = fixed_volume[zidx]
-
-        result_dict = register_with_elastix(
-            z_slice_fixed, z_slice_moving,
-            transform=transform,
-            automatic_transform_initialization=automatic_transform_initialization,
-            out_dir=elastix_cache,
-            params_to_origin=True,
-            verbose=verbose
-        )
-
-        result_volume.append(result_dict['result_image'])
-        result_transforms.append(
-            save_transforms(
-                result_dict['affine_parameters'], None,
-                param_order='M', save_order='C', ndim=2, verbose=verbose
-            ).tolist()
-        )
-        # result_transforms.append(result_dict['affine_parameters'][:2])
-
-    import json
-    with open(out_basename + '.json', mode='w') as f:
-        json.dump(result_transforms, f, indent=2)
-
+    result_transforms.to_file(out_basename + '.json')
     write_h5_container(out_filepath, np.array(result_volume), key='data', append=False)
 
 
@@ -252,6 +251,7 @@ def elastix_stack_alignment_workflow(
         pre_fix_big_jumps=False,
         z_range=None,
         determine_bounds=False,
+        parameter_map=None,
         verbose=False
 ):
 
@@ -287,7 +287,6 @@ def elastix_stack_alignment_workflow(
                 z_slice_moving,
                 transform=transform,
                 automatic_transform_initialization=False,
-                # params_to_origin=True,
                 auto_mask=auto_mask,
                 number_of_spatial_samples=number_of_spatial_samples,
                 maximum_number_of_iterations=maximum_number_of_iterations,

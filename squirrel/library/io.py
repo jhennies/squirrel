@@ -135,19 +135,20 @@ def get_filetype(filepath):
     raise ValueError(f'Unknown file extension: {sub_ext}.{ext}')
 
 
-def load_data(filepath, key='data', axes_order='zyx', invert=False):
-
-    filetype = get_filetype(filepath)
-
-    if filetype == 'h5':
-        return load_h5_container(filepath, key, axes_order=axes_order, invert=invert)
-    if filetype == 'nii':
-        return load_nii_file(filepath, invert=invert)
-    if filetype == 'tif':
-        raise NotImplementedError('Not implemented for 3D tif files')
-    if filetype == 'dir':
-        return np.array(load_tif_stack(filepath))
-    raise RuntimeError(f'Invalid or unknown file type: {filetype}')
+# NOTE: potentially deprecated (bring back if necessary)
+# def load_data(filepath, key='data', axes_order='zyx', invert=False):
+#
+#     filetype = get_filetype(filepath)
+#
+#     if filetype == 'h5':
+#         return load_h5_container(filepath, key, axes_order=axes_order, invert=invert)
+#     if filetype == 'nii':
+#         return load_nii_file(filepath, invert=invert)
+#     if filetype == 'tif':
+#         raise NotImplementedError('Not implemented for 3D tif files')
+#     if filetype == 'dir':
+#         return np.array(load_tif_stack(filepath))
+#     raise RuntimeError(f'Invalid or unknown file type: {filetype}')
 
 
 # NOTE: Deprecated
@@ -185,6 +186,10 @@ def load_data_handle(path, key='data', pattern='*.tif'):
     if filetype == 'dir':
         h = TiffStack(path, pattern=pattern)
         return h, h.get_shape()
+
+    if filetype == 'nii':
+        h = load_nii_file(path)
+        return h, h.shape
 
     if filetype == 'ome_zarr':
         from squirrel.library.ome_zarr import get_ome_zarr_handle

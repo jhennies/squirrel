@@ -165,6 +165,72 @@ def elastix_slices_to_volume():
     )
 
 
+def amst():
+
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Runs Alignment to Median Smoothed Template (AMST)',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('pre_aligned_stack', type=str,
+                        help='Input filepath for an aligned image stack (h5, ome.zarr or tif stack)')
+    parser.add_argument('out_filepath', type=str,
+                        help='Output filepath for the transformations (*.json)')
+    parser.add_argument('--raw_stack', type=str, default=None,
+                        help='Input of the raw stack from which the pre-alignment was derived '
+                             '(Note: Not yet implemented)')
+    parser.add_argument('--pre_align_key', type=str, default='data',
+                        help='Internal path of the input; default="data"; used if stack is h5 or ome.zarr')
+    parser.add_argument('--pre_align_pattern', type=str, default='*.tif',
+                        help='Used to glob tif files from a tif stack folder; default="*.tif"')
+    parser.add_argument('--transform', type=str, default='affine',
+                        help='The transformation to use for alignment to the template; default="affine"')
+    parser.add_argument('--auto_mask_off', action='store_true',
+                        help='Turn off automatic generation of a mask for fixed and moving image')
+    # parser.add_argument('--number_of_spatial_samples', type=int, default=None,
+    #                     help='Elastix parameter')
+    # parser.add_argument('--maximum_number_of_iterations', type=int, default=None,
+    #                     help='Elastix parameter')
+    # parser.add_argument('--number_of_resolutions', type=int, default=None,
+    #                     help='Elastix parameter')
+    # parser.add_argument('--pre_fix_big_jumps', action='store_true',
+    #                     help='Determines big jumps and fixes them using cross-correlation')
+    parser.add_argument('--median_radius', type=int, default=7,
+                        help='Radius of the z-median-smoothing used to create the template stack')
+    parser.add_argument('--z_range', type=int, nargs=2, default=None,
+                        help='Use certain slices of the stack only; Defaults to the entire stack')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    pre_aligned_stack = args.pre_aligned_stack
+    out_filepath = args.out_filepath
+    raw_stack = args.raw_stack
+    pre_align_key = args.pre_align_key
+    pre_align_pattern = args.pre_align_pattern
+    transform = args.transform
+    auto_mask_off = args.auto_mask_off
+    median_radius = args.median_radius
+    z_range = args.z_range
+    verbose = args.verbose
+
+    from squirrel.workflows.amst import amst_workflow
+
+    amst_workflow(
+        pre_aligned_stack,
+        out_filepath,
+        raw_stack=raw_stack,
+        pre_align_key=pre_align_key,
+        pre_align_pattern=pre_align_pattern,
+        transform=transform,
+        auto_mask_off=auto_mask_off,
+        median_radius=median_radius,
+        z_range=z_range,
+        verbose=verbose
+    )
+
+
 def elastix_stack_alignment():
 
     # ----------------------------------------------------
@@ -234,4 +300,5 @@ def elastix_stack_alignment():
 
 if __name__ == '__main__':
 
-    elastix_stack_alignment()
+    # elastix_stack_alignment()
+    amst()

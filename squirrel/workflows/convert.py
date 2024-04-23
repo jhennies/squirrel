@@ -165,6 +165,7 @@ def stack_to_ome_zarr_workflow(
 
     # Create ome zarr if necessary
     if not append:
+        from ..library.ome_zarr import create_ome_zarr
         create_ome_zarr(
             ome_zarr_filepath,
             shape=input_stack_shape,

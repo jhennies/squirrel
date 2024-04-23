@@ -532,32 +532,23 @@ def dot_product_on_affines_workflow(
         verbose=False
 ):
 
-    from ..library.elastix import save_transforms
-    from ..library.transformation import load_transform_matrices, save_transformation_matrices
-    from ..library.linalg import dot_product_of_sequences
-
-    transforms_a, sequenced_a = load_transform_matrices(transform_filepaths[0], validate=True, ndim=2)
-    transforms_a = np.array(transforms_a)
-    transforms_b, sequenced_b = load_transform_matrices(transform_filepaths[1], validate=True, ndim=2)
-    transforms_b = np.array(transforms_b)
-
-    assert sequenced_a == sequenced_b, 'Sequenced and non-sequenced sequenced cannot be combined!'
-
     if verbose:
-        print(f'transforms_a.shape = {transforms_a.shape}')
-        print(f'transforms_b.shape = {transforms_b.shape}')
-        print(f'transforms_a[0] = {transforms_a[1]}')
-        print(f'transforms_b[0] = {transforms_b[1]}')
+        print(f'transform_filepaths = {transform_filepaths}')
+        print(f'out_filepath = {out_filepath}')
+        print(f'inverse = {inverse}')
 
-    result_transforms = dot_product_of_sequences(transforms_a, transforms_b, inverse=inverse)
+    from ..library.affine_matrices import AffineStack
 
-    # Prepare for saving
-    transforms = [
-        save_transforms(x, None, param_order='M', save_order='C', ndim=2)[:6].tolist()
-        for x in result_transforms
-    ]
+    transforms_a = AffineStack(filepath=transform_filepaths[0])
+    transforms_b = AffineStack(filepath=transform_filepaths[1])
 
-    save_transformation_matrices(out_filepath, transforms, sequenced=sequenced_a)
+    if inverse[0]:
+        transforms_a = -transforms_a
+    if inverse[1]:
+        transforms_b = -transforms_b
+    out_transforms = transforms_a * transforms_b
+
+    out_transforms.to_file(out_filepath)
 
 
 def scale_sequential_affines_workflow(

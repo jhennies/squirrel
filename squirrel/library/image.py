@@ -21,13 +21,11 @@ def get_bounds(image, return_ints=False):
 
 def get_bounds_of_stack(stack_h, stack_shape, return_ints=False, z_range=None):
 
-    from squirrel.library.io import load_data_from_handle_stack
-
     if z_range is None:
         z_range = [0, stack_shape[0]]
 
     return [
-        get_bounds(load_data_from_handle_stack(stack_h, idx)[0], return_ints)
+        get_bounds(stack_h[idx], return_ints)
         for idx in range(*z_range)
     ]
 

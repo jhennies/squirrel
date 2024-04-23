@@ -117,7 +117,7 @@ def big_jump_pre_fix(moving_image, fixed_image):
 
 def register_with_elastix(
         fixed_image, moving_image,
-        transform='affine',
+        transform=None,
         automatic_transform_initialization=False,
         out_dir=None,
         # params_to_origin=False,
@@ -127,8 +127,28 @@ def register_with_elastix(
         number_of_resolutions=None,
         return_result_image=False,
         pre_fix_big_jumps=False,
+        parameter_map=None,
         verbose=False
 ):
+
+    if parameter_map is None:
+        assert transform is not None, 'Either parameter_map or transform must be specified!'
+        # Set the parameters
+        parameter_map = sitk.GetDefaultParameterMap(transform if transform != 'SimilarityTransform' else 'rigid')
+        parameter_map['AutomaticTransformInitialization'] = ['true' if automatic_transform_initialization else 'false']
+        if number_of_spatial_samples is not None:
+            parameter_map['NumberOfSpatialSamples'] = (str(number_of_spatial_samples),)
+            parameter_map['NumberOfSamplesForExactGradient'] = (str(number_of_spatial_samples * 2),)
+        if maximum_number_of_iterations is not None:
+            parameter_map['MaximumNumberOfIterations'] = (str(maximum_number_of_iterations),)
+        if number_of_resolutions is not None:
+            parameter_map['NumberOfResolutions'] = (str(number_of_resolutions),)
+        if transform == 'SimilarityTransform':
+            parameter_map['Transform'] = ['SimilarityTransform']
+    if transform is None:
+        assert parameter_map is not None,  'Either parameter_map or transform must be specified!'
+        transform = parameter_map['Transform'][0]
+    # assert transform == parameter_map['Transform'][0]
 
     normalize_images = False
     if normalize_images:
@@ -171,22 +191,11 @@ def register_with_elastix(
         mask = sitk.GetImageFromArray(mask)
         elastixImageFilter.SetFixedMask(mask)
         elastixImageFilter.SetMovingMask(mask)
+        # parameter_map['ErodeMask'] = ['true']
     if out_dir is not None:
         elastixImageFilter.SetOutputDirectory(out_dir)
     elastixImageFilter.LogToConsoleOff()
 
-    # Set the parameters
-    parameter_map = sitk.GetDefaultParameterMap(transform if transform != 'SimilarityTransform' else 'rigid')
-    parameter_map['AutomaticTransformInitialization'] = ['true' if automatic_transform_initialization else 'false']
-    if number_of_spatial_samples is not None:
-        parameter_map['NumberOfSpatialSamples'] = (str(number_of_spatial_samples),)
-        parameter_map['NumberOfSamplesForExactGradient'] = (str(number_of_spatial_samples * 2),)
-    if maximum_number_of_iterations is not None:
-        parameter_map['MaximumNumberOfIterations'] = (str(maximum_number_of_iterations),)
-    if number_of_resolutions is not None:
-        parameter_map['NumberOfResolutions'] = (str(number_of_resolutions),)
-    if transform == 'SimilarityTransform':
-        parameter_map['Transform'] = ['SimilarityTransform']
     elastixImageFilter.SetParameterMap(parameter_map)
 
     if verbose:
@@ -290,6 +299,53 @@ def register_with_elastix(
     #     affine_parameters=result_transform_parameters,
     #     affine_param_order='elastix'
     # )
+
+
+def slice_wise_stack_to_stack_alignment(
+        moving_stack,
+        fixed_stack,
+        transform='affine',
+        automatic_transform_initialization=False,
+        out_dir=None,
+        auto_mask=False,
+        # number_of_spatial_samples=None,
+        # maximum_number_of_iterations=None,
+        # number_of_resolutions=None,
+        return_result_image=False,
+        pre_fix_big_jumps=False,
+        parameter_map=None,
+        verbose=False
+):
+
+    from ..library.affine_matrices import AffineStack
+    result_stack = []
+    result_transforms = AffineStack(is_sequenced=True, pivot=[0., 0.])
+
+    for zidx, z_slice_moving in enumerate(moving_stack):
+        print(f'{zidx} / {len(moving_stack) - 1}')
+        z_slice_fixed = fixed_stack[zidx]
+
+        result_matrix, result_image = register_with_elastix(
+            z_slice_fixed, z_slice_moving,
+            transform=transform,
+            automatic_transform_initialization=automatic_transform_initialization,
+            out_dir=out_dir,
+            auto_mask=auto_mask,
+            # number_of_spatial_samples=number_of_spatial_samples,
+            # maximum_number_of_iterations=maximum_number_of_iterations,
+            # number_of_resolutions=number_of_resolutions,
+            return_result_image=return_result_image,
+            pre_fix_big_jumps=pre_fix_big_jumps,
+            parameter_map=parameter_map,
+            verbose=verbose
+        )
+        result_matrix.shift_pivot_to_origin()
+
+        if result_image is not None:
+            result_stack.append(result_image)
+        result_transforms.append(result_matrix)
+
+    return result_transforms, result_stack
 
 
 def translation_to_c(parameters):
