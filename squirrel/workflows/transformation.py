@@ -608,25 +608,34 @@ def smooth_affine_sequence_workflow(
         verbose=False
 ):
 
-    import json
-    with open(transform_filepath, mode='r') as f:
-        transforms = np.array(json.load(f))
+    if components is not None:
+        raise NotImplementedError
 
-    from scipy.ndimage import gaussian_filter1d
-    from scipy.signal import medfilt
-    from ..library.transformation import smooth_2d_affine_sequence
+    from ..library.affine_matrices import AffineStack
 
-    # transforms = transforms.swapaxes(0, 1)
-    # for idx, x in enumerate(transforms):
-    #     transforms[idx] = gaussian_filter1d(x, sigma)
+    transforms = AffineStack(filepath=transform_filepath)
+    transforms = transforms.get_smoothed_stack(sigma)
+    transforms.to_file(out_filepath)
 
-    transforms = np.array(smooth_2d_affine_sequence(transforms, sigma, components=components))
-
-    # transforms = gaussian_filter1d(transforms, sigma, axis=0)
-    # transforms = np.array([medfilt(x) for x in transforms.swapaxes(0, 1)]).swapaxes(0, 1)
-
-    with open(out_filepath, mode='w') as f:
-        json.dump(transforms.tolist(), f, indent=2)
+    # import json
+    # with open(transform_filepath, mode='r') as f:
+    #     transforms = np.array(json.load(f))
+    #
+    # from scipy.ndimage import gaussian_filter1d
+    # from scipy.signal import medfilt
+    # from ..library.transformation import smooth_2d_affine_sequence
+    #
+    # # transforms = transforms.swapaxes(0, 1)
+    # # for idx, x in enumerate(transforms):
+    # #     transforms[idx] = gaussian_filter1d(x, sigma)
+    #
+    # transforms = np.array(smooth_2d_affine_sequence(transforms, sigma, components=components))
+    #
+    # # transforms = gaussian_filter1d(transforms, sigma, axis=0)
+    # # transforms = np.array([medfilt(x) for x in transforms.swapaxes(0, 1)]).swapaxes(0, 1)
+    #
+    # with open(out_filepath, mode='w') as f:
+    #     json.dump(transforms.tolist(), f, indent=2)
 
 
 def inverse_of_sequence_workflow(
