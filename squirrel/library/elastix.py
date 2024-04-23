@@ -120,7 +120,7 @@ def register_with_elastix(
         transform=None,
         automatic_transform_initialization=False,
         out_dir=None,
-        # params_to_origin=False,
+        params_to_origin=False,
         auto_mask=False,
         number_of_spatial_samples=None,
         maximum_number_of_iterations=None,
@@ -207,9 +207,10 @@ def register_with_elastix(
     if return_result_image:
         result_image = sitk.GetArrayFromImage(elastixImageFilter.GetResultImage())
 
-    result_transform_parameters = elastixImageFilter.GetTransformParameterMap()[0]['TransformParameters']
+    elastix_transform_param_map = elastixImageFilter.GetTransformParameterMap()[0]
+    result_transform_parameters = elastix_transform_param_map['TransformParameters']
     try:
-        pivot = [float(x) for x in elastixImageFilter.GetTransformParameterMap()[0]['CenterOfRotationPoint']]
+        pivot = [float(x) for x in elastix_transform_param_map['CenterOfRotationPoint']]
     except IndexError:
         pivot = [0., 0.]
 
@@ -217,7 +218,12 @@ def register_with_elastix(
     result_matrix = AffineMatrix(
         elastix_parameters=[transform, [float(x) for x in result_transform_parameters]],
         pivot=pivot
-    ) * -AffineMatrix(parameters=[1., 0., pre_fix_offsets[0], 0., 1., pre_fix_offsets[1]])
+    )
+    if params_to_origin:
+        print(f'shifting params to origin')
+        print(f'result_matrix.get_pivot() = {result_matrix.get_pivot()}')
+        result_matrix.shift_pivot_to_origin()
+    result_matrix = result_matrix * -AffineMatrix(parameters=[1., 0., pre_fix_offsets[0], 0., 1., pre_fix_offsets[1]])
 
     return result_matrix, result_image
 

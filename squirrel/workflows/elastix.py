@@ -293,9 +293,9 @@ def elastix_stack_alignment_workflow(
                 number_of_resolutions=number_of_resolutions,
                 pre_fix_big_jumps=pre_fix_big_jumps,
                 return_result_image=False,
+                params_to_origin=True,
                 verbose=verbose
             )
-            result_matrix.shift_pivot_to_origin()
             transforms.append(result_matrix)
 
         if determine_bounds:
