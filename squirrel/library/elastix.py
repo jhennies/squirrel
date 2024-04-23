@@ -95,7 +95,7 @@ def big_jump_pre_fix(moving_image, fixed_image, iou_thresh=0.5):
 
     iou = intersection.sum() / union.sum()
     if iou < iou_thresh:
-        print(f'Fixing big jump!')
+        print(f'Fixing big jump! (IoU = {iou}')
         from skimage.registration import phase_cross_correlation
         from scipy.ndimage.interpolation import shift
 
@@ -167,7 +167,6 @@ def register_with_elastix(
             raise NotImplementedError('Big jump fixing only implemented for translations!')
         pre_fix_offsets, moving_image = big_jump_pre_fix(moving_image, fixed_image, iou_thresh=pre_fix_iou_thresh)
         pre_fix_offsets = np.array(pre_fix_offsets)
-        print(f'pre_fix_offsets: {pre_fix_offsets}')
 
     if type(fixed_image) == np.ndarray:
         if verbose:
