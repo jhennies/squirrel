@@ -127,6 +127,7 @@ def register_with_elastix(
         number_of_resolutions=None,
         return_result_image=False,
         pre_fix_big_jumps=False,
+        pre_fix_iou_thresh=0.5,
         parameter_map=None,
         verbose=False
 ):
@@ -164,7 +165,7 @@ def register_with_elastix(
         assert type(moving_image) == np.ndarray
         if transform != 'translation':
             raise NotImplementedError('Big jump fixing only implemented for translations!')
-        pre_fix_offsets, moving_image = big_jump_pre_fix(moving_image, fixed_image)
+        pre_fix_offsets, moving_image = big_jump_pre_fix(moving_image, fixed_image, iou_thresh=pre_fix_iou_thresh)
         pre_fix_offsets = np.array(pre_fix_offsets)
         print(f'pre_fix_offsets: {pre_fix_offsets}')
 
