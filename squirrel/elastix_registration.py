@@ -262,6 +262,9 @@ def elastix_stack_alignment():
     #                     help='Increase information content of the output')
     parser.add_argument('--pre_fix_big_jumps', action='store_true',
                         help='Determines big jumps and fixes them using cross-correlation')
+    parser.add_argument('--pre_fix_iou_thresh', type=float, default=0.5,
+                        help='If the intersection over union of non-background areas of two adjacent sliced exceeds'
+                             'this treshold, the big jump prefix is computed')
     parser.add_argument('--z_range', type=int, nargs=2, default=None,
                         help='Use certain slices of the stack only; Defaults to the entire stack')
     parser.add_argument('-v', '--verbose', action='store_true')
@@ -277,6 +280,7 @@ def elastix_stack_alignment():
     maximum_number_of_iterations = args.maximum_number_of_iterations
     number_of_resolutions = args.number_of_resolutions
     pre_fix_big_jumps = args.pre_fix_big_jumps
+    pre_fix_iou_thresh = args.pre_fix_iou_thresh
     z_range = args.z_range
     verbose = args.verbose
 
@@ -293,6 +297,7 @@ def elastix_stack_alignment():
         maximum_number_of_iterations=maximum_number_of_iterations,
         number_of_resolutions=number_of_resolutions,
         pre_fix_big_jumps=pre_fix_big_jumps,
+        pre_fix_iou_thresh=pre_fix_iou_thresh,
         z_range=z_range,
         verbose=verbose
     )

@@ -84,7 +84,7 @@ def make_auto_mask(image):
     return (image > 0).astype('uint8')
 
 
-def big_jump_pre_fix(moving_image, fixed_image):
+def big_jump_pre_fix(moving_image, fixed_image, iou_thresh=0.5):
 
     union = np.zeros(moving_image.shape, dtype=bool)
     union[moving_image > 0] = True
@@ -94,7 +94,7 @@ def big_jump_pre_fix(moving_image, fixed_image):
     intersection[np.logical_and(moving_image > 0, fixed_image > 0)] = True
 
     iou = intersection.sum() / union.sum()
-    if iou < 0.5:
+    if iou < iou_thresh:
         print(f'Fixing big jump!')
         from skimage.registration import phase_cross_correlation
         from scipy.ndimage.interpolation import shift

@@ -249,6 +249,7 @@ def elastix_stack_alignment_workflow(
         maximum_number_of_iterations=None,
         number_of_resolutions=None,
         pre_fix_big_jumps=False,
+        pre_fix_iou_thresh=0.5,
         z_range=None,
         determine_bounds=False,
         parameter_map=None,
@@ -292,6 +293,7 @@ def elastix_stack_alignment_workflow(
                 maximum_number_of_iterations=maximum_number_of_iterations,
                 number_of_resolutions=number_of_resolutions,
                 pre_fix_big_jumps=pre_fix_big_jumps,
+                pre_fix_iou_thresh=pre_fix_iou_thresh,
                 return_result_image=False,
                 params_to_origin=True,
                 verbose=verbose
