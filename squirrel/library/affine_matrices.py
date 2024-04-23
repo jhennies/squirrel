@@ -271,6 +271,19 @@ class AffineStack:
             return True
         return False
 
+    def get_translations(self):
+        return [x.get_translation() for x in self]
+
+    def set_translations(self, translations):
+        assert len(translations) == len(self)
+        for idx, m in enumerate(self):
+            m.set_translation(translations[idx])
+
+    def add_to_translations(self, translation):
+        assert len(translation) == self._ndim
+        translations = np.array(self.get_translations())
+        self.set_translations(translations + np.array(translation))
+
 
 class AffineMatrix:
 
@@ -480,9 +493,12 @@ if __name__ == '__main__':
         stk.is_sequenced = True
         print(f'scaled: {stk.get_scaled(2)["C", :]}')
         print(f'scaled: {stk.get_scaled(0.5)["C", :]}')
+        print(f'translations: {stk.get_translations()}')
+        stk.add_to_translations([1, 2])
+        print(f'translations: {stk.get_translations()}')
 
 
-    if True:
+    if False:
         print('Testing the matrix object')
         am = AffineMatrix(parameters=[1.1, 0., 5, 0., 1.3, 2])
         # print(am.get_matrix(order='C'))
