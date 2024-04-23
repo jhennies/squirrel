@@ -166,6 +166,7 @@ def register_with_elastix(
             raise NotImplementedError('Big jump fixing only implemented for translations!')
         pre_fix_offsets, moving_image = big_jump_pre_fix(moving_image, fixed_image)
         pre_fix_offsets = np.array(pre_fix_offsets)
+        print(f'pre_fix_offsets: {pre_fix_offsets}')
 
     if type(fixed_image) == np.ndarray:
         if verbose:
@@ -220,8 +221,9 @@ def register_with_elastix(
         pivot=pivot
     )
     if params_to_origin:
-        print(f'shifting params to origin')
-        print(f'result_matrix.get_pivot() = {result_matrix.get_pivot()}')
+        if verbose:
+            print(f'shifting params to origin')
+            print(f'result_matrix.get_pivot() = {result_matrix.get_pivot()}')
         result_matrix.shift_pivot_to_origin()
     result_matrix = result_matrix * -AffineMatrix(parameters=[1., 0., pre_fix_offsets[0], 0., 1., pre_fix_offsets[1]])
 
@@ -314,9 +316,9 @@ def slice_wise_stack_to_stack_alignment(
         automatic_transform_initialization=False,
         out_dir=None,
         auto_mask=False,
-        # number_of_spatial_samples=None,
-        # maximum_number_of_iterations=None,
-        # number_of_resolutions=None,
+        number_of_spatial_samples=None,
+        maximum_number_of_iterations=None,
+        number_of_resolutions=None,
         return_result_image=False,
         pre_fix_big_jumps=False,
         parameter_map=None,
@@ -337,9 +339,9 @@ def slice_wise_stack_to_stack_alignment(
             automatic_transform_initialization=automatic_transform_initialization,
             out_dir=out_dir,
             auto_mask=auto_mask,
-            # number_of_spatial_samples=number_of_spatial_samples,
-            # maximum_number_of_iterations=maximum_number_of_iterations,
-            # number_of_resolutions=number_of_resolutions,
+            number_of_spatial_samples=number_of_spatial_samples,
+            maximum_number_of_iterations=maximum_number_of_iterations,
+            number_of_resolutions=number_of_resolutions,
             return_result_image=return_result_image,
             pre_fix_big_jumps=pre_fix_big_jumps,
             parameter_map=parameter_map,
