@@ -120,10 +120,12 @@ def merge_tif_stacks_workflow(
             h, s = load_data_handle(stack, pattern=pattern)
             shapes.append(s[1:])  # only y and x
             handles.append(h)
-        new_shape = np.max(s, axis=0)
+        new_shape = np.max(shapes, axis=0)
+        print(f'new_shape = {new_shape}')
         idx = 0
         for h in handles:
             for img in h[:]:
+                print(f'idx = {idx}')
                 write_tif_slice(
                     image_to_shape(img, new_shape),
                     out_folder,
