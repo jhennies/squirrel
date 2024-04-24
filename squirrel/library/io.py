@@ -233,6 +233,9 @@ class TiffStack(list):
         assert isinstance(idx, int)
         return read_tif_slice(list.__getitem__(self, idx), return_filepath=True)
 
+    def get_filepaths(self):
+        return list.__getitem__(self, np.s_[:])
+
     def get_shape(self):
         return [len(self)] + list(self[0].shape)
 

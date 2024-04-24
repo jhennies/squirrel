@@ -104,11 +104,34 @@ def merge_tif_stacks_workflow(
         print(f'stack_folders = {stack_folders}')
         print(f'out_folder = {out_folder}')
 
-    if pad_canvas:
-        raise NotImplementedError('Canvas padding not implemented!')
+    from ..library.io import get_filetype
+    assert get_filetype(stack_folders[0]) == get_filetype(stack_folders[1]) == 'dir'
 
     if not os.path.exists(out_folder):
         os.mkdir(out_folder)
+
+    if pad_canvas:
+
+        from ..library.io import load_data_handle, write_tif_slice
+        from ..library.image import image_to_shape
+        shapes = []
+        handles = []
+        for stack in stack_folders:
+            h, s = load_data_handle(stack, pattern=pattern)
+            shapes.append(s[1:])  # only y and x
+            handles.append(h)
+        new_shape = np.max(s, axis=0)
+        idx = 0
+        for h in handles:
+            for img in h[:]:
+                write_tif_slice(
+                    image_to_shape(img, new_shape),
+                    out_folder,
+                    out_pattern.format(idx)
+                )
+                idx += 1
+
+        return
 
     im_list = []
     for idx, folder in enumerate(stack_folders):
