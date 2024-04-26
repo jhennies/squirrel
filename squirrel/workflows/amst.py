@@ -2,13 +2,13 @@
 import numpy as np
 
 
-def get_amst_default_parameters():
+def get_default_parameters():
 
     from SimpleITK import ParameterMap
     ParameterMap()
     from SimpleITK import GetDefaultParameterMap
     parameter_map = GetDefaultParameterMap(
-        'affine', numberOfResolutions=1, finalGridSpacingInPhysicalUnits=8.0
+        'affine', numberOfResolutions=2, finalGridSpacingInPhysicalUnits=8.0
     )
     parameter_map['AutomaticParameterEstimation'] = ('true',)
     parameter_map['Interpolator'] = ('BSplineInterpolator',)
@@ -16,15 +16,15 @@ def get_amst_default_parameters():
     parameter_map['MovingImagePyramid'] = ('MovingRecursiveImagePyramid',)
     parameter_map['AutomaticScalesEstimation'] = ('true',)
     # parameter_map['ImagePyramidSchedule'] = ('8', '8', '3', '3', '1', '1')
-    parameter_map['MaximumNumberOfIterations'] = ('256',)
+    parameter_map['MaximumNumberOfIterations'] = ('1024',)
     # parameter_map['MaximumStepLength'] = ('4', '2', '1')
     parameter_map['ImageSampler'] = ('RandomCoordinate',)
     parameter_map['ErodeMask'] = ('true',)
-    parameter_map['NumberOfSpatialSamples'] = ('2048',)
+    parameter_map['NumberOfSpatialSamples'] = ('1024',)
     parameter_map['NumberOfHistogramBins'] = ('64',)
     parameter_map['BSplineInterpolationOrder'] = ('3',)
     # parameter_map['ResampleInterpolator'] = ('FinalBSplineInterpolator',)
-    parameter_map['NumberOfSamplesForExactGradient'] = ('4096',)
+    parameter_map['NumberOfSamplesForExactGradient'] = ('1024',)
     return parameter_map
 
 
@@ -38,6 +38,8 @@ def amst_workflow(
         auto_mask_off=False,
         median_radius=7,
         z_range=None,
+        elastix_parameters=get_default_parameters(),
+        quiet=False,
         verbose=False
 ):
 
@@ -73,11 +75,15 @@ def amst_workflow(
     from scipy.signal import medfilt
     crop = np.array(z_range) - np.array(z_range_load)
     mst = medfilt(pre_align_stack, kernel_size=[median_radius * 2 + 1, 1, 1])[crop[0]: crop[1] if crop[1] else None]
+    pre_align_stack = pre_align_stack[crop[0]: crop[1] if crop[1] else None]
 
     from h5py import File
     with File('/media/julian/Data/tmp/mst.h5', mode='w') as f:
         f.create_dataset('data', data=mst, compression='gzip')
-    assert mst.shape == stack_shape
+    # assert mst.shape == stack_shape, f'mst.shape = {mst.shape}; stack_shape = {stack_shape}'
+    if verbose:
+        print(f'pre_align_stack.shape = {pre_align_stack.shape}')
+        print(f'mst.shape = {mst.shape}')
 
     # Alignment to median smoothed template
 
@@ -90,7 +96,8 @@ def amst_workflow(
         auto_mask=not auto_mask_off,
         return_result_image=False,
         pre_fix_big_jumps=False,
-        parameter_map=get_amst_default_parameters(),
+        parameter_map=elastix_parameters,
+        quiet=quiet,
         verbose=verbose
     )
 

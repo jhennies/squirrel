@@ -322,6 +322,7 @@ def slice_wise_stack_to_stack_alignment(
         return_result_image=False,
         pre_fix_big_jumps=False,
         parameter_map=None,
+        quiet=False,
         verbose=False
 ):
 
@@ -330,7 +331,8 @@ def slice_wise_stack_to_stack_alignment(
     result_transforms = AffineStack(is_sequenced=True, pivot=[0., 0.])
 
     for zidx, z_slice_moving in enumerate(moving_stack):
-        print(f'{zidx} / {len(moving_stack) - 1}')
+        if not quiet:
+            print(f'{zidx} / {len(moving_stack) - 1}')
         z_slice_fixed = fixed_stack[zidx]
 
         result_matrix, result_image = register_with_elastix(
