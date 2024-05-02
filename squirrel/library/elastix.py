@@ -165,8 +165,8 @@ def register_with_elastix(
 
     if gaussian_sigma > 0:
         from skimage.filters import gaussian
-        fixed_image = np.nan_to_num(gaussian(fixed_image, gaussian_sigma).astype('uint8'))
-        moving_image = np.nan_to_num(gaussian(moving_image, gaussian_sigma).astype('uint8'))
+        fixed_image = gaussian(fixed_image.astype(float), gaussian_sigma).astype('uint8')
+        moving_image = gaussian(moving_image.astype(float), gaussian_sigma).astype('uint8')
 
     normalize_images = True
     if normalize_images:
