@@ -21,7 +21,7 @@ def get_default_parameters():
     parameter_map['ImageSampler'] = ('RandomCoordinate',)
     parameter_map['ErodeMask'] = ('true',)
     parameter_map['NumberOfSpatialSamples'] = ('1024',)
-    parameter_map['NumberOfHistogramBins'] = ('64',)
+    parameter_map['NumberOfHistogramBins'] = ('48',)
     parameter_map['BSplineInterpolationOrder'] = ('3',)
     # parameter_map['ResampleInterpolator'] = ('FinalBSplineInterpolator',)
     parameter_map['NumberOfSamplesForExactGradient'] = ('1024',)
@@ -36,7 +36,7 @@ def amst_workflow(
         pre_align_pattern='*.tif',
         transform=None,
         auto_mask_off=False,
-        median_radius=7,
+        median_radius=4,
         z_range=None,
         elastix_parameters=get_default_parameters(),
         quiet=False,

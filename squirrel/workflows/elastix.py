@@ -309,3 +309,69 @@ def elastix_stack_alignment_workflow(
     transforms.set_meta('bounds', np.array(bounds))
     transforms.to_file(out_filepath)
 
+
+def stack_alignment_validation_workflow(
+        stack,
+        out_dirpath,
+        rois,
+        key='data',
+        pattern='*.tif',
+        resolution_yx=(0.01, 0.01),
+        verbose=False
+):
+
+    from squirrel.library.io import load_data_handle
+    from squirrel.library.elastix import register_with_elastix
+    from squirrel.library.affine_matrices import AffineStack
+    from matplotlib import pyplot as plt
+
+    stack, stack_size = load_data_handle(stack, key=key, pattern=pattern)
+
+    for roi in rois:
+
+        roi_data = stack[roi]
+        transforms = AffineStack(is_sequenced=False, pivot=[0., 0.])
+
+        for idx in range(len(roi_data) - 1):
+
+            z_slice_fixed = roi_data[idx]
+            z_slice_moving = roi_data[idx + 1]
+
+            result_matrix, _ = register_with_elastix(
+                z_slice_fixed,
+                z_slice_moving,
+                transform='translation',
+                automatic_transform_initialization=False,
+                auto_mask=False,
+                number_of_spatial_samples=256,
+                maximum_number_of_iterations=256,
+                number_of_resolutions=1,
+                pre_fix_big_jumps=False,
+                return_result_image=False,
+                params_to_origin=True,
+                verbose=verbose
+            )
+            transforms.append(result_matrix)
+
+        translations = np.array(transforms.get_translations()) * resolution_yx
+        # TODO Plot and save results
+        # transforms.tofile(out_filepath)
+        plt.plot(np.sqrt(translations[:, 0] ** 2 + translations[:, 1] ** 2))
+    plt.ylim(ymin=0, ymax=1)
+    plt.show()
+
+
+if __name__ == '__main__':
+    stack_alignment_validation_workflow(
+        '/media/julian/Data/projects/kors/align/4T/amst_parameter_test/pre_align/pre-align.ome.zarr',
+        # '/media/julian/Data/projects/kors/align/4T/amst_parameter_test/amst_results_02/amst-0001-ref.h5',
+        None,
+        [
+            np.s_[:, 330: 458, 2518: 2646],  # Right edge
+            np.s_[:, 386: 514, 440: 568],  # Left edge
+            np.s_[:, 650: 778, 1640: 1768]  # Bottom
+        ],
+        key='s0',
+        # key='data',
+        resolution_yx=[1, 1]
+    )

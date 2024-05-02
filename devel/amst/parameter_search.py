@@ -11,7 +11,7 @@ def do_parameter_search(
         parameter_groups,
         current_parameters,
         pre_aligned_stack,
-        roi,
+        rois,
         max_iterations=16,
 ):
 
@@ -58,28 +58,33 @@ def do_parameter_search(
     from squirrel.workflows.elastix import elastix_stack_alignment_workflow
     from squirrel.library.affine_matrices import AffineStack
 
-    def get_amst_score(data_filepath, transform_filepath):
+    def get_amst_score(data_filepaths, transform_filepaths):
 
-        elastix_stack_alignment_workflow(
-            data_filepath,
-            transform_filepath,
-            number_of_spatial_samples=128,
-            number_of_resolutions=1,
-            transform='translation',
-            quiet=True,
-            overwrite=True
-        )
-        transforms = AffineStack(filepath=transform_filepath)
-        translations = np.array(transforms.get_translations()[1:])
+        translations = []
+        for idx in range(len(data_filepaths)):
+            data_filepath = data_filepaths[idx]
+            transform_filepath = transform_filepaths[idx]
+            elastix_stack_alignment_workflow(
+                data_filepath,
+                transform_filepath,
+                number_of_spatial_samples=128,
+                number_of_resolutions=1,
+                transform='translation',
+                quiet=True,
+                overwrite=True
+            )
+            transforms = AffineStack(filepath=transform_filepath)
+            translations.extend(transforms.get_translations()[1:])
+        translations = np.array(translations)
         sq_deltas = translations[:, 0] ** 2 + translations[:, 1] ** 2
-        return (np.prod(sq_deltas) ** (1 / len(translations)))
+        return np.prod(sq_deltas) ** (1 / len(translations))
 
-    def amst_wf_and_score(curpars, out_name, from_pre_align=False):
+    def amst_wf_and_score(curpars, out_name, from_pre_align=False, remove_h5=False):
 
         transform_filepath = os.path.join(out_dirpath, f'{out_name}.json')
         aligned_stack_filepath = os.path.join(out_dirpath, f'{out_name}.h5')
-        score_data_filepath = os.path.join(out_dirpath, f'{out_name}-score_data.h5')
-        score_transforms_filepath = os.path.join(out_dirpath, f'{out_name}-score_transforms.json')
+        score_data_filepath = os.path.join(out_dirpath, f'{out_name}-score_data' + '{:02d}.h5')
+        score_transforms_filepath = os.path.join(out_dirpath, f'{out_name}-score_transforms' + '{:02d}.json')
 
         param_map = get_elastix_parameter_map(parameter_dict, parameter_groups, curpars)
         # print('Calling AMST with:')
@@ -111,9 +116,16 @@ def do_parameter_search(
             h, shp = load_data_handle(aligned_stack_filepath, key='data')
         else:
             h, shp = load_data_handle(pre_aligned_stack, key='s0')
-        score_data = h[roi]
-        write_h5_container(score_data_filepath, score_data)
-        return get_amst_score(score_data_filepath, score_transforms_filepath)
+        score_data_filepaths = []
+        score_transforms_filepaths = []
+        for roi_idx, roi in enumerate(rois):
+            score_data_filepaths.append(score_data_filepath.format(roi_idx))
+            score_transforms_filepaths.append(score_transforms_filepath.format(roi_idx))
+            score_data = h[roi]
+            write_h5_container(score_data_filepaths[-1], score_data)
+        if remove_h5:
+            os.remove(aligned_stack_filepath)
+        return get_amst_score(score_data_filepaths, score_transforms_filepaths)
 
     def update_current_parameters(curpars, par_scores, ref, update_best=1):
         print('>>>> Updating current parameters')
@@ -185,7 +197,9 @@ def do_parameter_search(
             for tc in to_compute:
                 cp_in = current_parameters.copy()
                 cp_in[this_param] = tc
-                this_param_scores[tc] = amst_wf_and_score(cp_in, 'amst-{:04d}-{}-{}'.format(idx, this_param, tc))
+                this_param_scores[tc] = amst_wf_and_score(
+                    cp_in, 'amst-{:04d}-{}-{}'.format(idx, this_param, tc), remove_h5=True
+                )
                 print(f'param: {this_param}, value: {tc}, score: {this_param_scores[tc]}')
             scores[this_param] = this_param_scores
             print('..................')
@@ -298,6 +312,8 @@ def search_00():
 
 
 def search_01():
+    # Note: refining search_00
+
     pre_aligned_stack = '/media/julian/Data/projects/kors/align/4T/amst_parameter_test/pre_align/pre-align.ome.zarr'
     out_dirpath = '/media/julian/Data/projects/kors/align/4T/amst_parameter_test/amst_results_01/'
     if not os.path.exists(out_dirpath):
@@ -316,6 +332,7 @@ def search_01():
         NumberOfSamplesForExactGradient=[512, 768, 1024, 1270, 1536, 2048]
     )
 
+    # start
     current_parameters = dict(
         median_radius=1,
         numberOfResolutions=1,
@@ -323,9 +340,22 @@ def search_01():
         FixedImagePyramid=0,
         MovingImagePyramid=0,
         AutomaticScalesEstimation=0,
-        MaximumNumberOfIterations=4,
+        MaximumNumberOfIterations=2,
         NumberOfSpatialSamples=2,
         NumberOfHistogramBins=2,
+        NumberOfSamplesForExactGradient=2
+    )
+    # it1
+    current_parameters = dict(
+        median_radius=1,
+        numberOfResolutions=1,
+        finalGridSpacingInPhysicalUnits=0,
+        FixedImagePyramid=0,
+        MovingImagePyramid=0,
+        AutomaticScalesEstimation=0,
+        MaximumNumberOfIterations=2,
+        NumberOfSpatialSamples=2,
+        NumberOfHistogramBins=1,
         NumberOfSamplesForExactGradient=2
     )
 
@@ -360,6 +390,74 @@ def search_01():
     )
 
 
+def search_02():
+    # Multiple roi
+
+    pre_aligned_stack = '/media/julian/Data/projects/kors/align/4T/amst_parameter_test/pre_align/pre-align.ome.zarr'
+    out_dirpath = '/media/julian/Data/projects/kors/align/4T/amst_parameter_test/amst_results_02/'
+    if not os.path.exists(out_dirpath):
+        os.mkdir(out_dirpath)
+
+    parameter_dict = dict(
+        median_radius=[3, 4, 5, 6, 7, 8, 9],
+        numberOfResolutions=[1, 2, 3, 4, 5, 6],
+        finalGridSpacingInPhysicalUnits=[8.],
+        FixedImagePyramid=['FixedRecursiveImagePyramid'],
+        MovingImagePyramid=['MovingRecursiveImagePyramid'],
+        AutomaticScalesEstimation=['true'],
+        MaximumNumberOfIterations=[512, 768, 1024, 1270, 1536, 2048],
+        NumberOfSpatialSamples=[512, 768, 1024, 1270, 1536, 2048],
+        NumberOfHistogramBins=[32, 48, 64, 80, 96, 128],
+        NumberOfSamplesForExactGradient=[512, 768, 1024, 1270, 1536, 2048]
+    )
+
+    # start
+    current_parameters = dict(
+        median_radius=1,
+        numberOfResolutions=1,
+        finalGridSpacingInPhysicalUnits=0,
+        FixedImagePyramid=0,
+        MovingImagePyramid=0,
+        AutomaticScalesEstimation=0,
+        MaximumNumberOfIterations=2,
+        NumberOfSpatialSamples=2,
+        NumberOfHistogramBins=1,
+        NumberOfSamplesForExactGradient=2
+    )
+
+    parameter_groups = dict(
+        amst=['median_radius'],
+        elastix_init=['numberOfResolutions', 'finalGridSpacingInPhysicalUnits'],
+        elastix=[
+            'FixedImagePyramid',
+            'MovingImagePyramid',
+            'AutomaticScalesEstimation',
+            'MaximumNumberOfIterations',
+            'NumberOfSpatialSamples',
+            'NumberOfHistogramBins',
+            'NumberOfSamplesForExactGradient'
+        ]
+    )
+
+    max_iterations = 16
+
+    roi = [
+        np.s_[:, 330: 458, 2518: 2646],  # Right edge
+        np.s_[:, 386: 514, 440: 568],  # Left edge
+        np.s_[:, 650: 778, 1640: 1768]  # Bottom
+    ]
+
+    do_parameter_search(
+        out_dirpath,
+        parameter_dict,
+        parameter_groups,
+        current_parameters,
+        pre_aligned_stack,
+        roi,
+        max_iterations=max_iterations
+    )
+
+
 if __name__ == '__main__':
 
-    search_01()
+    search_02()
