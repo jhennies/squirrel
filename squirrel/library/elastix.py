@@ -151,7 +151,7 @@ def register_with_elastix(
         transform = parameter_map['Transform'][0]
     # assert transform == parameter_map['Transform'][0]
 
-    normalize_images = False
+    normalize_images = True
     if normalize_images:
         assert type(fixed_image) == np.ndarray
         assert type(moving_image) == np.ndarray
