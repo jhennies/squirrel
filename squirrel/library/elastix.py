@@ -141,6 +141,9 @@ def register_with_elastix(
         verbose=False
 ):
 
+    assert fixed_image.dtype == 'uint8'
+    assert moving_image.dtype == 'uint8'
+
     if parameter_map is None:
         assert transform is not None, 'Either parameter_map or transform must be specified!'
         # Set the parameters
@@ -160,6 +163,11 @@ def register_with_elastix(
         transform = parameter_map['Transform'][0]
     # assert transform == parameter_map['Transform'][0]
 
+    if gaussian_sigma > 0:
+        from skimage.filters import gaussian
+        fixed_image = gaussian(fixed_image, gaussian_sigma).astype('uint8')
+        moving_image = gaussian(moving_image, gaussian_sigma).astype('uint8')
+
     normalize_images = True
     if normalize_images:
         assert type(fixed_image) == np.ndarray
@@ -167,11 +175,6 @@ def register_with_elastix(
         from ..library.data import norm_8bit
         fixed_image = norm_8bit(fixed_image, (0.05, 0.95), ignore_zeros=True)
         moving_image = norm_8bit(moving_image, (0.05, 0.95), ignore_zeros=True)
-
-    if gaussian_sigma > 0:
-        from skimage.filters import gaussian
-        fixed_image = gaussian(fixed_image, gaussian_sigma)
-        moving_image = gaussian(moving_image, gaussian_sigma)
 
     pre_fix_offsets = np.array((0., 0.))
     if pre_fix_big_jumps:
