@@ -250,6 +250,7 @@ def elastix_stack_alignment_workflow(
         number_of_resolutions=None,
         pre_fix_big_jumps=False,
         pre_fix_iou_thresh=0.5,
+        gaussian_sigma=0.,
         z_range=None,
         determine_bounds=False,
         parameter_map=None,
@@ -298,6 +299,7 @@ def elastix_stack_alignment_workflow(
                 pre_fix_iou_thresh=pre_fix_iou_thresh,
                 return_result_image=False,
                 params_to_origin=True,
+                gaussian_sigma=gaussian_sigma,
                 verbose=verbose
             )
             transforms.append(result_matrix)
