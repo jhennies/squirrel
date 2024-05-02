@@ -253,10 +253,12 @@ def elastix_stack_alignment_workflow(
         z_range=None,
         determine_bounds=False,
         parameter_map=None,
+        quiet=False,
+        overwrite=False,
         verbose=False
 ):
 
-    if os.path.exists(out_filepath):
+    if not overwrite and os.path.exists(out_filepath):
         print(f'Target file exists: {out_filepath}\nSkipping elastix stack alignment workflow ...')
         return
 
@@ -273,8 +275,8 @@ def elastix_stack_alignment_workflow(
     z_range = norm_z_range(z_range, stack_size[0])
 
     for idx in range(*z_range):
-
-        print(f'idx = {idx} / {z_range[1]}')
+        if not quiet:
+            print(f'idx = {idx} / {z_range[1]}')
         z_slice_moving = stack[idx]
 
         if idx == 0:

@@ -121,7 +121,8 @@ def merge_tif_stacks_workflow(
             shapes.append(s[1:])  # only y and x
             handles.append(h)
         new_shape = np.max(shapes, axis=0)
-        print(f'new_shape = {new_shape}')
+        if verbose:
+            print(f'new_shape = {new_shape}')
         idx = 0
         for h in handles:
             for img in h[:]:

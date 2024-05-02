@@ -539,12 +539,14 @@ def apply_stack_alignment_slice(
         transform,
         idx,
         n_slices=None,
+        quiet=False,
         verbose=False
 ):
 
     from squirrel.library.io import get_reshaped_data
 
-    print(f'idx = {idx} / {n_slices}')
+    if not quiet:
+        print(f'idx = {idx} / {n_slices}')
 
     z_slice = get_reshaped_data(stack_h, idx, stack_shape[1:])
     return apply_affine_transform(
@@ -562,6 +564,7 @@ def apply_stack_alignment(
         no_adding_of_transforms=False,
         z_range=None,
         n_workers=1,
+        quiet=False,
         verbose=False
 ):
 
@@ -585,6 +588,7 @@ def apply_stack_alignment(
                 transform_stack[stack_idx],
                 idx,
                 n_slices=z_range[1],
+                quiet=quiet,
                 verbose=verbose
             ))
 
@@ -617,6 +621,7 @@ def apply_stack_alignment(
                     transform_stack[stack_idx],
                     idx,
                     z_range[1],
+                    quiet,
                     verbose
                 )
                 for stack_idx, idx in enumerate(range(*z_range))
