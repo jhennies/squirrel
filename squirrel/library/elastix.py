@@ -81,7 +81,10 @@ def get_affine_rotation_parameters(euler_angles):
 
 
 def make_auto_mask(image):
-    return (image > 0).astype('uint8')
+    from vigra.filters import discClosing
+    mask = (image > 0).astype('uint8')
+    mask = discClosing(mask, 1)
+    return mask
 
 
 def big_jump_pre_fix(moving_image, fixed_image, iou_thresh=0.5):
@@ -156,8 +159,8 @@ def register_with_elastix(
         assert type(fixed_image) == np.ndarray
         assert type(moving_image) == np.ndarray
         from ..library.data import norm_8bit
-        fixed_image = norm_8bit(fixed_image, (0.1, 0.9), ignore_zeros=True)
-        moving_image = norm_8bit(moving_image, (0.1, 0.9), ignore_zeros=True)
+        fixed_image = norm_8bit(fixed_image, (0.05, 0.95), ignore_zeros=True)
+        moving_image = norm_8bit(moving_image, (0.05, 0.95), ignore_zeros=True)
 
     pre_fix_offsets = np.array((0., 0.))
     if pre_fix_big_jumps:
@@ -189,10 +192,13 @@ def register_with_elastix(
         fixed_mask = make_auto_mask(sitk.GetArrayFromImage(fixed_image))
         moving_mask = make_auto_mask(sitk.GetArrayFromImage(moving_image))
         mask = fixed_mask * moving_mask
+        # from h5py import File
+        # with File('/media/julian/Data/tmp/mask.h5', mode='w') as f:
+        #     f.create_dataset('data', data=mask, compression='gzip')
         mask = sitk.GetImageFromArray(mask)
         elastixImageFilter.SetFixedMask(mask)
         elastixImageFilter.SetMovingMask(mask)
-        # parameter_map['ErodeMask'] = ['true']
+        parameter_map['ErodeMask'] = ['true']
     if out_dir is not None:
         elastixImageFilter.SetOutputDirectory(out_dir)
     elastixImageFilter.LogToConsoleOff()
