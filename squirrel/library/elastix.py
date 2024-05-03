@@ -163,6 +163,12 @@ def register_with_elastix(
         transform = parameter_map['Transform'][0]
     # assert transform == parameter_map['Transform'][0]
 
+    mask = None
+    if auto_mask:
+        fixed_mask = make_auto_mask(fixed_image)
+        moving_mask = make_auto_mask(moving_image)
+        mask = fixed_mask * moving_mask
+
     if gaussian_sigma > 0:
         from skimage.filters import gaussian
         fixed_image = gaussian(fixed_image.astype(float), gaussian_sigma).astype('uint8')
@@ -175,6 +181,14 @@ def register_with_elastix(
         from ..library.data import norm_8bit
         fixed_image = norm_8bit(fixed_image, (0.05, 0.95), ignore_zeros=True)
         moving_image = norm_8bit(moving_image, (0.05, 0.95), ignore_zeros=True)
+
+    # FIXME remove!
+
+    # from h5py import File
+    # with File('/media/julian/Data/tmp/fixed.h5', mode='w') as f:
+    #     f.create_dataset('data', data=fixed_image)
+    # with File('/media/julian/Data/tmp/moving.h5', mode='w') as f:
+    #     f.create_dataset('data', data=moving_image)
 
     pre_fix_offsets = np.array((0., 0.))
     if pre_fix_big_jumps:
@@ -203,9 +217,10 @@ def register_with_elastix(
     elastixImageFilter.SetFixedImage(fixed_image)
     elastixImageFilter.SetMovingImage(moving_image)
     if auto_mask:
-        fixed_mask = make_auto_mask(sitk.GetArrayFromImage(fixed_image))
-        moving_mask = make_auto_mask(sitk.GetArrayFromImage(moving_image))
-        mask = fixed_mask * moving_mask
+        assert mask is not None
+        # fixed_mask = make_auto_mask(sitk.GetArrayFromImage(fixed_image))
+        # moving_mask = make_auto_mask(sitk.GetArrayFromImage(moving_image))
+        # mask = fixed_mask * moving_mask
         # from h5py import File
         # with File('/media/julian/Data/tmp/mask.h5', mode='w') as f:
         #     f.create_dataset('data', data=mask, compression='gzip')
@@ -215,7 +230,7 @@ def register_with_elastix(
         parameter_map['ErodeMask'] = ['true']
     if out_dir is not None:
         elastixImageFilter.SetOutputDirectory(out_dir)
-    elastixImageFilter.LogToConsoleOff()
+    elastixImageFilter.LogToConsoleOn()
 
     elastixImageFilter.SetParameterMap(parameter_map)
 

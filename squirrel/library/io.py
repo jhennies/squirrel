@@ -53,6 +53,9 @@ def write_h5_container(filepath, data, key='data', append=False):
 
 def write_tif_stack(data, out_folder, id_offset=0, slice_name='slice_{:04d}.tif'):
 
+    if not os.path.exists(out_folder):
+        os.mkdir(out_folder)
+
     for idx, section in enumerate(data):
         write_tif_slice(section, out_folder, slice_name.format(idx + id_offset))
 
@@ -112,6 +115,7 @@ def get_filetype(filepath):
     json_extensions = ['.json', '.JSON']
     csv_extensions = ['.csv', '.CSV']
     zarr_extensions = ['.zarr', '.ZARR', '.zarr/', '.ZARR/']
+    n5_extensions = ['.n5', '.N5', '.n5/', '.N5/']
     ome_zarr_sub_extensions = ['.ome', '.OME']
 
     basename, ext = os.path.splitext(filepath.strip("/"))
@@ -126,10 +130,14 @@ def get_filetype(filepath):
         return 'json'
     if ext in csv_extensions:
         return 'csv'
+    if ext in n5_extensions:
+        return 'n5'
     if ext in zarr_extensions:
         sub_ext = os.path.splitext(basename)[1]
         if sub_ext in ome_zarr_sub_extensions:
             return 'ome_zarr'
+    if ext == '':
+        return 'dir'
     if os.path.isdir(filepath):
         return 'dir'
     raise ValueError(f'Unknown file extension: {sub_ext}.{ext}')
@@ -181,6 +189,11 @@ def load_data_handle(path, key='data', pattern='*.tif'):
 
     if filetype == 'h5':
         h = h5py.File(path, mode='r')[key]
+        return h, h.shape
+
+    if filetype == 'n5':
+        from z5py import File
+        h = File(path, mode='r')[key]
         return h, h.shape
 
     if filetype == 'dir':
