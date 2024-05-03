@@ -98,7 +98,7 @@ def compress_tif_stack():
     parser.add_argument('out_folder', type=str,
                         help='Output folder where the results will be written to')
     parser.add_argument('--pattern', type=str, default='*.tif',
-                        help='File patter to search for within the input folder; default = "*.tif"')
+                        help='File pattern to search for within the input folder; default = "*.tif"')
     parser.add_argument('-v', '--verbose', action='store_true')
 
     args = parser.parse_args()
@@ -116,3 +116,49 @@ def compress_tif_stack():
         verbose=verbose
     )
 
+
+def crop_from_stack():
+
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Crops a region of interest from a stack and saves it as tif or h5',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('stack_path', type=str,
+                        help='Path of the input stack')
+    parser.add_argument('out_path', type=str,
+                        help='Output location. Must be either a directory or an h5 file name. '
+                             'Will be created if not existing')
+    parser.add_argument('--roi', type=int, nargs=6, default=None,
+                        metavar=('Z', 'Y', 'X', 'D', 'H', 'W'),
+                        # metavar=('Z', 'Y', 'X', 'depth', 'height', 'width'),
+                        help='Region of interest to crop, given in voxels')
+    parser.add_argument('--key', type=str, default='data',
+                        help='For h5 or ome.zarr input stacks this key is used to locate the dataset inside the stack '
+                             'location')
+    parser.add_argument('--pattern', type=str, default='*.tif',
+                        help='File pattern to search for within the input folder; default = "*.tif"')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    stack_path = args.stack_path
+    out_path = args.out_path
+    roi = args.roi
+    key = args.key
+    pattern = args.pattern
+    verbose = args.verbose
+
+    assert roi is not None
+
+    from squirrel.workflows.volume import crop_from_stack_workflow
+
+    crop_from_stack_workflow(
+        stack_path,
+        out_path,
+        roi,
+        key=key,
+        pattern=pattern,
+        verbose=verbose
+    )

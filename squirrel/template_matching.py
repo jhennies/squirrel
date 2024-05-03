@@ -12,7 +12,7 @@ def template_matching_stack_alignment():
                         help='Input filepath for the image stack (h5 or tif stack)')
     parser.add_argument('out_filepath', type=str,
                         help='Output filepath for the transformations (*.json)')
-    parser.add_argument('template_roi', type=float, nargs=5,
+    parser.add_argument('--template_roi', type=float, nargs=5, default=None,
                         metavar=('min_x', 'max_x', 'min_y', 'max_y', 'z'),
                         help='Defines where to find the reference template')
     parser.add_argument('--search_roi', type=float, nargs=4, default=None,
@@ -43,6 +43,8 @@ def template_matching_stack_alignment():
     z_range = args.z_range
     save_template = args.save_template
     verbose = args.verbose
+
+    assert template_roi is not None
 
     from squirrel.workflows.template_matching import template_matching_stack_alignment_workflow
 
