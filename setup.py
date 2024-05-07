@@ -43,7 +43,8 @@ setup(
             'linalg_create_affine_sequence = squirrel.linear_algebra:create_affine_sequence',
             'linalg_modify_step_in_sequence = squirrel.linear_algebra:modify_step_in_sequence',
             'template_matching_stack_alignment = squirrel.template_matching:template_matching_stack_alignment',
-            'crop_from_stack = squirrel.stack_operations:crop_from_stack'
+            'crop_from_stack = squirrel.stack_operations:crop_from_stack',
+            'apply_auto_pad = squirrel.transformation:apply_auto_pad'
         ]
     },
     install_requires=[

@@ -756,3 +756,21 @@ def create_affine_sequence_workflow(out_filepath, length, verbose=False):
     transforms = create_affine_sequence(length)
 
     save_transformation_matrices(out_filepath, transforms, sequenced=False)
+
+
+def apply_auto_pad_workflow(transform_filepath, out_filepath, verbose=False):
+
+    if verbose:
+        print(f'transform_filepath = {transform_filepath}')
+        print(f'out_filepath = {out_filepath}')
+
+    from squirrel.library.image import apply_auto_pad
+    from squirrel.library.affine_matrices import AffineStack
+
+    transforms = AffineStack(filepath=transform_filepath)
+    transforms, stack_shape = apply_auto_pad(
+        transforms, [len(transforms), 0, 0], transforms.get_meta('bounds'), extra_padding=16
+    )
+    transforms.set_meta('stack_shape', stack_shape)
+    transforms.to_file(out_filepath)
+

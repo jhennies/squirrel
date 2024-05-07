@@ -315,5 +315,33 @@ def apply_rotation_and_scale():
     )
 
 
+def apply_auto_pad():
+
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Computes auto-padding information for a stack of transformations.',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('transform_filepath', type=str,
+                        help='Json file containing the transformation')
+    parser.add_argument('out_filepath', type=str,
+                        help='Json file to which the result is saved')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    transform_filepath = args.transform_filepath
+    out_filepath = args.out_filepath
+    verbose = args.verbose
+
+    from squirrel.workflows.transformation import apply_auto_pad_workflow
+    apply_auto_pad_workflow(
+        transform_filepath,
+        out_filepath,
+        verbose=verbose
+    )
+
+
 if __name__ == '__main__':
     apply_stack_alignment()

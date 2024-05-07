@@ -182,8 +182,6 @@ def register_with_elastix(
         fixed_image = norm_8bit(fixed_image, (0.05, 0.95), ignore_zeros=True)
         moving_image = norm_8bit(moving_image, (0.05, 0.95), ignore_zeros=True)
 
-    # FIXME remove!
-
     # from h5py import File
     # with File('/media/julian/Data/tmp/fixed.h5', mode='w') as f:
     #     f.create_dataset('data', data=fixed_image)
