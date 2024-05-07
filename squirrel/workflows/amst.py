@@ -77,9 +77,9 @@ def amst_workflow(
     mst = medfilt(pre_align_stack, kernel_size=[median_radius * 2 + 1, 1, 1])[crop[0]: crop[1] if crop[1] else None]
     pre_align_stack = pre_align_stack[crop[0]: crop[1] if crop[1] else None]
 
-    from h5py import File
-    with File('/media/julian/Data/tmp/mst.h5', mode='w') as f:
-        f.create_dataset('data', data=mst, compression='gzip')
+    # from h5py import File
+    # with File('/media/julian/Data/tmp/mst.h5', mode='w') as f:
+    #     f.create_dataset('data', data=mst, compression='gzip')
     # assert mst.shape == stack_shape, f'mst.shape = {mst.shape}; stack_shape = {stack_shape}'
     if verbose:
         print(f'pre_align_stack.shape = {pre_align_stack.shape}')
