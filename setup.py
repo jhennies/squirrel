@@ -44,7 +44,7 @@ setup(
             'linalg_modify_step_in_sequence = squirrel.linear_algebra:modify_step_in_sequence',
             'template_matching_stack_alignment = squirrel.template_matching:template_matching_stack_alignment',
             'crop_from_stack = squirrel.stack_operations:crop_from_stack',
-            'apply_auto_pad = squirrel.transformation:apply_auto_pad'
+            'apply_auto_pad = squirrel.apply_transformation:apply_auto_pad'
         ]
     },
     install_requires=[
