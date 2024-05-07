@@ -71,6 +71,8 @@ def apply_stack_alignment():
                              'If this flag is set, each transform is applied as it is')
     parser.add_argument('--auto_pad', action='store_true',
                         help='Automatically adjust the canvas size of the output stack to best fit the data')
+    parser.add_argument('--stack_shape', type=int, nargs=3, default=None,
+                        help='Pre-define a stack shape for the output stack; default=None')
     parser.add_argument('--z_range', type=int, nargs=2, default=None,
                         help='Use certain slices of the stack only; Defaults to the entire stack')
     parser.add_argument('--n_workers', type=int, default=1,
@@ -85,6 +87,7 @@ def apply_stack_alignment():
     pattern = args.pattern
     no_adding_of_transforms = args.no_adding_of_transforms
     auto_pad = args.auto_pad
+    stack_shape = args.stack_shape
     z_range = args.z_range
     n_workers = args.n_workers
     verbose = args.verbose
@@ -98,6 +101,7 @@ def apply_stack_alignment():
         pattern=pattern,
         no_adding_of_transforms=no_adding_of_transforms,
         auto_pad=auto_pad,
+        stack_shape=stack_shape,
         z_range=z_range,
         n_workers=n_workers,
         verbose=verbose,

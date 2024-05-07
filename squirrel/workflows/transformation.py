@@ -482,6 +482,7 @@ def apply_stack_alignment_on_volume_workflow(
         no_adding_of_transforms=False,
         auto_pad=False,
         z_range=None,
+        stack_shape=None,
         n_workers=1,
         quiet=False,
         verbose=False,
@@ -495,7 +496,11 @@ def apply_stack_alignment_on_volume_workflow(
     if not transforms.is_sequenced and not no_adding_of_transforms:
         transforms = transforms.get_sequenced_stack()
 
-    stack_h, stack_shape = load_data_handle(stack, key=key, pattern=pattern)
+    if stack_shape is None:
+        stack_h, stack_shape = load_data_handle(stack, key=key, pattern=pattern)
+    else:
+        assert not auto_pad, "Don't supply a stack shape if auto padding will be performed!"
+        stack_h, _ = load_data_handle(stack, key=key, pattern=pattern)
     stack_len = stack_shape[0]
     if z_range is not None:
         stack_len = z_range[1] - z_range[0]
