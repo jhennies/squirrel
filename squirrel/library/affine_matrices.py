@@ -237,34 +237,79 @@ class AffineStack:
         out_stack.is_sequenced = True
         return out_stack
 
+    @staticmethod
+    def _z_interpolate(stack, scale):
+
+        if scale > 1 or 1/scale - int(1/scale) != 0:
+            # z-interpolation to extend the stack
+            from scipy.ndimage import zoom
+            stack = zoom(
+                stack, (scale, 1.),
+                order=1, grid_mode=True, mode='grid-constant'
+            )
+        else:
+            stack = [
+                stack[idx]
+                for idx in range(0, len(stack), int(1/scale))
+            ]
+        return stack
+
     def get_scaled(self, scale):
 
         assert self.is_sequenced, 'Scaling only works for sequenced stacks!'
 
         scaled_stack = [item.get_scaled(scale).get_matrix('C') for item in self]
-
-        if scale > 1 or 1/scale - int(1/scale) != 0:
-            # z-interpolation to extend the stack
-            from scipy.ndimage import zoom
-            scaled_stack = zoom(
-                scaled_stack, (scale, 1.),
-                order=1, grid_mode=True, mode='grid-constant'
-            )
-        else:
-            scaled_stack = [
-                scaled_stack[idx]
-                for idx in range(0, len(scaled_stack), int(1/scale))
-            ]
+        scaled_stack = self._z_interpolate(scaled_stack, scale)
 
         return self._new_stack_with_same_meta(scaled_stack)
 
-    def set_meta(self, name, data):
+    def get_interpolated(self, scale):
+        stack = [item.get_matrix('C') for item in self]
+        stack = self._z_interpolate(stack, scale)
+        return self._new_stack_with_same_meta(stack)
+
+    def apply_z_step(self):
+
+        assert 'z_step' in self._meta
+        assert self.is_sequenced
+
+        z_step = self.get_meta('z_step')
+        if z_step == 1:
+            return self
+
+        stack = np.array(self['C', :])
+
+        from scipy.interpolate import CubicSpline
+
+        new_stack = []
+        for seq in stack.swapaxes(0, 1):
+
+            x = np.arange(len(seq))
+            y = seq
+            interpolator = CubicSpline(x, y, extrapolate=True, bc_type='natural')
+
+            y_ = np.arange(0, len(seq), 1 / z_step)  # [:len(self)]
+            new_stack.append(interpolator(y_))
+
+        new_stack = np.swapaxes(new_stack, 0, 1)
+        # return AffineStack(stack=new_stack, is_sequenced=True, pivot=self._pivot)
+        new_stack = self._new_stack_with_same_meta(new_stack)
+        new_stack.set_meta('z_step', 1)
+        return new_stack
+
+    def set_meta(self, name=None, data=None):
+        if name is None:
+            assert isinstance(data, dict)
+            self._meta = data
+            return
         if type(data) == np.ndarray:
             data = data.tolist()
         self._meta[name] = data
 
-    def get_meta(self, name):
-        return self._meta[name]
+    def get_meta(self, name=None):
+        if name is not None:
+            return self._meta[name]
+        return self._meta
 
     def exists_meta(self, name):
         if name in self._meta.keys():

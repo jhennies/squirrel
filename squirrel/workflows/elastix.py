@@ -252,6 +252,7 @@ def elastix_stack_alignment_workflow(
         pre_fix_iou_thresh=0.5,
         gaussian_sigma=0.,
         z_range=None,
+        z_step=1,
         determine_bounds=False,
         parameter_map=None,
         quiet=False,
@@ -275,7 +276,7 @@ def elastix_stack_alignment_workflow(
 
     z_range = norm_z_range(z_range, stack_size[0])
 
-    for idx in range(*z_range):
+    for idx in range(*z_range, z_step):
         if not quiet:
             print(f'idx = {idx} / {z_range[1]}')
         z_slice_moving = stack[idx]
@@ -284,7 +285,7 @@ def elastix_stack_alignment_workflow(
             transforms.append(AffineMatrix([1., 0., 0., 0., 1., 0.], pivot=[0., 0.]))
         else:
 
-            z_slice_fixed = stack[idx - 1]
+            z_slice_fixed = stack[idx - z_step]
 
             result_matrix, _ = register_with_elastix(
                 z_slice_fixed,
@@ -308,7 +309,14 @@ def elastix_stack_alignment_workflow(
             from ..library.image import get_bounds
             bounds.append(get_bounds(z_slice_moving, return_ints=True))
 
-    transforms.set_meta('bounds', np.array(bounds))
+    if z_step > 1:
+        # transforms = transforms.get_sequenced_stack()
+        # transforms = transforms.get_interpolated(z_step)
+        transforms.set_meta('z_step', z_step)
+
+    if determine_bounds:
+        assert len(transforms) == len(bounds)
+        transforms.set_meta('bounds', np.array(bounds))
     transforms.to_file(out_filepath)
 
 

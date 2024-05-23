@@ -536,6 +536,7 @@ def dot_product_on_affines_workflow(
         transform_filepaths,
         out_filepath,
         inverse=(0, 0),
+        keep_meta=None,
         verbose=False
 ):
 
@@ -543,17 +544,22 @@ def dot_product_on_affines_workflow(
         print(f'transform_filepaths = {transform_filepaths}')
         print(f'out_filepath = {out_filepath}')
         print(f'inverse = {inverse}')
+        print(f'keep_meta = {keep_meta}')
 
     from ..library.affine_matrices import AffineStack
 
-    transforms_a = AffineStack(filepath=transform_filepaths[0])
-    transforms_b = AffineStack(filepath=transform_filepaths[1])
+    transforms = [
+        AffineStack(filepath=transform_filepaths[0]),
+        AffineStack(filepath=transform_filepaths[1])
+    ]
 
     if inverse[0]:
-        transforms_a = -transforms_a
+        transforms[0] = -transforms[0]
     if inverse[1]:
-        transforms_b = -transforms_b
-    out_transforms = transforms_a * transforms_b
+        transforms[1] = -transforms[1]
+    out_transforms = transforms[0] * transforms[1]
+    if keep_meta is not None:
+        out_transforms.set_meta(data=transforms[keep_meta].get_meta())
 
     out_transforms.to_file(out_filepath)
 

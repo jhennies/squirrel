@@ -15,12 +15,16 @@ def dot_product_on_affines():
                         help='Output filepath for the result file (*.json)')
     parser.add_argument('--inverse', type=int, nargs=2, default=(0, 0),
                         help='Defines whether the inverse of an input is used; Default=(0, 0)')
+    parser.add_argument('--keep_meta', type=int, default=None,
+                        help='Keep the meta data of one of the inputs: Use 0 or 1; '
+                             'default=None, i.e. no meta-data is kept')
     parser.add_argument('-v', '--verbose', action='store_true')
 
     args = parser.parse_args()
     transform_filepaths = args.transform_filepaths
     out_filepath = args.out_filepath
     inverse = args.inverse
+    keep_meta = args.keep_meta
     verbose = args.verbose
 
     from squirrel.workflows.transformation import dot_product_on_affines_workflow
@@ -28,6 +32,7 @@ def dot_product_on_affines():
         transform_filepaths,
         out_filepath,
         inverse=inverse,
+        keep_meta=keep_meta,
         verbose=verbose,
     )
 

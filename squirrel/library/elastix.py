@@ -228,7 +228,7 @@ def register_with_elastix(
         parameter_map['ErodeMask'] = ['true']
     if out_dir is not None:
         elastixImageFilter.SetOutputDirectory(out_dir)
-    elastixImageFilter.LogToConsoleOn()
+    elastixImageFilter.LogToConsoleOff()
 
     elastixImageFilter.SetParameterMap(parameter_map)
 
