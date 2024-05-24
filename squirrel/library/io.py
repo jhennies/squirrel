@@ -239,7 +239,8 @@ class TiffStack(list):
         if isinstance(filepaths, str):
             return read_tif_slice(filepaths, return_filepath=False)
         if isinstance(filepaths, list):
-            print(f'filepaths = {filepaths}')
+            for x in filepaths:
+                print(read_tif_slice(x, return_filepath=False).shape)
             return np.array([read_tif_slice(x, return_filepath=False) for x in filepaths])
 
     def get_slice_and_filepath(self, idx):
