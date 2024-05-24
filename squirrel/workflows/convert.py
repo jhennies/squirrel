@@ -125,6 +125,8 @@ def merge_tif_stacks_workflow(
             print(f'new_shape = {new_shape}')
         idx = 0
         for h in handles:
+            if verbose:
+                print(f'this_shape = {h.shape}')
             for img in h[:]:
                 print(f'idx = {idx}')
                 write_tif_slice(
