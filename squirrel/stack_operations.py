@@ -51,7 +51,7 @@ def merge_tif_stacks():
         description='Merge two tif stacks',
         formatter_class=argparse.RawTextHelpFormatter
     )
-    parser.add_argument('stack_folders', nargs=2, type=str,
+    parser.add_argument('stack_folders', nargs='+', type=str,
                         help='List of input folders')
     parser.add_argument('out_folder', type=str,
                         help='Output folder where the results will be written to')
