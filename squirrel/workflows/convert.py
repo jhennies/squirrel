@@ -125,7 +125,7 @@ def merge_tif_stacks_workflow(
                 st = h[:]
                 if type(st) is list:
                     print('Fixing inconsistent shapes')
-                    for sl in h[:]:
+                    for idx, sl in enumerate(st):
                         print(f'idx = {idx}')
                         this_shapes.append(sl.shape)
                     shapes.append(np.max(this_shapes, axis=0))
