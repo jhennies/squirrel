@@ -120,10 +120,18 @@ def merge_tif_stacks_workflow(
         for stack in stack_folders:
             h, s = load_data_handle(stack, pattern=pattern)
             if inconsistent_shapes:
+                print('Checking for inconsistent shapes')
                 this_shapes = []
-                for sl in h[:]:
-                    this_shapes.append(sl.shape)
-                shapes.append(np.max(this_shapes, axis=0))
+                st = h[:]
+                if type(st) is list:
+                    print('Fixing inconsistent shapes')
+                    for sl in h[:]:
+                        print(f'idx = {idx}')
+                        this_shapes.append(sl.shape)
+                    shapes.append(np.max(this_shapes, axis=0))
+                else:
+                    print('Shape is consistent')
+                    shapes.append(st[0].shape)
             else:
                 shapes.append(s[1:])  # only y and x
             handles.append(h)
