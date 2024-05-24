@@ -239,9 +239,12 @@ class TiffStack(list):
         if isinstance(filepaths, str):
             return read_tif_slice(filepaths, return_filepath=False)
         if isinstance(filepaths, list):
-            for x in filepaths:
-                print(read_tif_slice(x, return_filepath=False).shape)
-            return np.array([read_tif_slice(x, return_filepath=False) for x in filepaths])
+            stack = [read_tif_slice(x, return_filepath=False) for x in filepaths]
+            try:
+                return np.array(stack)
+            except ValueError:
+                print(f"Warning: Inconsistent slice shapes! Can't convert to np.array, so returning list instead")
+                return stack
 
     def get_slice_and_filepath(self, idx):
 
