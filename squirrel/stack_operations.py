@@ -62,6 +62,9 @@ def merge_tif_stacks():
     parser.add_argument('--pad_canvas', action='store_true',
                         help='For non-equal canvas sizes this can be used to generate a common canvas size for the '
                              'entire result stack')
+    parser.add_argument('--inconsistent_shapes', action='store_true',
+                        help='Enable this if tif slices within one stack may have different shapes;'
+                             'This setting massively increases computation time!')
     parser.add_argument('-v', '--verbose', action='store_true')
 
     args = parser.parse_args()
@@ -70,6 +73,7 @@ def merge_tif_stacks():
     pattern = args.pattern
     out_pattern = args.out_pattern
     pad_canvas = args.pad_canvas
+    inconsistent_shapes = args.inconsistent_shapes
     verbose = args.verbose
 
     from squirrel.workflows.convert import merge_tif_stacks_workflow
@@ -80,6 +84,7 @@ def merge_tif_stacks():
         pattern=pattern,
         out_pattern=out_pattern,
         pad_canvas=pad_canvas,
+        inconsistent_shapes=inconsistent_shapes,
         verbose=verbose
     )
 

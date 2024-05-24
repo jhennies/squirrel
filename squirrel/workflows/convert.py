@@ -98,6 +98,7 @@ def merge_tif_stacks_workflow(
         pattern='*.tif',
         out_pattern='slice_{:05d}.tif',
         pad_canvas=False,
+        inconsistent_shapes=False,
         verbose=False
 ):
     if verbose:
@@ -118,7 +119,13 @@ def merge_tif_stacks_workflow(
         handles = []
         for stack in stack_folders:
             h, s = load_data_handle(stack, pattern=pattern)
-            shapes.append(s[1:])  # only y and x
+            if inconsistent_shapes:
+                this_shapes = []
+                for sl in h[:]:
+                    this_shapes.append(sl.shape)
+                shapes.append(np.max(this_shapes, axis=0))
+            else:
+                shapes.append(s[1:])  # only y and x
             handles.append(h)
         new_shape = np.max(shapes, axis=0)
         if verbose:
