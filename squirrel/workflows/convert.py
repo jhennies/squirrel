@@ -132,6 +132,7 @@ def merge_tif_stacks_workflow(
                 else:
                     print('Shape is consistent')
                     shapes.append(st[0].shape)
+                del st
             else:
                 shapes.append(s[1:])  # only y and x
             handles.append(h)

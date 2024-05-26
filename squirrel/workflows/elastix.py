@@ -305,6 +305,7 @@ def elastix_stack_alignment_workflow(
             )
             transforms.append(result_matrix)
 
+        # FIXME: This is already performed inside register_with_elastix if auto_mask is on
         if determine_bounds:
             from ..library.image import get_bounds
             bounds.append(get_bounds(z_slice_moving, return_ints=True))

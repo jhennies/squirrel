@@ -164,10 +164,28 @@ def register_with_elastix(
     # assert transform == parameter_map['Transform'][0]
 
     mask = None
+    bounds_offset = np.array([0., 0.])
     if auto_mask:
+        if verbose:
+            print(f'image shape before auto_mask: {fixed_image.shape}')
+        from squirrel.library.image import get_bounds
+        bounds_fixed = get_bounds(fixed_image, return_ints=True)
+        bounds_moving = get_bounds(moving_image, return_ints=True)
+        bounds_total = np.array([
+            min(bounds_moving[0], bounds_fixed[0]),
+            min(bounds_moving[1], bounds_fixed[1]),
+            max(bounds_moving[2], bounds_fixed[2]),
+            max(bounds_moving[3], bounds_fixed[3])
+        ]).astype(int)
+        bounds_offset = bounds_total[:2]
+        bounds = np.s_[bounds_total[0]: bounds_total[2], bounds_total[1]: bounds_total[3]]
+        fixed_image = fixed_image[bounds]
+        moving_image = moving_image[bounds]
         fixed_mask = make_auto_mask(fixed_image)
         moving_mask = make_auto_mask(moving_image)
         mask = fixed_mask * moving_mask
+        if verbose:
+            print(f'image shape after auto_mask: {fixed_image.shape}')
 
     if gaussian_sigma > 0:
         from skimage.filters import gaussian
@@ -229,6 +247,8 @@ def register_with_elastix(
     if out_dir is not None:
         elastixImageFilter.SetOutputDirectory(out_dir)
     elastixImageFilter.LogToConsoleOff()
+    if verbose:
+        elastixImageFilter.LogToConsoleOn()
 
     elastixImageFilter.SetParameterMap(parameter_map)
 
@@ -259,9 +279,9 @@ def register_with_elastix(
             print(f'result_matrix.get_pivot() = {result_matrix.get_pivot()}')
         result_matrix.shift_pivot_to_origin()
     result_matrix = result_matrix * -AffineMatrix(parameters=[1., 0., pre_fix_offsets[0], 0., 1., pre_fix_offsets[1]])
+    result_matrix = result_matrix * -AffineMatrix(parameters=[1., 0., bounds_offset[0], 0., 1., bounds_offset[1]])
 
     return result_matrix, result_image
-
 
     # if transform == 'translation':
     #
