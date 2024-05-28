@@ -41,7 +41,7 @@ def normalize_slices(
     if n_workers == 1:
 
         result_stack = []
-        for idx in range(len(stack)):
+        for idx in range(*z_range):
             img = stack[idx]
             result_stack.append(_apply_quantiles(img))
 
@@ -51,9 +51,10 @@ def normalize_slices(
 
         with Pool(processes=n_workers) as p:
             tasks = []
-            for idx in range(len(stack)):
+            for idx in range(*z_range):
                 img = stack[idx]
                 tasks.append(p.apply_async(_apply_quantiles, (img,)))
             result_stack = [task.get() for task in tasks]
 
+    print(f'result_stack.shape = {result_stack.shape}')
     return np.array(result_stack)
