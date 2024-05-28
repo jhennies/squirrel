@@ -7,6 +7,7 @@ def normalize_slices_workflow(
         in_pattern='*.tif',
         in_key='data',
         out_key='data',
+        dilate_background=0,
         z_range=None,
         n_workers=1,
         verbose=False
@@ -22,10 +23,8 @@ def normalize_slices_workflow(
     from squirrel.library.io import load_data_handle, write_stack
     from ..library.data import norm_z_range
     stack_handle, stack_shape = load_data_handle(in_path, in_key, in_pattern)
-    # z_range = norm_z_range(z_range, stack_shape[0])
 
     from squirrel.library.normalization import normalize_slices
 
-    # normalized_stack = normalize_slices(stack_handle[z_range[0]: z_range[1]])
-    normalized_stack = normalize_slices(stack_handle, z_range=z_range, n_workers=n_workers)
+    normalized_stack = normalize_slices(stack_handle, dilate_background=dilate_background, z_range=z_range, n_workers=n_workers)
     write_stack(out_path, normalized_stack, key=out_key)

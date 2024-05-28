@@ -20,6 +20,8 @@ def normalize_slices():
                         help='Internal path of the input dataset; default="data"; used if in_path is h5 filepath')
     parser.add_argument('--out_key', type=str, default='data',
                         help='Internal path of the output dataset; default="data"; used if out_path is h5 filepath')
+    parser.add_argument('--dilate_background', type=int, default=0,
+                        help='Dilate the background before computing data quantiles. default=0 (off)')
     parser.add_argument('--n_workers', type=int, default=1,
                         help='The number of cores to use for processing')
     parser.add_argument('-v', '--verbose', action='store_true')
@@ -30,6 +32,7 @@ def normalize_slices():
     in_pattern = args.in_pattern
     in_key = args.in_key
     out_key = args.out_key
+    dilate_background = args.dilate_background
     n_workers = args.n_workers
     verbose = args.verbose
 
@@ -41,6 +44,7 @@ def normalize_slices():
         in_pattern=in_pattern,
         in_key=in_key,
         out_key=out_key,
+        dilate_background=dilate_background,
         n_workers=n_workers,
         verbose=verbose
     )

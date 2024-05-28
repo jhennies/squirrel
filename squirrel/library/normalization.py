@@ -2,8 +2,14 @@
 import numpy as np
 
 
-def _get_quantiles(array, quantiles=(0.1, 0.9), threshold=(1, 254)):
-    array_ = array[np.logical_and(array > threshold[0], array < threshold[1])]
+def _get_quantiles(array, quantiles=(0.1, 0.9), threshold=(1, 254), dilate_background=0):
+    from copy import deepcopy
+    this_array = deepcopy(array)
+    if dilate_background:
+        from vigra.filters import discErosion
+        mask = 1 - discErosion((this_array > 1).astype('uint8'), dilate_background)
+        this_array[mask > 0] = 0
+    array_ = this_array[np.logical_and(this_array > threshold[0], this_array < threshold[1])]
     return np.quantile(array_, quantiles[0]), np.quantile(array_, quantiles[1])
 
 
@@ -19,8 +25,8 @@ def _normalize(pixels, alow, ahigh, qlow, qhigh):
     return pixels
 
 
-def _apply_quantiles(image, quantiles=(0.1, 0.9), anchors=(0.2, 0.8)):
-    qlow, qhigh = _get_quantiles(image, quantiles)
+def _apply_quantiles(image, quantiles=(0.1, 0.9), anchors=(0.2, 0.8), dilate_background=0):
+    qlow, qhigh = _get_quantiles(image, quantiles, dilate_background=dilate_background)
     alow, ahigh = np.array(anchors) * 255
     image = _normalize(image, alow, ahigh, qlow, qhigh)
     return image
@@ -28,6 +34,7 @@ def _apply_quantiles(image, quantiles=(0.1, 0.9), anchors=(0.2, 0.8)):
 
 def normalize_slices(
         stack,
+        dilate_background=0,
         z_range=None,
         n_workers=1
 ):
@@ -38,12 +45,15 @@ def normalize_slices(
     stack_shape = stack.shape
     z_range = norm_z_range(z_range, stack_shape[0])
 
+    quantiles = (0.1, 0.9)
+    anchors = (0.2, 0.8)
+
     if n_workers == 1:
 
         result_stack = []
         for idx in range(*z_range):
             img = stack[idx]
-            result_stack.append(_apply_quantiles(img))
+            result_stack.append(_apply_quantiles(img, quantiles, anchors, dilate_background))
 
     else:
         print(f'Running with {n_workers} CPUs')
@@ -53,7 +63,7 @@ def normalize_slices(
             tasks = []
             for idx in range(*z_range):
                 img = stack[idx]
-                tasks.append(p.apply_async(_apply_quantiles, (img,)))
+                tasks.append(p.apply_async(_apply_quantiles, (img, quantiles, anchors, dilate_background)))
             result_stack = [task.get() for task in tasks]
 
     return np.array(result_stack)
