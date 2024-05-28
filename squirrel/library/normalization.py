@@ -6,7 +6,8 @@ def _get_quantiles(array, quantiles=(0.1, 0.9), threshold=(1, 254), dilate_backg
     from copy import deepcopy
     this_array = deepcopy(array)
     if dilate_background:
-        from vigra.filters import discErosion
+        from vigra.filters import discErosion, gaussianSmoothing
+        this_array = gaussianSmoothing(this_array, 1.0)
         mask = 1 - discErosion((this_array > 1).astype('uint8'), dilate_background)
         this_array[mask > 0] = 0
     array_ = this_array[np.logical_and(this_array > threshold[0], this_array < threshold[1])]
