@@ -47,9 +47,6 @@ def normalize_slices(
     stack_shape = stack.shape
     z_range = norm_z_range(z_range, stack_shape[0])
 
-    quantiles = (0.1, 0.9)
-    anchors = (0.2, 0.8)
-
     if n_workers == 1:
 
         result_stack = []
