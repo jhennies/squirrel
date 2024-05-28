@@ -22,6 +22,12 @@ def normalize_slices():
                         help='Internal path of the output dataset; default="data"; used if out_path is h5 filepath')
     parser.add_argument('--dilate_background', type=int, default=0,
                         help='Dilate the background before computing data quantiles. default=0 (off)')
+    parser.add_argument('--quantiles', type=float, nargs=2, default=(0.1, 0.9),
+                        help='Lower and upper quantile of the gray value spectrum that is used to normalize;'
+                             'default=(0.1, 0.9)')
+    parser.add_argument('--anchors', type=float, nargs=2, default=(0.2, 0.8),
+                        help='The lower and upper quantiles of the input gray value spectrum are transferred to these '
+                             'relative values; default=(0.2, 0.8)')
     parser.add_argument('--n_workers', type=int, default=1,
                         help='The number of cores to use for processing')
     parser.add_argument('-v', '--verbose', action='store_true')
@@ -33,6 +39,8 @@ def normalize_slices():
     in_key = args.in_key
     out_key = args.out_key
     dilate_background = args.dilate_background
+    quantiles = args.quantiles
+    anchors = args.anchors
     n_workers = args.n_workers
     verbose = args.verbose
 
@@ -45,6 +53,8 @@ def normalize_slices():
         in_key=in_key,
         out_key=out_key,
         dilate_background=dilate_background,
+        quantiles=quantiles,
+        anchors=anchors,
         n_workers=n_workers,
         verbose=verbose
     )

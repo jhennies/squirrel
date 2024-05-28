@@ -8,6 +8,8 @@ def normalize_slices_workflow(
         in_key='data',
         out_key='data',
         dilate_background=0,
+        quantiles=(0.1, 0.9),
+        anchors=(0.2, 0.8),
         z_range=None,
         n_workers=1,
         verbose=False
@@ -26,5 +28,12 @@ def normalize_slices_workflow(
 
     from squirrel.library.normalization import normalize_slices
 
-    normalized_stack = normalize_slices(stack_handle, dilate_background=dilate_background, z_range=z_range, n_workers=n_workers)
+    normalized_stack = normalize_slices(
+        stack_handle,
+        dilate_background=dilate_background,
+        quantiles=quantiles,
+        anchors=anchors,
+        z_range=z_range,
+        n_workers=n_workers
+    )
     write_stack(out_path, normalized_stack, key=out_key)

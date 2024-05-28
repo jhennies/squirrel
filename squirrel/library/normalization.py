@@ -35,6 +35,8 @@ def _apply_quantiles(image, quantiles=(0.1, 0.9), anchors=(0.2, 0.8), dilate_bac
 def normalize_slices(
         stack,
         dilate_background=0,
+        quantiles=(0.1, 0.9),
+        anchors=(0.2, 0.8),
         z_range=None,
         n_workers=1
 ):
