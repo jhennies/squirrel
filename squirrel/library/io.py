@@ -232,6 +232,8 @@ class TiffStack(list):
     def __init__(self, dirpath, pattern='*.tif'):
         stack = get_file_list(dirpath, pattern)
         list.__init__(self, stack)
+        self.dtype = self[0].dtype
+        self.shape = self.get_shape()
 
     def __getitem__(self, item):
 
@@ -256,6 +258,14 @@ class TiffStack(list):
 
     def get_shape(self):
         return [len(self)] + list(self[0].shape)
+
+
+def write_stack(path, data, key='data'):
+
+    if os.path.splitext(path)[1] == '.h5':
+        write_h5_container(path, data, key=key)
+        return
+    write_tif_stack(data, path)
 
 
 if __name__ == '__main__':
