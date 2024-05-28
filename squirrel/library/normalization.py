@@ -56,5 +56,4 @@ def normalize_slices(
                 tasks.append(p.apply_async(_apply_quantiles, (img,)))
             result_stack = [task.get() for task in tasks]
 
-    print(f'result_stack.shape = {result_stack.shape}')
     return np.array(result_stack)
