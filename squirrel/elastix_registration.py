@@ -269,6 +269,8 @@ def elastix_stack_alignment():
                         help='Perform a gaussian filter before registration')
     parser.add_argument('--z_range', type=int, nargs=2, default=None,
                         help='Use certain slices of the stack only; Defaults to the entire stack')
+    parser.add_argument('--z_step', type=int, default=1,
+                        help='Performs an alignment with every n-th slice only.')
     parser.add_argument('-v', '--verbose', action='store_true')
 
     args = parser.parse_args()
@@ -285,6 +287,7 @@ def elastix_stack_alignment():
     pre_fix_iou_thresh = args.pre_fix_iou_thresh
     gaussian_sigma = args.gaussian_sigma
     z_range = args.z_range
+    z_step = args.z_step
     verbose = args.verbose
 
     from squirrel.workflows.elastix import elastix_stack_alignment_workflow
@@ -303,6 +306,7 @@ def elastix_stack_alignment():
         pre_fix_iou_thresh=pre_fix_iou_thresh,
         gaussian_sigma=gaussian_sigma,
         z_range=z_range,
+        z_step=z_step,
         verbose=verbose
     )
 

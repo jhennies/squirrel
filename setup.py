@@ -30,6 +30,7 @@ setup(
             'h5_to_tif = squirrel.conversions:h5_to_tif',
             'mib_to_tif = squirrel.conversions:mib_to_tif',
             'stack_to_ome_zarr = squirrel.conversions:stack_to_ome_zarr',
+            'ome_zarr_to_stack = squirrel.conversions:ome_zarr_to_stack',
             'normalize_slices = squirrel.stack_operations:normalize_slices',
             'sift2d_stack_alignment = squirrel.sift2d:sift2d_stack_alignment',
             'sift3d = squirrel.sift3d:main',

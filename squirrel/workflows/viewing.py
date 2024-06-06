@@ -5,8 +5,10 @@ import numpy as np
 def _get_data(in_data, key, invert=False):
 
     if type(in_data) is not np.ndarray:
-        from squirrel.library.io import load_data
-        return load_data(in_data, key=key, invert=invert)
+        # from squirrel.library.io import load_data
+        from squirrel.library.io import load_data_handle
+        return load_data_handle(in_data, key)[0][:]
+        # return load_data(in_data, key=key, invert=invert)
 
     if invert:
         from ..library.data import invert_data

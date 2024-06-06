@@ -179,5 +179,45 @@ def stack_to_ome_zarr():
     )
 
 
+def ome_zarr_to_stack():
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Convert a dataset within a h5 container or a tif stack to ome.zarr',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('ome_zarr_filepath', type=str,
+                        help='Input ome-zarr dataset')
+    parser.add_argument('target_dirpath', type=str,
+                        help='Output tif stack')
+    parser.add_argument('--ome_zarr_key', type=str, default='s0',
+                        help='Path within input ome-zarr dataset; default="s0"')
+    parser.add_argument('--z_range', type=int, nargs=2, default=None,
+                        help='Use certain slices of the stack only; Defaults to the entire stack')
+    parser.add_argument('--n_threads', type=int, default=1,
+                        help='Number of CPUs to use')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    ome_zarr_filepath = args.ome_zarr_filepath
+    target_dirpath = args.target_dirpath
+    ome_zarr_key = args.ome_zarr_key
+    z_range = args.z_range
+    n_threads = args.n_threads
+    verbose = args.verbose
+
+    from squirrel.workflows.convert import ome_zarr_to_stack_workflow
+
+    ome_zarr_to_stack_workflow(
+        ome_zarr_filepath,
+        target_dirpath,
+        ome_zarr_key=ome_zarr_key,
+        z_range=z_range,
+        n_threads=n_threads,
+        verbose=verbose,
+    )
+
+
 if __name__ == '__main__':
     stack_to_ome_zarr()
