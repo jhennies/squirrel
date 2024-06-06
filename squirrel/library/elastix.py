@@ -84,7 +84,7 @@ def make_auto_mask(image):
     from skimage.morphology import closing, disk
 
     footprint = disk(6)
-    mask = closing(image, footprint)
+    mask = closing((image > 0).astype('uint8'), footprint)
 
     # from vigra.filters import discClosing
     # mask = (image > 0).astype('uint8')
@@ -199,12 +199,6 @@ def register_with_elastix(
         from ..library.data import norm_8bit
         fixed_image = norm_8bit(fixed_image, (0.05, 0.95), ignore_zeros=True)
         moving_image = norm_8bit(moving_image, (0.05, 0.95), ignore_zeros=True)
-
-    # from h5py import File
-    # with File('/media/julian/Data/tmp/fixed.h5', mode='w') as f:
-    #     f.create_dataset('data', data=fixed_image)
-    # with File('/media/julian/Data/tmp/moving.h5', mode='w') as f:
-    #     f.create_dataset('data', data=moving_image)
 
     pre_fix_offsets = np.array((0., 0.))
     if pre_fix_big_jumps:
