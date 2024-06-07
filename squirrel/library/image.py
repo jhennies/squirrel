@@ -34,15 +34,17 @@ def apply_auto_pad(transforms, stack_shape, stack_bounds, extra_padding=0):
 
     def _transform_on_bounds(t, b):
 
+        t_ = t.astype('float64')
+
         min_yx = [b[0], b[1]]
         min_y_max_x = [b[0], b[3]]
         max_y_min_x = [b[2], b[1]]
         max_yx = [b[2], b[3]]
 
-        t_min_yx = np.matmul(np.linalg.inv(t), min_yx + [1.])
-        t_min_y_max_x = np.matmul(np.linalg.inv(t), min_y_max_x + [1.])
-        t_max_y_min_x = np.matmul(np.linalg.inv(t), max_y_min_x + [1.])
-        t_max_yx = np.matmul(np.linalg.inv(t), max_yx + [1.])
+        t_min_yx = np.matmul(np.linalg.inv(t_), min_yx + [1.])
+        t_min_y_max_x = np.matmul(np.linalg.inv(t_), min_y_max_x + [1.])
+        t_max_y_min_x = np.matmul(np.linalg.inv(t_), max_y_min_x + [1.])
+        t_max_yx = np.matmul(np.linalg.inv(t_), max_yx + [1.])
 
         new_b = np.array([
             np.min([t_min_yx, t_min_y_max_x, t_max_y_min_x, t_max_yx], axis=0),
