@@ -349,18 +349,18 @@ class AffineMatrix:
             self.set_from_file(filepath)
 
     def _validate_parameters(self, parameters):
-        parameters = np.array(parameters)
-        if len(parameters) == 6:
+        parameters_ = np.array(parameters)
+        if len(parameters_) == 6:
             self._ndim = 2
             return True
-        if len(parameters) == 12:
+        if len(parameters_) == 12:
             self._ndim = 3
             return True
         return False
 
     def set_from_parameters(self, parameters, pivot=None):
         if self._validate_parameters(parameters):
-            self._parameters = np.array(parameters, dtype=float)
+            self._parameters = np.array(parameters, dtype='float128')
             self.set_pivot(pivot)
             return
         raise RuntimeError(f'Validation of parameters failed! {parameters}')
@@ -441,7 +441,7 @@ class AffineMatrix:
 
     def dot(self, other):
         assert type(other) == AffineMatrix
-        result = np.dot(self.get_matrix(order='Ms'), other.get_matrix(order='Ms'))
+        result = np.dot(self.get_matrix(order='Ms').astype('float128'), other.get_matrix(order='Ms').astype('float128'))
         result = self._ms_to_c(result)
         return AffineMatrix(parameters=result)
 
