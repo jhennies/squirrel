@@ -92,7 +92,7 @@ class AffineStack:
     def to_file(self, filepath):
         import json
         out_data = dict(
-            transforms=self['C', :].tolist(),
+            transforms=self['C', :].astype('float64').tolist(),
             sequenced=self.is_sequenced,
             pivot=self.get_pivot().tolist(),
             meta=self._meta
