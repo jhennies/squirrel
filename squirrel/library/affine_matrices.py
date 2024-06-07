@@ -478,7 +478,7 @@ class AffineMatrix:
             setup_scale_matrix,
             setup_shear_matrix
         )
-        t, r, z, s = decompose(self.get_matrix('Ms'))
+        t, r, z, s = decompose(self.get_matrix('Ms').astype('float64'))
         r_ = np.zeros([self._ndim, self._ndim + 1], dtype=float)
         r_[:r.shape[0], :r.shape[1]] = r
         return (
