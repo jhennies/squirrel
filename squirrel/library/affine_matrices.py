@@ -435,7 +435,7 @@ class AffineMatrix:
         return self._ndim
 
     def inverse(self):
-        inv = np.linalg.inv(self.get_matrix(order='Ms'))
+        inv = np.linalg.inv(self.get_matrix(order='Ms').astype('float64'))
         inv = self._ms_to_c(inv)
         return AffineMatrix(parameters=inv)
 
