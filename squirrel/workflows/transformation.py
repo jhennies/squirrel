@@ -493,7 +493,11 @@ def apply_stack_alignment_on_volume_workflow(
     from squirrel.library.affine_matrices import AffineMatrix, AffineStack
 
     transforms = AffineStack(filepath=transform_filepath)
+    if verbose:
+        print(f'is_sequenced = {transforms.is_sequenced}')
     if not transforms.is_sequenced and not no_adding_of_transforms:
+        if verbose:
+            print(f'Sequencing stack!')
         transforms = transforms.get_sequenced_stack()
 
     if stack_shape is None:
