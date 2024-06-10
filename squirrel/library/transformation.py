@@ -585,6 +585,8 @@ def apply_stack_alignment(
     if n_workers == 1:
 
         for stack_idx, idx in enumerate(range(*z_range)):
+            if verbose:
+                print(f'transform_stack[stack_idx] = {transform_stack[stack_idx]}')
 
             result_volume.append(apply_stack_alignment_slice(
                 stack_h,
