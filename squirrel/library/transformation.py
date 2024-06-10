@@ -586,7 +586,7 @@ def apply_stack_alignment(
 
         for stack_idx, idx in enumerate(range(*z_range)):
             if verbose:
-                print(f'transform_stack[stack_idx] = {transform_stack[stack_idx]}')
+                print(f'transform_stack[stack_idx] = {transform_stack[stack_idx].get_matrix()}')
 
             result_volume.append(apply_stack_alignment_slice(
                 stack_h,
