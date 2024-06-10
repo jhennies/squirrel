@@ -210,18 +210,18 @@ class AffineStack:
             is_sequenced=self.is_sequenced
         )
 
-    def _new_stack_with_same_meta(self, new_stack):
+    def new_stack_with_same_meta(self, new_stack):
         ns = AffineStack(stack=new_stack, is_sequenced=self.is_sequenced, pivot=self.get_pivot())
         ns._meta = self._meta
         return ns
 
     def copy(self):
-        return self._new_stack_with_same_meta(self._stack.copy())
+        return self.new_stack_with_same_meta(self._stack.copy())
 
     def get_smoothed_stack(self, sigma):
         from scipy.ndimage import gaussian_filter1d
         dtype = self[0].get_dtype()
-        return self._new_stack_with_same_meta(gaussian_filter1d(self['C', :].astype('float64'), sigma, axis=0).astype(dtype))
+        return self.new_stack_with_same_meta(gaussian_filter1d(self['C', :].astype('float64'), sigma, axis=0).astype(dtype))
 
     def get_sequenced_stack(self):
 
@@ -234,7 +234,7 @@ class AffineStack:
                 continue
             stack.append(stack[idx - 1] * self[idx])
 
-        out_stack = self._new_stack_with_same_meta(stack)
+        out_stack = self.new_stack_with_same_meta(stack)
         out_stack.is_sequenced = True
         return out_stack
 
@@ -265,12 +265,12 @@ class AffineStack:
         scaled_stack = [item.get_scaled(scale).get_matrix('C') for item in self]
         scaled_stack = self._z_interpolate(scaled_stack, scale)
 
-        return self._new_stack_with_same_meta(scaled_stack)
+        return self.new_stack_with_same_meta(scaled_stack)
 
     def get_interpolated(self, scale):
         stack = [item.get_matrix('C') for item in self]
         stack = self._z_interpolate(stack, scale)
-        return self._new_stack_with_same_meta(stack)
+        return self.new_stack_with_same_meta(stack)
 
     def apply_z_step(self):
 
@@ -297,7 +297,7 @@ class AffineStack:
 
         new_stack = np.swapaxes(new_stack, 0, 1)
         # return AffineStack(stack=new_stack, is_sequenced=True, pivot=self._pivot)
-        new_stack = self._new_stack_with_same_meta(new_stack)
+        new_stack = self.new_stack_with_same_meta(new_stack)
         new_stack.set_meta('z_step', 1)
         return new_stack
 

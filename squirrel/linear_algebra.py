@@ -268,5 +268,31 @@ def create_affine_sequence():
     create_affine_sequence_workflow(out_filepath, length, verbose=verbose)
 
 
+def crop_transform_sequence():
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Crops a subset of an affine sequence',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('transform_filepath', type=str,
+                        help='The input stack of transformations')
+    parser.add_argument('out_filepath', type=str,
+                        help='Where the result will be saved')
+    parser.add_argument('z_range', nargs=2, type=int,
+                        help='The z-range which will be extracted (slicing): [from:to]')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    transform_filepath = args.transform_filepath
+    out_filepath = args.out_filepath
+    z_range = args.z_range
+    verbose = args.verbose
+
+    from squirrel.workflows.transformation import crop_transform_sequence_workflow
+    crop_transform_sequence_workflow(transform_filepath, out_filepath, z_range, verbose=verbose)
+
+
 if __name__ == '__main__':
     add_translational_drift()

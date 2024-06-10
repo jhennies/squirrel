@@ -789,3 +789,18 @@ def apply_auto_pad_workflow(transform_filepath, out_filepath, verbose=False):
     transforms.set_meta('stack_shape', stack_shape)
     transforms.to_file(out_filepath)
 
+
+def crop_transform_sequence_workflow(transform_filepath, out_filepath, z_range, verbose=False):
+
+    if verbose:
+        print(f'transform_filepath = {transform_filepath}')
+        print(f'out_filepath = {out_filepath}')
+        print(f'z_range = {z_range}')
+
+    from squirrel.library.affine_matrices import AffineStack
+    stack = AffineStack(filepath=transform_filepath)
+    out_stack = stack.new_stack_with_same_meta(stack[z_range[0]: z_range[1]])
+
+    out_stack.to_file(out_filepath)
+
+
