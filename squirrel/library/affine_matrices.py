@@ -2,11 +2,19 @@
 import numpy as np
 
 
-def load_affine_stack_from_multiple_files(filepaths):
+def load_affine_stack_from_multiple_files(filepaths, sequence_stack=False):
 
     stack = AffineStack(filepath=filepaths[0])
+    if sequence_stack and not stack.is_sequenced:
+        stack = stack.get_sequenced_stack()
     for filepath in filepaths[1:]:
-        stack.append(AffineStack(filepath=filepath))
+        if not sequence_stack:
+            stack.append(AffineStack(filepath=filepath))
+        else:
+            stack_ = AffineStack(filepath=filepath)
+            if not stack_.is_sequenced:
+                stack_ = stack_.get_sequenced_stack()
+            stack.append(stack_ * stack[-1])
 
     return stack
 
@@ -205,10 +213,17 @@ class AffineStack:
             raise StopIteration
 
     def __mul__(self, other):
-        return AffineStack(
-            stack=[self[idx] * other[idx] for idx in range(len(self))],
-            is_sequenced=self.is_sequenced
-        )
+        if isinstance(other, AffineStack):
+            return AffineStack(
+                stack=[self[idx] * other[idx] for idx in range(len(self))],
+                is_sequenced=self.is_sequenced
+            )
+        if isinstance(other, AffineMatrix):
+            return AffineStack(
+                stack=[self[idx] * other for idx in range(len(self))],
+                is_sequenced=self.is_sequenced
+            )
+        raise ValueError(f'Invalid input for argument other: {type(other)}')
 
     def new_stack_with_same_meta(self, new_stack):
         ns = AffineStack(stack=new_stack, is_sequenced=self.is_sequenced, pivot=self.get_pivot())
@@ -547,6 +562,11 @@ if __name__ == '__main__':
         print(f'translations: {stk.get_translations()}')
         stk.add_to_translations([1, 2])
         print(f'translations: {stk.get_translations()}')
+        fp2 = '/media/julian/Data/tmp/affine_stack_test2.json'
+        stk.to_file(fp2)
+        stk2 = load_affine_stack_from_multiple_files([fp, fp2], sequence_stack=True)
+        print(stk2['C', :])
+
 
 
     if False:
