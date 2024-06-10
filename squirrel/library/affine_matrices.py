@@ -220,7 +220,8 @@ class AffineStack:
 
     def get_smoothed_stack(self, sigma):
         from scipy.ndimage import gaussian_filter1d
-        return self._new_stack_with_same_meta(gaussian_filter1d(self['C', :], sigma, axis=0))
+        dtype = self[0].get_dtype()
+        return self._new_stack_with_same_meta(gaussian_filter1d(self['C', :].astype('float64'), sigma, axis=0).astype(dtype))
 
     def get_sequenced_stack(self):
 
@@ -239,6 +240,9 @@ class AffineStack:
 
     @staticmethod
     def _z_interpolate(stack, scale):
+        stack = np.array(stack)
+        dtype = stack.dtype
+        stack = stack.astype('float64')
 
         if scale > 1 or 1/scale - int(1/scale) != 0:
             # z-interpolation to extend the stack
@@ -252,7 +256,7 @@ class AffineStack:
                 stack[idx]
                 for idx in range(0, len(stack), int(1/scale))
             ]
-        return stack
+        return np.array(stack, dtype=dtype)
 
     def get_scaled(self, scale):
 
@@ -499,6 +503,9 @@ class AffineMatrix:
         ])
         matrix = np.dot(pivot_matrix, matrix)[:2]
         self.set_from_parameters(matrix.flatten(), pivot=[0., 0.])
+
+    def get_dtype(self):
+        return self._parameters.dtype
 
 
 if __name__ == '__main__':
