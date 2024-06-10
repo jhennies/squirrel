@@ -508,9 +508,9 @@ def apply_stack_alignment_on_volume_workflow(
     stack_len = stack_shape[0]
     if z_range is not None:
         stack_len = z_range[1] - z_range[0]
+    if verbose:
+        print(f'transforms = {transforms["M", :]}')
     if auto_pad:
-        if verbose:
-            print(f'transforms = {transforms["M", :]}')
         from squirrel.library.image import get_bounds_of_stack, apply_auto_pad
         stack_bounds = get_bounds_of_stack(stack_h, stack_shape, return_ints=True, z_range=z_range)
         if verbose:
