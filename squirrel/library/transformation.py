@@ -568,7 +568,11 @@ def apply_stack_alignment(
         verbose=False
 ):
 
+    if verbose:
+        print(f'transform_stack.is_sequenced = {transform_stack.is_sequenced}')
     if not transform_stack.is_sequenced and not no_adding_of_transforms:
+        if verbose:
+            print(f'sequencing stack!')
         transform_stack = transform_stack.get_sequenced_stack()
 
     stack_size = np.ceil(np.array(stack_shape)).astype(int)
