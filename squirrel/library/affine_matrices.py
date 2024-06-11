@@ -14,7 +14,7 @@ def load_affine_stack_from_multiple_files(filepaths, sequence_stack=False):
             stack_ = AffineStack(filepath=filepath)
             if not stack_.is_sequenced:
                 stack_ = stack_.get_sequenced_stack()
-            stack.append(stack_ * stack[-1])
+            stack.append(stack_.new_stack_with_same_meta(stack_ * stack[-1]))
 
     return stack
 
