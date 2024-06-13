@@ -13,6 +13,7 @@ def do_parameter_search(
         pre_aligned_stack,
         rois,
         max_iterations=16,
+        update_best=1
 ):
 
     def to_string(p):
@@ -100,8 +101,8 @@ def do_parameter_search(
                 transform='affine',
                 median_radius=parameter_dict['median_radius'][curpars['median_radius']],
                 elastix_parameters=param_map,
-                quiet=True
-                # z_range=[8, 16]
+                quiet=True,
+                z_range=[12, 20]
             )
             apply_stack_alignment_on_volume_workflow(
                 pre_aligned_stack,
@@ -109,7 +110,7 @@ def do_parameter_search(
                 aligned_stack_filepath,
                 key='s0',
                 auto_pad=False,
-                # z_range=[8, 16],
+                z_range=[12, 20],
                 quiet=True,
                 n_workers=16
             )
@@ -206,7 +207,7 @@ def do_parameter_search(
             print(f'scores = {scores}')
             print('..................')
 
-        current_parameters, change = update_current_parameters(current_parameters, scores, ref_score)
+        current_parameters, change = update_current_parameters(current_parameters, scores, ref_score, update_best=update_best)
 
         idx += 1
 
@@ -473,6 +474,9 @@ def search_03():
         np.s_[r[0]: r[1], r[2]: r[3], r[4]: r[5]]
         for r in roi
     ]
+    update_best = 1
+    if 'update_best' in data:
+        update_best = data['update_best']
 
     # roi = [
     #     np.s_[:, 330: 458, 2518: 2646],  # Right edge
@@ -533,7 +537,8 @@ def search_03():
         current_parameters,
         pre_aligned_stack,
         roi,
-        max_iterations=max_iterations
+        max_iterations=max_iterations,
+        update_best=update_best
     )
 
 
