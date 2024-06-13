@@ -469,6 +469,10 @@ def search_03():
     pre_aligned_stack = data['pre_aligned_stack']
     out_dirpath = data['out_dirpath']
     roi = data['roi']
+    roi = [
+        np.s_[r[0]: r[1], r[2]: r[3], r[4]: r[5]]
+        for r in roi
+    ]
 
     # roi = [
     #     np.s_[:, 330: 458, 2518: 2646],  # Right edge
