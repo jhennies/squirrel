@@ -70,6 +70,8 @@ class AffineStack:
     def set_from_stack(self, stack, is_sequenced=None, pivot=None):
         if not isinstance(stack[0], AffineMatrix):
             stack = [AffineMatrix(parameters=parameters, pivot=pivot) for parameters in stack]
+        if isinstance(stack, np.ndarray):
+            stack = stack.tolist()
         self._stack = stack
         self._set_ndim()
         self.set_pivot(pivot)
@@ -242,6 +244,12 @@ class AffineStack:
 
         assert not self.is_sequenced, 'A sequenced stack cannot be sequenced again!'
 
+        """
+        # This is the original version which - in principle - does the same as new version below.
+        # The difference is that in this original version the sequence of dot product operations becomes very long for 
+        # large image stacks such that small errors accumulate.
+        # The new version runs pairs of the sequence in parallel thus avoiding the issue.
+        
         stack = []
         for idx, matrix in enumerate(self[:]):
             if idx == 0:
@@ -252,6 +260,38 @@ class AffineStack:
         out_stack = self.new_stack_with_same_meta(stack)
         out_stack.is_sequenced = True
         return out_stack
+        
+        """
+
+        def group_stack(stack):
+            return [
+                [stack[idx], stack[idx + 1]]
+                if idx < len(stack) - 1
+                else [stack[idx]]
+                for idx in range(0, len(stack), 2)
+            ]
+
+        def merge_groups(a, b):
+            return [a[-1] * x for x in b]
+
+        new_stack = np.array(self[:])[:, None].tolist()
+
+        iteration = 0
+        while len(new_stack) > 1:
+            this_stack = group_stack(new_stack)
+            new_stack = []
+            for group in this_stack:
+                if len(group) > 1:
+                    group[1] = merge_groups(group[0], group[1])
+                    new_stack.append(group[0] + group[1])
+                else:
+                    new_stack.append(group[0])
+
+            iteration += 1
+
+        new_stack = self.new_stack_with_same_meta(np.array(new_stack).flatten())
+        new_stack.is_sequenced = True
+        return new_stack
 
     @staticmethod
     def _z_interpolate(stack, scale):
@@ -556,7 +596,10 @@ if __name__ == '__main__':
         # print(f'stk.smooth(2)["Ms", :] = {stk.get_smoothed_stack(2)["Ms", :]}')
         # print(f'before: stk["Ms", :] = {stk["C", :]}')
         # print(f'sequenced: stk["Ms", :] = {stk.get_sequenced_stack()["C", :]}')
-        stk.is_sequenced = True
+        print(f'len(stk) = {len(stk)}')
+        stk = stk.get_sequenced_stack()
+        print(f'len(stk) = {len(stk)}')
+        # stk.is_sequenced = True
         print(f'scaled: {stk.get_scaled(2)["C", :]}')
         print(f'scaled: {stk.get_scaled(0.5)["C", :]}')
         print(f'translations: {stk.get_translations()}')
