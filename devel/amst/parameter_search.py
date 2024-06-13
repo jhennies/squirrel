@@ -478,15 +478,6 @@ def search_03():
     if 'update_best' in data:
         update_best = data['update_best']
 
-    # roi = [
-    #     np.s_[:, 330: 458, 2518: 2646],  # Right edge
-    #     np.s_[:, 386: 514, 440: 568],  # Left edge
-    #     np.s_[:, 650: 778, 1640: 1768]  # Bottom
-    # ]
-
-    if not os.path.exists(out_dirpath):
-        os.mkdir(out_dirpath)
-
     parameter_dict = dict(
         median_radius=[3, 4, 5, 6, 7, 8, 9],
         numberOfResolutions=[1, 2, 3, 4, 5, 6],
@@ -499,6 +490,8 @@ def search_03():
         NumberOfHistogramBins=[32, 48, 64, 80, 96, 128],
         NumberOfSamplesForExactGradient=[512, 768, 1024, 1270, 1536, 2048]
     )
+    if 'parameter_dict' in data:
+        parameter_dict = data['parameter_dict']
 
     # start
     current_parameters = dict(
@@ -513,6 +506,11 @@ def search_03():
         NumberOfHistogramBins=1,
         NumberOfSamplesForExactGradient=2
     )
+    if 'current_parameters' in data:
+        current_parameters = data['current_parameters']
+
+    if not os.path.exists(out_dirpath):
+        os.mkdir(out_dirpath)
 
     parameter_groups = dict(
         amst=['median_radius'],
