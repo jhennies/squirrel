@@ -458,6 +458,81 @@ def search_02():
     )
 
 
+def search_03():
+    # Multiple roi
+
+    import json
+
+    with open('run.json', mode='r') as f:
+        data = json.load(f)
+
+    pre_aligned_stack = data['pre_aligned_stack']
+    out_dirpath = data['out_dirpath']
+    roi = data['roi']
+
+    # roi = [
+    #     np.s_[:, 330: 458, 2518: 2646],  # Right edge
+    #     np.s_[:, 386: 514, 440: 568],  # Left edge
+    #     np.s_[:, 650: 778, 1640: 1768]  # Bottom
+    # ]
+
+    if not os.path.exists(out_dirpath):
+        os.mkdir(out_dirpath)
+
+    parameter_dict = dict(
+        median_radius=[3, 4, 5, 6, 7, 8, 9],
+        numberOfResolutions=[1, 2, 3, 4, 5, 6],
+        finalGridSpacingInPhysicalUnits=[8.],
+        FixedImagePyramid=['FixedRecursiveImagePyramid'],
+        MovingImagePyramid=['MovingRecursiveImagePyramid'],
+        AutomaticScalesEstimation=['true'],
+        MaximumNumberOfIterations=[512, 768, 1024, 1270, 1536, 2048],
+        NumberOfSpatialSamples=[512, 768, 1024, 1270, 1536, 2048],
+        NumberOfHistogramBins=[32, 48, 64, 80, 96, 128],
+        NumberOfSamplesForExactGradient=[512, 768, 1024, 1270, 1536, 2048]
+    )
+
+    # start
+    current_parameters = dict(
+        median_radius=1,
+        numberOfResolutions=1,
+        finalGridSpacingInPhysicalUnits=0,
+        FixedImagePyramid=0,
+        MovingImagePyramid=0,
+        AutomaticScalesEstimation=0,
+        MaximumNumberOfIterations=2,
+        NumberOfSpatialSamples=2,
+        NumberOfHistogramBins=1,
+        NumberOfSamplesForExactGradient=2
+    )
+
+    parameter_groups = dict(
+        amst=['median_radius'],
+        elastix_init=['numberOfResolutions', 'finalGridSpacingInPhysicalUnits'],
+        elastix=[
+            'FixedImagePyramid',
+            'MovingImagePyramid',
+            'AutomaticScalesEstimation',
+            'MaximumNumberOfIterations',
+            'NumberOfSpatialSamples',
+            'NumberOfHistogramBins',
+            'NumberOfSamplesForExactGradient'
+        ]
+    )
+
+    max_iterations = 16
+
+    do_parameter_search(
+        out_dirpath,
+        parameter_dict,
+        parameter_groups,
+        current_parameters,
+        pre_aligned_stack,
+        roi,
+        max_iterations=max_iterations
+    )
+
+
 if __name__ == '__main__':
 
-    search_02()
+    search_03()
