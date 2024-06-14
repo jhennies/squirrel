@@ -327,9 +327,17 @@ def stack_alignment_validation_workflow(
         rois,
         key='data',
         pattern='*.tif',
-        resolution_yx=(0.01, 0.01),
+        resolution_yx=(1.0, 1.0),
         verbose=False
 ):
+
+    if verbose:
+        print(f'stack = {stack}')
+        print(f'out_dirpath = {out_dirpath}')
+        print(f'rois = {rois}')
+        print(f'key = {key}')
+        print(f'pattern = {pattern}')
+        print(f'resolution_yx = {resolution_yx}')
 
     from squirrel.library.io import load_data_handle
     from squirrel.library.elastix import register_with_elastix
@@ -368,7 +376,7 @@ def stack_alignment_validation_workflow(
         # TODO Plot and save results
         # transforms.tofile(out_filepath)
         plt.plot(np.sqrt(translations[:, 0] ** 2 + translations[:, 1] ** 2))
-    plt.ylim(ymin=0, ymax=1)
+    plt.ylim(ymin=0, ymax=None)
     plt.show()
 
 

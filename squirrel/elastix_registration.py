@@ -311,7 +311,59 @@ def elastix_stack_alignment():
     )
 
 
+def stack_alignment_validation():
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Validation of a stack alignment',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('stack', type=str,
+                        help='Input filepath for the image stack (h5 or tif stack)')
+    parser.add_argument('out_dirpath', type=str,
+                        help='Output directory path for the result plots')
+    parser.add_argument('rois', nargs='+', type=str,
+                        help='Define one or multiple regions for validation in pixels\n'
+                             'Format: "z,y,x,d,h,w"\n'
+                             'Use "0" to denote an entire axis, e.g.: "0,100,200,0,64,64" will grab a 64^2 region '
+                             '  along the entire z-axis')
+    parser.add_argument('--key', type=str, default='data',
+                        help='Internal path of the input; default="data"; used if stack is h5 file')
+    parser.add_argument('--pattern', type=str, default='*.tif',
+                        help='Used to glob tif files from a tif stack folder; default="*.tif"')
+    parser.add_argument('--resolution_yx', type=float, nargs=2, default=(1.0, 1.0),
+                        help='xy-resolution used to properly plot the results. Default=(1.0, 1.0)')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    stack = args.stack
+    out_dirpath = args.out_dirpath
+    rois = args.rois
+    key = args.key
+    pattern = args.pattern
+    resolution_yx = args.resolution_yx
+    verbose = args.verbose
+
+    from squirrel.workflows.elastix import stack_alignment_validation_workflow
+
+    from squirrel.library.string_conversion import str2values
+    from squirrel.library.rois import list2roi
+    rois = [list2roi(str2values(roi, dtype='int')) for roi in rois]
+
+    stack_alignment_validation_workflow(
+        stack,
+        out_dirpath,
+        rois,
+        key=key,
+        pattern=pattern,
+        resolution_yx=resolution_yx,
+        verbose=verbose,
+    )
+
+
 if __name__ == '__main__':
 
     # elastix_stack_alignment()
     amst()
+    # stack_alignment_validation()

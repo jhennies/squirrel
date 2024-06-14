@@ -7,24 +7,42 @@ def get_default_parameters():
     from SimpleITK import ParameterMap
     ParameterMap()
     from SimpleITK import GetDefaultParameterMap
+    # parameter_map = GetDefaultParameterMap(
+    #     'affine', numberOfResolutions=2, finalGridSpacingInPhysicalUnits=8.0
+    # )
+    # parameter_map['AutomaticParameterEstimation'] = ('true',)
+    # parameter_map['Interpolator'] = ('BSplineInterpolator',)
+    # parameter_map['FixedImagePyramid'] = ('FixedRecursiveImagePyramid',)
+    # parameter_map['MovingImagePyramid'] = ('MovingRecursiveImagePyramid',)
+    # parameter_map['AutomaticScalesEstimation'] = ('true',)
+    # # parameter_map['ImagePyramidSchedule'] = ('8', '8', '3', '3', '1', '1')
+    # parameter_map['MaximumNumberOfIterations'] = ('1024',)
+    # # parameter_map['MaximumStepLength'] = ('4', '2', '1')
+    # parameter_map['ImageSampler'] = ('RandomCoordinate',)
+    # parameter_map['ErodeMask'] = ('true',)
+    # parameter_map['NumberOfSpatialSamples'] = ('1024',)
+    # parameter_map['NumberOfHistogramBins'] = ('48',)
+    # parameter_map['BSplineInterpolationOrder'] = ('3',)
+    # # parameter_map['ResampleInterpolator'] = ('FinalBSplineInterpolator',)
+    # parameter_map['NumberOfSamplesForExactGradient'] = ('1024',)
     parameter_map = GetDefaultParameterMap(
-        'affine', numberOfResolutions=2, finalGridSpacingInPhysicalUnits=8.0
+        'affine', numberOfResolutions=4, finalGridSpacingInPhysicalUnits=8.0
     )
     parameter_map['AutomaticParameterEstimation'] = ('true',)
     parameter_map['Interpolator'] = ('BSplineInterpolator',)
+    parameter_map['ResampleInterpolator'] = ('FinalBSplineInterpolator',)
     parameter_map['FixedImagePyramid'] = ('FixedRecursiveImagePyramid',)
     parameter_map['MovingImagePyramid'] = ('MovingRecursiveImagePyramid',)
-    parameter_map['AutomaticScalesEstimation'] = ('true',)
-    # parameter_map['ImagePyramidSchedule'] = ('8', '8', '3', '3', '1', '1')
-    parameter_map['MaximumNumberOfIterations'] = ('1024',)
-    # parameter_map['MaximumStepLength'] = ('4', '2', '1')
-    parameter_map['ImageSampler'] = ('RandomCoordinate',)
+    parameter_map['AutomaticScalesEstimation'] = ('false',)
+    # # parameter_map['ImagePyramidSchedule'] = ('8', '8', '3', '3', '1', '1')
+    parameter_map['MaximumNumberOfIterations'] = ('256',)
+    # # parameter_map['MaximumStepLength'] = ('4', '2', '1')
+    # parameter_map['ImageSampler'] = ('RandomCoordinate',)
     parameter_map['ErodeMask'] = ('true',)
-    parameter_map['NumberOfSpatialSamples'] = ('1024',)
-    parameter_map['NumberOfHistogramBins'] = ('48',)
-    parameter_map['BSplineInterpolationOrder'] = ('3',)
-    # parameter_map['ResampleInterpolator'] = ('FinalBSplineInterpolator',)
-    parameter_map['NumberOfSamplesForExactGradient'] = ('1024',)
+    # parameter_map['NumberOfSpatialSamples'] = ('2048',)
+    parameter_map['NumberOfHistogramBins'] = ('32',)
+    parameter_map['BSplineInterpolationOrder'] = ('1',)
+    # parameter_map['NumberOfSamplesForExactGradient'] = ('1024',)
     return parameter_map
 
 
@@ -36,7 +54,7 @@ def amst_workflow(
         pre_align_pattern='*.tif',
         transform=None,
         auto_mask_off=False,
-        median_radius=4,
+        median_radius=7,
         z_range=None,
         elastix_parameters=get_default_parameters(),
         quiet=False,
@@ -94,11 +112,15 @@ def amst_workflow(
         automatic_transform_initialization=False,
         out_dir=None,
         auto_mask=not auto_mask_off,
-        return_result_image=False,
+        return_result_image=True,
         pre_fix_big_jumps=False,
         parameter_map=elastix_parameters,
         quiet=quiet,
         verbose=verbose
     )
+
+    # from h5py import File
+    # with File('/media/julian/Data/projects/hennies/amst_devel/amst_stack.h5', mode='w') as f:
+    #     f.create_dataset('mask', data=np.array(result_stack).astype('uint8'), compression='gzip')
 
     result_transforms.to_file(out_filepath)

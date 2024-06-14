@@ -177,7 +177,7 @@ def register_with_elastix(
             max(bounds_moving[2], bounds_fixed[2]),
             max(bounds_moving[3], bounds_fixed[3])
         ]).astype(int)
-        # bounds_offset = bounds_total[:2]
+        bounds_offset = bounds_total[:2]
         bounds = np.s_[bounds_total[0]: bounds_total[2], bounds_total[1]: bounds_total[3]]
         fixed_image = fixed_image[bounds]
         moving_image = moving_image[bounds]
@@ -258,22 +258,24 @@ def register_with_elastix(
     elastix_transform_param_map = elastixImageFilter.GetTransformParameterMap()[0]
     result_transform_parameters = elastix_transform_param_map['TransformParameters']
     try:
-        pivot = [float(x) for x in elastix_transform_param_map['CenterOfRotationPoint']]
+        pivot = np.array([float(x) for x in elastix_transform_param_map['CenterOfRotationPoint']])[::-1]
     except IndexError:
-        pivot = [0., 0.]
+        pivot = np.array([0., 0.])
+    pivot += bounds_offset
 
     from ..library.affine_matrices import AffineMatrix
     result_matrix = AffineMatrix(
-        elastix_parameters=[transform, [float(x) for x in result_transform_parameters]],
-        pivot=pivot
+        elastix_parameters=[transform, [float(x) for x in result_transform_parameters]]
     )
+    result_matrix = result_matrix * -AffineMatrix(parameters=[1., 0., pre_fix_offsets[0], 0., 1., pre_fix_offsets[1]])
+    result_matrix.set_pivot(pivot)
+    # result_matrix = result_matrix * AffineMatrix(parameters=[1., 0., bounds_offset[0], 0., 1., bounds_offset[1]])
+
     if params_to_origin:
         if verbose:
             print(f'shifting params to origin')
             print(f'result_matrix.get_pivot() = {result_matrix.get_pivot()}')
         result_matrix.shift_pivot_to_origin()
-    result_matrix = result_matrix * -AffineMatrix(parameters=[1., 0., pre_fix_offsets[0], 0., 1., pre_fix_offsets[1]])
-    # result_matrix = result_matrix * AffineMatrix(parameters=[1., 0., bounds_offset[0], 0., 1., bounds_offset[1]])
 
     return result_matrix, result_image
 

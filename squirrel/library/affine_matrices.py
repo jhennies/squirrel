@@ -157,6 +157,9 @@ class AffineStack:
             self._append_meta(other)
             return
         if isinstance(other, AffineMatrix):
+            if (self.get_pivot() != other.get_pivot()).any():
+                if len(self) == 0:
+                    self.set_pivot(other.get_pivot())
             assert (self.get_pivot() == other.get_pivot()).all(), f'{self.get_pivot()} != {other.get_pivot()}'
             self.set_from_stack(self[:] + [other], is_sequenced=self.is_sequenced, pivot=self.get_pivot())
 
@@ -200,6 +203,8 @@ class AffineStack:
         )
 
     def __len__(self):
+        if self._stack is None:
+            return 0
         return len(self._stack)
 
     def __iter__(self):
