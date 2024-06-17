@@ -1,3 +1,4 @@
+import os.path
 
 import numpy as np
 
@@ -472,73 +473,65 @@ def apply_rotation_and_scale_from_transform_stack(
     )
 
 
-def apply_stack_alignment_on_volume(
+def apply_stack_alignment_on_volume_workflow(
         stack,
         transform_filepath,
         out_filepath,
         key='data',
         pattern='*.tif',
         no_adding_of_transforms=False,
-        xy_pivot=(0., 0.),
+        auto_pad=False,
+        z_range=None,
+        stack_shape=None,
+        n_workers=1,
+        quiet=False,
         verbose=False,
 ):
 
-    from squirrel.library.io import load_data_handle, load_data_from_handle_stack, write_h5_container
-    from squirrel.library.elastix import save_transforms
-    from squirrel.library.transformation import validate_and_reshape_matrix
-    from squirrel.library.transformation import apply_affine_transform
-    import json
+    from squirrel.library.io import load_data_handle, write_h5_container
+    from squirrel.library.transformation import apply_stack_alignment
+    from squirrel.library.affine_matrices import AffineMatrix, AffineStack
 
-    stack, stack_size = load_data_handle(stack, key=key, pattern=pattern)
-    with open(transform_filepath, mode='r') as f:
-        transforms = json.load(f)
+    transforms = AffineStack(filepath=transform_filepath)
+    if verbose:
+        print(f'is_sequenced = {transforms.is_sequenced}')
+    if not transforms.is_sequenced and not no_adding_of_transforms:
+        if verbose:
+            print(f'Sequencing stack!')
+        transforms = transforms.get_sequenced_stack()
 
-    transform = None
-
-    result_volume = []
-
-    for idx in range(0, stack_size):
-        # for idx in range(0, 10):
-
-        z_slice = load_data_from_handle_stack(stack, idx)
-        this_transform = save_transforms(
-            transforms[idx],
-            None,
-            param_order='C',
-            save_order='M',
-            ndim=2,
-            verbose=verbose
+    if stack_shape is None:
+        stack_h, stack_shape = load_data_handle(stack, key=key, pattern=pattern)
+    else:
+        assert not auto_pad, "Don't supply a stack shape if auto padding will be performed!"
+        stack_h, _ = load_data_handle(stack, key=key, pattern=pattern)
+    stack_len = stack_shape[0]
+    if z_range is not None:
+        stack_len = z_range[1] - z_range[0]
+    if verbose:
+        print(f'transforms = {transforms["M", :]}')
+    if auto_pad:
+        from squirrel.library.image import get_bounds_of_stack, apply_auto_pad
+        stack_bounds = get_bounds_of_stack(stack_h, stack_shape, return_ints=True, z_range=z_range)
+        if verbose:
+            print(f'stack_bounds = {stack_bounds}')
+        transforms, stack_shape = apply_auto_pad(
+            transforms, [stack_len, *stack_shape[1:]], stack_bounds, extra_padding=16
         )
         if verbose:
-            print(f'this_transform = {this_transform}')
-        this_transform = validate_and_reshape_matrix(
-            this_transform, ndim=2
-        )
+            print(f'transforms = {transforms["M", :]}')
+            print(f'stack_shape = {stack_shape}')
 
-        # pivot_matrix = np.array([
-        #     [1., 0., xy_pivot[0]],
-        #     [0., 1., xy_pivot[1]],
-        #     [0., 0., 1.]
-        # ])
-        # this_transform = np.dot(
-        #     this_transform,
-        #     pivot_matrix
-        # )
-
-        if idx > 0 and not no_adding_of_transforms:
-            transform = np.dot(this_transform, transform)
-        else:
-            transform = this_transform
-
-        result_volume.append(
-            apply_affine_transform(
-                z_slice, transform,
-                pivot=xy_pivot,
-                verbose=verbose
-            )
-        )
-
-    result_volume = np.array(result_volume)
+    result_volume = apply_stack_alignment(
+        stack_h,
+        stack_shape,
+        transforms,
+        no_adding_of_transforms=True,
+        z_range=z_range,
+        n_workers=n_workers,
+        quiet=quiet,
+        verbose=verbose
+    )
 
     write_h5_container(out_filepath, result_volume)
 
@@ -547,37 +540,32 @@ def dot_product_on_affines_workflow(
         transform_filepaths,
         out_filepath,
         inverse=(0, 0),
+        keep_meta=None,
         verbose=False
 ):
 
-    from ..library.elastix import save_transforms
-    from ..library.transformation import load_transform_matrices
-
-    transforms_a = np.array(load_transform_matrices(transform_filepaths[0], validate=True, ndim=2))
-    transforms_b = np.array(load_transform_matrices(transform_filepaths[1], validate=True, ndim=2))
-
     if verbose:
-        print(f'transforms_a.shape = {transforms_a.shape}')
-        print(f'transforms_b.shape = {transforms_b.shape}')
-    # assert transforms_a.shape == transforms_b.shape, \
-    #     f'Shapes of the transform sequences have to match: {transforms_a.shape} != {transforms_b.shape}'
-    n_transforms = min(len(transforms_a), len(transforms_b))
+        print(f'transform_filepaths = {transform_filepaths}')
+        print(f'out_filepath = {out_filepath}')
+        print(f'inverse = {inverse}')
+        print(f'keep_meta = {keep_meta}')
 
-    result_transforms = []
-    for idx in range(n_transforms):
-        transform_a = np.linalg.inv(transforms_a[idx]) if inverse[0] else transforms_a[idx]
-        transform_b = np.linalg.inv(transforms_b[idx]) if inverse[1] else transforms_b[idx]
-        result_transforms.append(np.dot(transform_a, transform_b))
+    from ..library.affine_matrices import AffineStack
 
-    # Prepare for saving
     transforms = [
-        save_transforms(x, None, param_order='M', save_order='C', ndim=2)[:6].tolist()
-        for x in result_transforms
+        AffineStack(filepath=transform_filepaths[0]),
+        AffineStack(filepath=transform_filepaths[1])
     ]
 
-    import json
-    with open(out_filepath, mode='w') as f:
-        json.dump(transforms, f, indent=2)
+    if inverse[0]:
+        transforms[0] = -transforms[0]
+    if inverse[1]:
+        transforms[1] = -transforms[1]
+    out_transforms = transforms[0] * transforms[1]
+    if keep_meta is not None:
+        out_transforms.set_meta(data=transforms[keep_meta].get_meta())
+
+    out_transforms.to_file(out_filepath)
 
 
 def scale_sequential_affines_workflow(
@@ -587,7 +575,7 @@ def scale_sequential_affines_workflow(
         xy_pivot=(0., 0.),
         verbose=False
 ):
-    from ..library.transformation import load_transform_matrices
+    from ..library.transformation import load_transform_matrices, scale_sequential_affines
     from ..library.elastix import save_transforms
     transforms = np.array(load_transform_matrices(transform_filepath, validate=True, ndim=2))
 
@@ -595,29 +583,7 @@ def scale_sequential_affines_workflow(
         print(f'scale = {scale}')
         print(f'transforms.shape = {transforms.shape}')
 
-    for idx, transform in enumerate(transforms):
-        # # Translations are stored in pixels so need to be adjusted
-        transform[:, 2] = transform[:, 2] * scale
-        # Move the pivot according to the scale
-        pivot_matrix = np.array([
-            [1., 0., xy_pivot[0]],
-            [0., 1., xy_pivot[1]],
-            [0., 0., 1.]
-        ])
-        transform = np.dot(
-            transform,
-            pivot_matrix
-        )
-        pivot_matrix[:2, 2] *= scale
-        transform = np.dot(
-            np.linalg.inv(pivot_matrix),
-            transform
-        )
-        transforms[idx] = transform
-
-    # z-interpolation to extend the stack
-    from scipy.ndimage import zoom
-    transforms = zoom(transforms, (scale, 1., 1.), order=1)
+    transforms = scale_sequential_affines(transforms, scale, xy_pivot)
 
     if verbose:
         print(f'transforms.shape = {transforms.shape}')
@@ -630,49 +596,22 @@ def scale_sequential_affines_workflow(
         json.dump(transforms, f, indent=2)
 
 
-def apply_affine_sequence_workflow(
+def serialize_affine_sequence_workflow(
         transform_filepath,
         out_filepath,
         verbose=False
 ):
 
+    if os.path.exists(out_filepath):
+        print(f'Target file exists: {out_filepath}\nSkipping apply affine sequence workflow ...')
+        return None
+
     import json
     with open(transform_filepath, mode='r') as f:
         transforms = json.load(f)
 
-    from squirrel.library.elastix import save_transforms
-    from squirrel.library.transformation import validate_and_reshape_matrix
-
-    result_transforms = []
-    transform = None
-
-    for this_transform in transforms:
-
-        this_transform = save_transforms(
-            this_transform,
-            None,
-            param_order='C',
-            save_order='M',
-            ndim=2,
-            verbose=verbose
-        )
-        if verbose:
-            print(f'this_transform = {this_transform}')
-        this_transform = validate_and_reshape_matrix(
-            this_transform, ndim=2
-        )
-
-        if transform is not None:
-            transform = np.dot(this_transform, transform)
-        else:
-            transform = this_transform
-
-        result_transforms.append(
-            save_transforms(
-                transform, None,
-                param_order='M', save_order='C', ndim=2, verbose=verbose
-            )[:6].tolist()
-        )
+    from squirrel.library.transformation import sequence_affine_stack
+    result_transforms = sequence_affine_stack(transforms, verbose=verbose)
 
     with open(out_filepath, mode='w') as f:
         json.dump(result_transforms, f, indent=2)
@@ -682,28 +621,38 @@ def smooth_affine_sequence_workflow(
         transform_filepath,
         out_filepath,
         sigma,
+        components=None,
         verbose=False
 ):
 
-    import json
-    with open(transform_filepath, mode='r') as f:
-        transforms = np.array(json.load(f))
+    if components is not None:
+        raise NotImplementedError
 
-    from scipy.ndimage import gaussian_filter1d
-    from scipy.signal import medfilt
-    from ..library.transformation import smooth_2d_affine_sequence
+    from ..library.affine_matrices import AffineStack
 
-    # transforms = transforms.swapaxes(0, 1)
-    # for idx, x in enumerate(transforms):
-    #     transforms[idx] = gaussian_filter1d(x, sigma)
+    transforms = AffineStack(filepath=transform_filepath)
+    transforms = transforms.get_smoothed_stack(sigma)
+    transforms.to_file(out_filepath)
 
-    transforms = np.array(smooth_2d_affine_sequence(transforms, sigma))
-
-    # transforms = gaussian_filter1d(transforms, sigma, axis=0)
-    # transforms = np.array([medfilt(x) for x in transforms.swapaxes(0, 1)]).swapaxes(0, 1)
-
-    with open(out_filepath, mode='w') as f:
-        json.dump(transforms.tolist(), f, indent=2)
+    # import json
+    # with open(transform_filepath, mode='r') as f:
+    #     transforms = np.array(json.load(f))
+    #
+    # from scipy.ndimage import gaussian_filter1d
+    # from scipy.signal import medfilt
+    # from ..library.transformation import smooth_2d_affine_sequence
+    #
+    # # transforms = transforms.swapaxes(0, 1)
+    # # for idx, x in enumerate(transforms):
+    # #     transforms[idx] = gaussian_filter1d(x, sigma)
+    #
+    # transforms = np.array(smooth_2d_affine_sequence(transforms, sigma, components=components))
+    #
+    # # transforms = gaussian_filter1d(transforms, sigma, axis=0)
+    # # transforms = np.array([medfilt(x) for x in transforms.swapaxes(0, 1)]).swapaxes(0, 1)
+    #
+    # with open(out_filepath, mode='w') as f:
+    #     json.dump(transforms.tolist(), f, indent=2)
 
 
 def inverse_of_sequence_workflow(
@@ -713,6 +662,7 @@ def inverse_of_sequence_workflow(
 ):
     from ..library.elastix import save_transforms
     from ..library.transformation import load_transform_matrices
+    from ..library.linalg import inverse_of_sequence
 
     transforms = np.array(load_transform_matrices(transform_filepath, validate=True, ndim=2))
 
@@ -721,9 +671,7 @@ def inverse_of_sequence_workflow(
     # assert transforms_a.shape == transforms_b.shape, \
     #     f'Shapes of the transform sequences have to match: {transforms_a.shape} != {transforms_b.shape}'
 
-    result_transforms = []
-    for idx, transform in enumerate(len(transforms)):
-        result_transforms.append(np.linalg.inv(transform))
+    result_transforms = inverse_of_sequence(transforms)
 
     # Prepare for saving
     transforms = [
@@ -734,4 +682,125 @@ def inverse_of_sequence_workflow(
     import json
     with open(out_filepath, mode='w') as f:
         json.dump(transforms, f, indent=2)
+
+
+def add_translational_drift_workflow(
+        transform_filepath,
+        out_filepath,
+        drift,
+        is_serialized=False,
+        verbose=False
+):
+
+    if verbose:
+        print(f'transform_filepath = {transform_filepath}')
+        print(f'out_filepath = {out_filepath}')
+        print(f'drift = {drift}')
+        print(f'is_serialized = {is_serialized}')
+
+    from ..library.affine_matrices import AffineStack
+
+    transforms = AffineStack(filepath=transform_filepath)
+
+    if transforms.is_sequenced:
+        transforms.add_to_translations([np.array(drift) * x for x in range(len(transforms))])
+    else:
+        transforms.add_to_translations(drift)
+
+    transforms.to_file(out_filepath)
+
+    # from ..library.elastix import save_transforms
+    # from ..library.transformation import load_transform_matrices, save_transformation_matrices
+    # transforms, sequenced = load_transform_matrices(transform_filepath, validate=True, ndim=2)
+    # transforms = np.array(transforms)
+    #
+    # if sequenced is not None:
+    #     is_serialized = sequenced
+    #
+    # if is_serialized:
+    #     drift = [np.array(drift) * x for x in range(len(transforms))]
+    # else:
+    #     drift = [drift] * len(transforms)
+    #
+    # for idx, transform in enumerate(transforms):
+    #     transforms[idx][:2, 2] += drift[idx]
+    #
+    # # Prepare for saving
+    # transforms = [
+    #     save_transforms(x, None, param_order='M', save_order='C', ndim=2)[:6].tolist()
+    #     for x in transforms
+    # ]
+    #
+    # save_transformation_matrices(out_filepath, transforms, sequenced=sequenced)
+    #
+    # # import json
+    # # with open(out_filepath, mode='w') as f:
+    # #     json.dump(transforms, f, indent=2)
+
+
+def modify_step_in_sequence_workflow(transform_filepath, out_filepath, idx, affine, replace=False, verbose=False):
+
+    if verbose:
+        print(f'transform_filepath = {transform_filepath}')
+        print(f'idx = {idx}')
+        print(f'affine = {affine}')
+        print(f'replace = {replace}')
+
+    from ..library.linalg import modify_step_in_sequence
+    from ..library.transformation import load_transform_matrices, save_transformation_matrices
+    from ..library.elastix import save_transforms
+
+    transforms, sequenced = load_transform_matrices(transform_filepath, validate=True, ndim=2)
+    transforms = modify_step_in_sequence(transforms, idx, affine, replace=replace)
+    save_transformation_matrices(
+        out_filepath,
+        save_transforms(transforms, None, param_order='M', save_order='C', ndim=2),
+        sequenced=sequenced
+    )
+
+
+def create_affine_sequence_workflow(out_filepath, length, verbose=False):
+
+    if verbose:
+        print(f'out_filepath = {out_filepath}')
+        print(f'length = {length}')
+
+    from ..library.linalg import create_affine_sequence
+    from ..library.transformation import save_transformation_matrices
+
+    transforms = create_affine_sequence(length)
+
+    save_transformation_matrices(out_filepath, transforms, sequenced=False)
+
+
+def apply_auto_pad_workflow(transform_filepath, out_filepath, verbose=False):
+
+    if verbose:
+        print(f'transform_filepath = {transform_filepath}')
+        print(f'out_filepath = {out_filepath}')
+
+    from squirrel.library.image import apply_auto_pad
+    from squirrel.library.affine_matrices import AffineStack
+
+    transforms = AffineStack(filepath=transform_filepath)
+    transforms, stack_shape = apply_auto_pad(
+        transforms, [len(transforms), 0, 0], transforms.get_meta('bounds'), extra_padding=16
+    )
+    transforms.set_meta('stack_shape', stack_shape)
+    transforms.to_file(out_filepath)
+
+
+def crop_transform_sequence_workflow(transform_filepath, out_filepath, z_range, verbose=False):
+
+    if verbose:
+        print(f'transform_filepath = {transform_filepath}')
+        print(f'out_filepath = {out_filepath}')
+        print(f'z_range = {z_range}')
+
+    from squirrel.library.affine_matrices import AffineStack
+    stack = AffineStack(filepath=transform_filepath)
+    out_stack = stack.new_stack_with_same_meta(stack[z_range[0]: z_range[1]])
+
+    out_stack.to_file(out_filepath)
+
 

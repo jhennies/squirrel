@@ -1,19 +1,19 @@
 
-import SimpleITK
 import numpy as np
 import os
 
 
-def _load_data(filepath, key='data'):
-
-    from ..library.io import get_filetype
-
-    if get_filetype(filepath) == 'h5':
-        from ..library.io import load_h5_container
-        return load_h5_container(filepath, key)
-    if get_filetype(filepath) == 'nii':
-        from ..library.io import load_nii_file
-        return load_nii_file(filepath)
+# NOTE: deprecated
+# def _load_data(filepath, key='data'):
+#
+#     from ..library.io import get_filetype
+#
+#     if get_filetype(filepath) == 'h5':
+#         from ..library.io import load_h5_container
+#         return load_h5_container(filepath, key)
+#     if get_filetype(filepath) == 'nii':
+#         from ..library.io import load_nii_file
+#         return load_nii_file(filepath)
 
 
 def elastix3d(
@@ -172,29 +172,41 @@ def register_z_chunks(
         )
 
 
-def slices_to_volume(
-        moving_filepath,
-        fixed_filepath,
+def slices_to_volume(*args, **kwargs):
+    raise RuntimeError('This function was renamed, please use "slice_wise_stack_to_stack_alignment_workflow!"')
+
+
+def slice_wise_stack_to_stack_alignment_workflow(
+        moving_path,
+        fixed_path,
         out_filepath,
         moving_key='data',
         fixed_key='data',
-        z_chunk_size=16,
+        moving_pattern='*.tif',
+        fixed_pattern='*.tif',
         transform='affine',
         automatic_transform_initialization=False,
+        auto_mask=False,
+        number_of_spatial_samples=None,
+        maximum_number_of_iterations=None,
+        number_of_resolutions=None,
+        pre_fix_big_jumps=False,
+        z_range=None,
         verbose=False
 ):
 
-    from ..library.elastix import register_with_elastix, save_transforms
-    from ..library.io import write_h5_container
-    from ..library.io import make_directory
+    from ..library.io import write_h5_container, make_directory, load_data_handle
+    from ..library.elastix import slice_wise_stack_to_stack_alignment
 
     out_basename = os.path.splitext(out_filepath)[0]
 
     elastix_cache = out_basename + '.elastix_cache'
     make_directory(elastix_cache, exist_ok=True)
 
-    fixed_volume = _load_data(fixed_filepath, key=fixed_key)
-    moving_volume = _load_data(moving_filepath, key=moving_key)
+    fixed_handle, fixed_shape = load_data_handle(fixed_path, fixed_key, fixed_pattern)
+    moving_handle, moving_shape = load_data_handle(moving_path, moving_key, moving_pattern)
+    fixed_volume = fixed_handle[z_range[0]: z_range[1]]
+    moving_volume = moving_handle[z_range[0]: z_range[1]]
 
     def _cast_to_uint8(image):
         if image.dtype != 'uint8':
@@ -207,35 +219,22 @@ def slices_to_volume(
 
     assert fixed_volume.shape[0] >= moving_volume.shape[0]
 
-    result_volume = []
-    result_transforms = []
+    result_transforms, result_volume = slice_wise_stack_to_stack_alignment(
+        moving_volume,
+        fixed_volume,
+        transform=transform,
+        automatic_transform_initialization=automatic_transform_initialization,
+        out_dir=elastix_cache,
+        auto_mask=auto_mask,
+        number_of_spatial_samples=number_of_spatial_samples,
+        maximum_number_of_iterations=maximum_number_of_iterations,
+        number_of_resolutions=number_of_resolutions,
+        return_result_image=True,
+        pre_fix_big_jumps=pre_fix_big_jumps,
+        verbose=verbose
+    )
 
-    for zidx, z_slice_moving in enumerate(moving_volume):
-
-        z_slice_fixed = fixed_volume[zidx]
-
-        result_dict = register_with_elastix(
-            z_slice_fixed, z_slice_moving,
-            transform=transform,
-            automatic_transform_initialization=automatic_transform_initialization,
-            out_dir=elastix_cache,
-            params_to_origin=True,
-            verbose=verbose
-        )
-
-        result_volume.append(result_dict['result_image'])
-        result_transforms.append(
-            save_transforms(
-                result_dict['affine_parameters'], None,
-                param_order='M', save_order='C', ndim=2, verbose=verbose
-            ).tolist()
-        )
-        # result_transforms.append(result_dict['affine_parameters'][:2])
-
-    import json
-    with open(out_basename + '.json', mode='w') as f:
-        json.dump(result_transforms, f, indent=2)
-
+    result_transforms.to_file(out_basename + '.json')
     write_h5_container(out_filepath, np.array(result_volume), key='data', append=False)
 
 
@@ -245,43 +244,153 @@ def elastix_stack_alignment_workflow(
         transform='translation',
         key='data',
         pattern='*.tif',
+        auto_mask=False,
+        number_of_spatial_samples=None,
+        maximum_number_of_iterations=None,
+        number_of_resolutions=None,
+        pre_fix_big_jumps=False,
+        pre_fix_iou_thresh=0.5,
+        gaussian_sigma=0.,
+        z_range=None,
+        z_step=1,
+        determine_bounds=False,
+        parameter_map=None,
+        quiet=False,
+        overwrite=False,
         verbose=False
 ):
 
-    from ..library.io import load_data_handle, load_data_from_handle_stack
+    if not overwrite and os.path.exists(out_filepath):
+        print(f'Target file exists: {out_filepath}\nSkipping elastix stack alignment workflow ...')
+        return
+
+    from ..library.io import load_data_handle
     from ..library.elastix import register_with_elastix
-    from ..library.elastix import save_transforms
+    from ..library.affine_matrices import AffineMatrix, AffineStack
+    from ..library.data import norm_z_range
 
     stack, stack_size = load_data_handle(stack, key=key, pattern=pattern)
 
-    transforms = [
-        [1., 0., 0., 0., 1., 0.]
-    ]
+    transforms = AffineStack(is_sequenced=False, pivot=[0., 0.])
+    bounds = []
 
-    for idx in range(1, stack_size):
+    z_range = norm_z_range(z_range, stack_size[0])
 
-        z_slice_fixed = load_data_from_handle_stack(stack, idx - 1)
-        z_slice_moving = load_data_from_handle_stack(stack, idx)
+    for idx in range(*z_range, z_step):
+        if not quiet:
+            print(f'idx = {idx} / {z_range[1]}')
+        z_slice_moving = stack[idx]
 
-        transform_params = register_with_elastix(
-            z_slice_fixed,
-            z_slice_moving,
-            transform=transform,
-            automatic_transform_initialization=False,
-            params_to_origin=True,
-            verbose=verbose
-        )['affine_parameters']
+        if idx == 0:
+            transforms.append(AffineMatrix([1., 0., 0., 0., 1., 0.], pivot=[0., 0.]))
+        else:
 
-        transforms.append(
-            save_transforms(
-                transform_params, None,
-                param_order='M',
-                save_order='C',
-                ndim=2,
+            z_slice_fixed = stack[idx - z_step]
+
+            result_matrix, _ = register_with_elastix(
+                z_slice_fixed,
+                z_slice_moving,
+                transform=transform,
+                automatic_transform_initialization=False,
+                auto_mask=auto_mask,
+                number_of_spatial_samples=number_of_spatial_samples,
+                maximum_number_of_iterations=maximum_number_of_iterations,
+                number_of_resolutions=number_of_resolutions,
+                pre_fix_big_jumps=pre_fix_big_jumps,
+                pre_fix_iou_thresh=pre_fix_iou_thresh,
+                return_result_image=False,
+                params_to_origin=True,
+                gaussian_sigma=gaussian_sigma,
                 verbose=verbose
-            ).tolist()
-        )
+            )
+            transforms.append(result_matrix)
 
-    import json
-    with open(out_filepath, mode='w') as f:
-        json.dump(transforms, f, indent=2)
+        # FIXME: This is already performed inside register_with_elastix if auto_mask is on
+        if determine_bounds:
+            from ..library.image import get_bounds
+            bounds.append(get_bounds(z_slice_moving, return_ints=True))
+
+    if z_step > 1:
+        # transforms = transforms.get_sequenced_stack()
+        # transforms = transforms.get_interpolated(z_step)
+        transforms.set_meta('z_step', z_step)
+
+    if determine_bounds:
+        assert len(transforms) == len(bounds)
+        transforms.set_meta('bounds', np.array(bounds))
+    transforms.to_file(out_filepath)
+
+
+def stack_alignment_validation_workflow(
+        stack,
+        out_dirpath,
+        rois,
+        key='data',
+        pattern='*.tif',
+        resolution_yx=(1.0, 1.0),
+        verbose=False
+):
+
+    if verbose:
+        print(f'stack = {stack}')
+        print(f'out_dirpath = {out_dirpath}')
+        print(f'rois = {rois}')
+        print(f'key = {key}')
+        print(f'pattern = {pattern}')
+        print(f'resolution_yx = {resolution_yx}')
+
+    from squirrel.library.io import load_data_handle
+    from squirrel.library.elastix import register_with_elastix
+    from squirrel.library.affine_matrices import AffineStack
+    from matplotlib import pyplot as plt
+
+    stack, stack_size = load_data_handle(stack, key=key, pattern=pattern)
+
+    for roi in rois:
+
+        roi_data = stack[roi]
+        transforms = AffineStack(is_sequenced=False, pivot=[0., 0.])
+
+        for idx in range(len(roi_data) - 1):
+
+            z_slice_fixed = roi_data[idx]
+            z_slice_moving = roi_data[idx + 1]
+
+            result_matrix, _ = register_with_elastix(
+                z_slice_fixed,
+                z_slice_moving,
+                transform='translation',
+                automatic_transform_initialization=False,
+                auto_mask=False,
+                number_of_spatial_samples=256,
+                maximum_number_of_iterations=256,
+                number_of_resolutions=1,
+                pre_fix_big_jumps=False,
+                return_result_image=False,
+                params_to_origin=True,
+                verbose=verbose
+            )
+            transforms.append(result_matrix)
+
+        translations = np.array(transforms.get_translations()) * resolution_yx
+        # TODO Plot and save results
+        # transforms.tofile(out_filepath)
+        plt.plot(np.sqrt(translations[:, 0] ** 2 + translations[:, 1] ** 2))
+    plt.ylim(ymin=0, ymax=None)
+    plt.show()
+
+
+if __name__ == '__main__':
+    stack_alignment_validation_workflow(
+        '/media/julian/Data/projects/kors/align/4T/amst_parameter_test/pre_align/pre-align.ome.zarr',
+        # '/media/julian/Data/projects/kors/align/4T/amst_parameter_test/amst_results_02/amst-0001-ref.h5',
+        None,
+        [
+            np.s_[:, 330: 458, 2518: 2646],  # Right edge
+            np.s_[:, 386: 514, 440: 568],  # Left edge
+            np.s_[:, 650: 778, 1640: 1768]  # Bottom
+        ],
+        key='s0',
+        # key='data',
+        resolution_yx=[1, 1]
+    )

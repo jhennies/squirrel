@@ -35,15 +35,21 @@ mamba install -c conda-forge nibabel
 mamba install -c conda-forge napari pyqt
 ```
 
-
-### Simple Elastix for registration
+### For registration
 ```
 pip install SimpleITK-SimpleElastix
+pip install transforms3d
 ```
+also install OpenCV (see below)
 
 ### OpenCV for 2D SIFT 
 ```
 mamba install -c conda-forge opencv
+```
+
+### For ome.zarr support
+```
+mamba install -c conda-forge zarr
 ```
 
 ## Usage

@@ -14,11 +14,13 @@ requirements:
     - numpy
     - h5py
     - tifffile
+    - scipy
   run:
     - python
     - numpy
     - h5py
     - tifffile
+    - scipy
 
 test:
   imports:

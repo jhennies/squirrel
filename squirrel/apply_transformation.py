@@ -69,8 +69,14 @@ def apply_stack_alignment():
     parser.add_argument('--no_adding_of_transforms', action='store_true',
                         help='By default each transformation is treated as the dot product of the previous.'
                              'If this flag is set, each transform is applied as it is')
-    parser.add_argument('--xy_pivot', nargs=2, type=float, default=(0., 0.),
-                        help='A pivot point of the 2D affine transformations')
+    parser.add_argument('--auto_pad', action='store_true',
+                        help='Automatically adjust the canvas size of the output stack to best fit the data')
+    parser.add_argument('--stack_shape', type=int, nargs=3, default=None,
+                        help='Pre-define a stack shape for the output stack; default=None')
+    parser.add_argument('--z_range', type=int, nargs=2, default=None,
+                        help='Use certain slices of the stack only; Defaults to the entire stack')
+    parser.add_argument('--n_workers', type=int, default=1,
+                        help='The number of cores to use for processing')
     parser.add_argument('-v', '--verbose', action='store_true')
 
     args = parser.parse_args()
@@ -80,18 +86,24 @@ def apply_stack_alignment():
     key = args.key
     pattern = args.pattern
     no_adding_of_transforms = args.no_adding_of_transforms
-    xy_pivot = args.xy_pivot
+    auto_pad = args.auto_pad
+    stack_shape = args.stack_shape
+    z_range = args.z_range
+    n_workers = args.n_workers
     verbose = args.verbose
 
-    from squirrel.workflows.transformation import apply_stack_alignment_on_volume
-    apply_stack_alignment_on_volume(
+    from squirrel.workflows.transformation import apply_stack_alignment_on_volume_workflow
+    apply_stack_alignment_on_volume_workflow(
         stack,
         transform_filepath,
         out_filepath,
         key=key,
         pattern=pattern,
         no_adding_of_transforms=no_adding_of_transforms,
-        xy_pivot=xy_pivot,
+        auto_pad=auto_pad,
+        stack_shape=stack_shape,
+        z_range=z_range,
+        n_workers=n_workers,
         verbose=verbose,
     )
 
@@ -303,6 +315,34 @@ def apply_rotation_and_scale():
         image_key=image_key,
         apply=apply,
         pivot=pivot,
+        verbose=verbose
+    )
+
+
+def apply_auto_pad():
+
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Computes auto-padding information for a stack of transformations.',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('transform_filepath', type=str,
+                        help='Json file containing the transformation')
+    parser.add_argument('out_filepath', type=str,
+                        help='Json file to which the result is saved')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    transform_filepath = args.transform_filepath
+    out_filepath = args.out_filepath
+    verbose = args.verbose
+
+    from squirrel.workflows.transformation import apply_auto_pad_workflow
+    apply_auto_pad_workflow(
+        transform_filepath,
+        out_filepath,
         verbose=verbose
     )
 
