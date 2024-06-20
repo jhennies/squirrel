@@ -2,7 +2,7 @@
 import numpy as np
 
 
-def get_default_parameters():
+def get_default_parameters(transform):
 
     from SimpleITK import ParameterMap
     ParameterMap()
@@ -25,25 +25,36 @@ def get_default_parameters():
     # parameter_map['BSplineInterpolationOrder'] = ('3',)
     # # parameter_map['ResampleInterpolator'] = ('FinalBSplineInterpolator',)
     # parameter_map['NumberOfSamplesForExactGradient'] = ('1024',)
-    parameter_map = GetDefaultParameterMap(
-        'affine', numberOfResolutions=4, finalGridSpacingInPhysicalUnits=8.0
-    )
-    parameter_map['AutomaticParameterEstimation'] = ('true',)
-    parameter_map['Interpolator'] = ('BSplineInterpolator',)
-    parameter_map['ResampleInterpolator'] = ('FinalBSplineInterpolator',)
-    parameter_map['FixedImagePyramid'] = ('FixedRecursiveImagePyramid',)
-    parameter_map['MovingImagePyramid'] = ('MovingRecursiveImagePyramid',)
-    parameter_map['AutomaticScalesEstimation'] = ('false',)
-    # # parameter_map['ImagePyramidSchedule'] = ('8', '8', '3', '3', '1', '1')
-    parameter_map['MaximumNumberOfIterations'] = ('256',)
-    # # parameter_map['MaximumStepLength'] = ('4', '2', '1')
-    # parameter_map['ImageSampler'] = ('RandomCoordinate',)
-    parameter_map['ErodeMask'] = ('true',)
-    # parameter_map['NumberOfSpatialSamples'] = ('2048',)
-    parameter_map['NumberOfHistogramBins'] = ('32',)
-    parameter_map['BSplineInterpolationOrder'] = ('1',)
-    # parameter_map['NumberOfSamplesForExactGradient'] = ('1024',)
-    return parameter_map
+    if transform == 'affine':
+        parameter_map = GetDefaultParameterMap(
+            transform, numberOfResolutions=4, finalGridSpacingInPhysicalUnits=8.0
+        )
+        parameter_map['AutomaticParameterEstimation'] = ('true',)
+        parameter_map['Interpolator'] = ('BSplineInterpolator',)
+        parameter_map['ResampleInterpolator'] = ('FinalBSplineInterpolator',)
+        parameter_map['FixedImagePyramid'] = ('FixedRecursiveImagePyramid',)
+        parameter_map['MovingImagePyramid'] = ('MovingRecursiveImagePyramid',)
+        parameter_map['AutomaticScalesEstimation'] = ('false',)
+        # # parameter_map['ImagePyramidSchedule'] = ('8', '8', '3', '3', '1', '1')
+        parameter_map['MaximumNumberOfIterations'] = ('256',)
+        # # parameter_map['MaximumStepLength'] = ('4', '2', '1')
+        # parameter_map['ImageSampler'] = ('RandomCoordinate',)
+        parameter_map['ErodeMask'] = ('true',)
+        # parameter_map['NumberOfSpatialSamples'] = ('2048',)
+        parameter_map['NumberOfHistogramBins'] = ('32',)
+        parameter_map['BSplineInterpolationOrder'] = ('1',)
+        # parameter_map['NumberOfSamplesForExactGradient'] = ('1024',)
+        return parameter_map
+    if transform == 'bspline':
+        parameter_map = GetDefaultParameterMap('bspline')
+        parameter_map['ErodeMask'] = ['true']
+        parameter_map['NumberOfHistogramBins'] = ['32']
+        parameter_map['AutomaticScalesEstimation'] = ['false']
+        parameter_map['FinalGridSpacingInPhysicalUnits'] = ['512']
+        parameter_map['MaximumNumberOfIterations'] = ['1024']
+        parameter_map['NumberOfSpatialSamples'] = ['4096']
+        parameter_map['NumberOfSamplesForExactGradient'] = ['8192']
+        return parameter_map
 
 
 def amst_workflow(
@@ -56,10 +67,19 @@ def amst_workflow(
         auto_mask_off=False,
         median_radius=7,
         z_range=None,
-        elastix_parameters=get_default_parameters(),
+        gaussian_sigma=0.,
+        elastix_parameters=None,
+        crop_to_bounds_off=False,
         quiet=False,
         verbose=False
 ):
+
+    if elastix_parameters is None:
+        elastix_parameters = get_default_parameters(transform)
+    elif type(elastix_parameters) == str:
+        from SimpleITK import ReadParameterFile
+        elastix_parameters = ReadParameterFile(elastix_parameters)
+    transform = elastix_parameters['Transform'][0]
 
     if verbose:
         print(f'pre_aligned_stack = {pre_aligned_stack}')
@@ -70,11 +90,19 @@ def amst_workflow(
         print(f'auto_mask_off={auto_mask_off}')
         print(f'median_radius = {median_radius}')
         print(f'z_range = {z_range}')
+        print(f'gaussian_sigma = {gaussian_sigma}')
+
+    if transform == 'BSplineTransform':
+        transform = 'bspline'
+    elif transform == 'AffineTransform':
+        transform = 'affine'
+    else:
+        raise ValueError(f'Invalid transform for AMST workflow: {transform}')
 
     if raw_stack is not None:
         raise NotImplementedError
-    if transform != 'affine':
-        raise NotImplementedError
+    if transform not in ['affine', 'bspline']:
+        raise NotImplementedError(f'Not implemented for transform = {transform}')
 
     # Load pre-alignment
 
@@ -115,12 +143,14 @@ def amst_workflow(
         return_result_image=True,
         pre_fix_big_jumps=False,
         parameter_map=elastix_parameters,
+        gaussian_sigma=gaussian_sigma,
+        crop_to_bounds_off=crop_to_bounds_off,
         quiet=quiet,
         verbose=verbose
     )
 
     # from h5py import File
-    # with File('/media/julian/Data/projects/hennies/amst_devel/amst_stack.h5', mode='w') as f:
-    #     f.create_dataset('mask', data=np.array(result_stack).astype('uint8'), compression='gzip')
+    # with File('/media/julian/Data/projects/hennies/amst_devel/amst_stack_elastic_ref.h5', mode='w') as f:
+    #     f.create_dataset('data', data=np.clip(np.array(result_stack), 0, 255).astype('uint8'), compression='gzip')
 
     result_transforms.to_file(out_filepath)

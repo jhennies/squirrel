@@ -1,15 +1,45 @@
-import SimpleITK as sitk
+import os
+
 import numpy as np
 
 
-def apply_transform(
+def apply_transforms_on_image(
         image,
-        transform,
+        transforms,
         verbose=False
 ):
-    # TODO Figure out a way to do this with Transformix
-    pass
 
+    import SimpleITK as sitk
+
+    txif = sitk.TransformixImageFilter()
+    for transform in transforms:
+        txif.AddTransformParameterMap(transform)
+    txif.SetMovingImage(sitk.GetImageFromArray(image))
+    txif.Execute()
+    result_final = sitk.GetArrayFromImage(txif.GetResultImage())
+    return result_final
+
+
+def apply_transforms_on_image_stack_slice(
+        image_stack_h,
+        image_idx,
+        transforms,
+        target_image_shape=None,
+        n_slices=None,
+        quiet=False,
+        verbose=False
+):
+    target_image_shape = image_stack_h[0].shape if target_image_shape is None else target_image_shape
+    if not quiet or verbose:
+        print(f'image_idx = {image_idx} / {n_slices}')
+
+    from squirrel.library.io import get_reshaped_data
+    z_slice = get_reshaped_data(image_stack_h, image_idx, target_image_shape)
+
+    return apply_transforms_on_image(
+        z_slice,
+        transforms
+    )[:target_image_shape[0], :target_image_shape[1]]
 
 # def save_transforms(parameters, out_filepath, param_order='M', save_order='M', ndim=3, verbose=False):
 #
@@ -138,8 +168,17 @@ def register_with_elastix(
         pre_fix_iou_thresh=0.5,
         parameter_map=None,
         gaussian_sigma=0.,
+        crop_to_bounds_off=False,
         verbose=False
 ):
+    import SimpleITK as sitk
+
+    # TODO: Properly expose crop_to_bounds independently of auto-masking
+    crop_to_bounds = auto_mask
+    if crop_to_bounds_off:
+        crop_to_bounds = False
+    if transform == 'bspline':
+        crop_to_bounds = False
 
     assert fixed_image.dtype == 'uint8'
     assert moving_image.dtype == 'uint8'
@@ -165,7 +204,7 @@ def register_with_elastix(
 
     mask = None
     bounds_offset = np.array([0., 0.])
-    if auto_mask:
+    if crop_to_bounds:
         if verbose:
             print(f'image shape before auto_mask: {fixed_image.shape}')
         from squirrel.library.image import get_bounds
@@ -181,6 +220,7 @@ def register_with_elastix(
         bounds = np.s_[bounds_total[0]: bounds_total[2], bounds_total[1]: bounds_total[3]]
         fixed_image = fixed_image[bounds]
         moving_image = moving_image[bounds]
+    if auto_mask:
         fixed_mask = make_auto_mask(fixed_image)
         moving_mask = make_auto_mask(moving_image)
         mask = fixed_mask * moving_mask
@@ -256,28 +296,34 @@ def register_with_elastix(
         result_image = sitk.GetArrayFromImage(elastixImageFilter.GetResultImage())
 
     elastix_transform_param_map = elastixImageFilter.GetTransformParameterMap()[0]
-    result_transform_parameters = elastix_transform_param_map['TransformParameters']
-    try:
-        pivot = np.array([float(x) for x in elastix_transform_param_map['CenterOfRotationPoint']])[::-1]
-    except IndexError:
-        pivot = np.array([0., 0.])
-    pivot += bounds_offset
 
-    from ..library.affine_matrices import AffineMatrix
-    result_matrix = AffineMatrix(
-        elastix_parameters=[transform, [float(x) for x in result_transform_parameters]]
-    )
-    result_matrix = result_matrix * -AffineMatrix(parameters=[1., 0., pre_fix_offsets[0], 0., 1., pre_fix_offsets[1]])
-    result_matrix.set_pivot(pivot)
-    # result_matrix = result_matrix * AffineMatrix(parameters=[1., 0., bounds_offset[0], 0., 1., bounds_offset[1]])
+    # Return an affine matrix object for any rigid or affine transformation
+    if transform != 'bspline':
+        result_transform_parameters = elastix_transform_param_map['TransformParameters']
+        try:
+            pivot = np.array([float(x) for x in elastix_transform_param_map['CenterOfRotationPoint']])[::-1]
+        except IndexError:
+            pivot = np.array([0., 0.])
+        pivot += bounds_offset
 
-    if params_to_origin:
-        if verbose:
-            print(f'shifting params to origin')
-            print(f'result_matrix.get_pivot() = {result_matrix.get_pivot()}')
-        result_matrix.shift_pivot_to_origin()
+        from ..library.affine_matrices import AffineMatrix
+        result_matrix = AffineMatrix(
+            elastix_parameters=[transform, [float(x) for x in result_transform_parameters]]
+        )
+        result_matrix = result_matrix * -AffineMatrix(parameters=[1., 0., pre_fix_offsets[0], 0., 1., pre_fix_offsets[1]])
+        result_matrix.set_pivot(pivot)
+        # result_matrix = result_matrix * AffineMatrix(parameters=[1., 0., bounds_offset[0], 0., 1., bounds_offset[1]])
 
-    return result_matrix, result_image
+        if params_to_origin:
+            if verbose:
+                print(f'shifting params to origin')
+                print(f'result_matrix.get_pivot() = {result_matrix.get_pivot()}')
+            result_matrix.shift_pivot_to_origin()
+
+        return result_matrix, result_image
+
+    # Return the elastix parameters for non-rigid registration
+    return elastix_transform_param_map, result_image
 
     # if transform == 'translation':
     #
@@ -365,19 +411,26 @@ def slice_wise_stack_to_stack_alignment(
         automatic_transform_initialization=False,
         out_dir=None,
         auto_mask=False,
+        gaussian_sigma=0.,
         number_of_spatial_samples=None,
         maximum_number_of_iterations=None,
         number_of_resolutions=None,
         return_result_image=False,
         pre_fix_big_jumps=False,
         parameter_map=None,
+        crop_to_bounds_off=False,
         quiet=False,
         verbose=False
 ):
 
-    from ..library.affine_matrices import AffineStack
+    if transform in ['translation', 'affine']:
+        from ..library.affine_matrices import AffineStack
+        result_transforms = AffineStack(is_sequenced=True, pivot=[0., 0.])
+    elif transform == 'bspline':
+        result_transforms = ElastixStack()
+    else:
+        raise ValueError(f'Invalid transform: {transform}')
     result_stack = []
-    result_transforms = AffineStack(is_sequenced=True, pivot=[0., 0.])
 
     for zidx, z_slice_moving in enumerate(moving_stack):
         if not quiet:
@@ -396,9 +449,12 @@ def slice_wise_stack_to_stack_alignment(
             return_result_image=return_result_image,
             pre_fix_big_jumps=pre_fix_big_jumps,
             parameter_map=parameter_map,
+            gaussian_sigma=gaussian_sigma,
+            crop_to_bounds_off=crop_to_bounds_off,
             verbose=verbose
         )
-        result_matrix.shift_pivot_to_origin()
+        if transform != 'bspline':
+            result_matrix.shift_pivot_to_origin()
 
         if result_image is not None:
             result_stack.append(result_image)
@@ -453,3 +509,216 @@ def elastix_to_c(transform, parameters):
     if func is None:
         raise ValueError(f'Invalid transform: {transform}')
     return func(parameters)
+
+def c_to_elastix(parameters):
+    parameters = np.array(parameters)
+
+    ndim = 0
+    if len(parameters) == 6:
+        ndim = 2
+    if len(parameters) == 12:
+        ndim = 3
+    assert ndim in [2, 3], f'Invalid parameters: {parameters}'
+
+    out_parameters = np.zeros(parameters.shape, dtype=parameters.dtype)
+
+    pr = np.array([parameters[((ndim + 1) * idx): ((ndim + 1) * (idx + 1))] for idx in range(ndim)])
+    out_parameters[: ndim ** 2] = pr[:, :ndim].flatten()[::-1]
+    out_parameters[ndim ** 2:] = pr[:, ndim][::-1]
+
+    return out_parameters
+
+
+class ElastixStack:
+
+    def __init__(
+            self,
+            stack=None,
+            dirpath=None,
+            pattern='*.txt',
+            image_shape=None
+    ):
+        self._dirpath = None
+        self._pattern = None
+        self._stack = None
+        self._it = 0
+        if stack is not None:
+            self.set_from_stack(stack, image_shape=image_shape)
+        if dirpath is not None:
+            self.set_from_dir(dirpath, pattern)
+
+    def set_from_stack(self, stack, image_shape=None):
+        # assert type(stack) is list or type(stack) is tuple, 'Only accepting lists or tuples'
+        from SimpleITK import ParameterMap
+        if isinstance(stack[0], ParameterMap):
+            self._stack = list(stack)
+            return
+        from squirrel.library.affine_matrices import AffineStack
+        if isinstance(stack, AffineStack):
+            self._stack = [
+                x.to_elastix_affine(return_parameter_map=True, shape=image_shape) for x in stack
+            ]
+
+    def set_from_dir(self, dirpath, pattern):
+        from SimpleITK import ReadParameterFile
+        import glob
+        filepaths = sorted(glob.glob(os.path.join(dirpath, pattern)))
+        self._stack = [ReadParameterFile(filepath) for filepath in filepaths]
+        self._dirpath = dirpath
+        self._pattern = pattern
+
+    def to_file(self, dirpath):
+        from SimpleITK import WriteParameterFile
+        if not os.path.exists(dirpath):
+            os.mkdir(dirpath)
+        for idx, transform in enumerate(self._stack):
+            filepath = os.path.join(dirpath, 'transform_{:05d}.txt'.format(idx))
+            WriteParameterFile(transform, filepath)
+
+    def __getitem__(self, item):
+        if self._stack is not None:
+            return self._stack[item]
+        return []
+
+    def __setitem__(self, key, value):
+        self._stack[key] = value
+
+    def __len__(self):
+        if self._stack is None:
+            return 0
+        return len(self._stack)
+
+    def __iter__(self):
+        self._it = 0
+        return self
+
+    def __next__(self):
+        if self._it < len(self):
+            x = self[self._it]
+            self._it += 1
+            return x
+        else:
+            raise StopIteration
+
+    def append(self, other):
+        if isinstance(other, ElastixStack):
+            raise NotImplementedError('Appending of an ElastixStack is not implemented')
+        from SimpleITK import ParameterMap
+        if isinstance(other, ParameterMap):
+            self.set_from_stack(self[:] + [other])
+
+
+class ElastixMultiStepStack:
+
+    def __init__(
+            self,
+            stacks=None,
+            image_shape=None
+    ):
+        self._stacks = None
+        self._num_steps = 0
+        self._it = 0
+        if stacks is not None:
+            [self.add_stack(stack, image_shape=image_shape) for stack in stacks]
+
+    def add_stack(self, stack, image_shape=None):
+        stack = ElastixStack(stack=stack, image_shape=image_shape)
+        if self._stacks is not None:
+            assert len(stack) == len(self), 'The length of the added stack does not match'
+            self._stacks = [self[idx].extend(s) for idx, s in enumerate(stack)]
+            self._num_steps += len(stack)
+            return
+        self._stacks = [[s] for s in stack]
+        self._num_steps = len(stack)
+
+    def __len__(self):
+        return len(self[:])
+
+    def __getitem__(self, item):
+        if self._stacks is None:
+            return []
+        return self._stacks[item]
+
+    def __setitem__(self, key, value):
+        assert len(value) == self._num_steps, 'Number of elements in value does not match number of steps!'
+        self._stacks[key] = value
+
+    def __iter__(self):
+        self._it = 0
+        return self
+
+    def __next__(self):
+        if self._it < len(self):
+            x = self[self._it]
+            self._it += 1
+            return x
+        else:
+            raise StopIteration
+
+    def apply_on_image_stack(
+            self,
+            image_stack_h,
+            target_image_shape=None,
+            z_range=None,
+            n_workers=1,
+            quiet=False,
+            verbose=False
+    ):
+        from squirrel.library.data import norm_z_range
+        z_range = norm_z_range(z_range, len(image_stack_h))
+        result_volume = []
+        dtype = image_stack_h.dtype
+        assert dtype == 'uint8'
+
+        if n_workers == 1:
+
+            for stack_idx, image_idx in enumerate(range(*z_range)):
+
+                result_volume.append(apply_transforms_on_image_stack_slice(
+                    image_stack_h,
+                    image_idx,
+                    self[stack_idx],
+                    target_image_shape=target_image_shape,
+                    n_slices=z_range[1],
+                    quiet=quiet,
+                    verbose=verbose
+                ))
+
+        else:
+
+            from concurrent.futures import ThreadPoolExecutor
+            with ThreadPoolExecutor(max_workers=n_workers) as tpe:
+                tasks = [
+                    tpe.submit(
+                        apply_transforms_on_image_stack_slice,
+                        image_stack_h,
+                        image_idx,
+                        self[stack_idx],
+                        target_image_shape,
+                        z_range[1],
+                        quiet,
+                        verbose
+                    )
+                    for stack_idx, image_idx in enumerate(range(*z_range))
+                ]
+                result_volume = [task.result() for task in tasks]
+
+        return np.clip(np.array(result_volume), 0, 255).astype(dtype)
+
+
+if __name__ == '__main__':
+    a = [1, 2, 3, 4, 5, 6]
+    print(f'a = {a}')
+    b = affine_to_c(a)
+    print(f'b = {b}')
+    c = c_to_elastix(b)
+    print(f'c = {c}')
+
+    a = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    print(f'a = {a}')
+    b = affine_to_c(a)
+    print(f'b = {b}')
+    c = c_to_elastix(b)
+    print(f'c = {c}')
+
+

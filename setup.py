@@ -26,6 +26,8 @@ setup(
             'elastix_register_z_chunks = squirrel.elastix_registration:register_z_chunks',
             'elastix_stack_alignment = squirrel.elastix_registration:elastix_stack_alignment',
             'stack_alignment_validation = squirrel.elastix_registration:stack_alignment_validation',
+            'make_elastix_default_parameter_file = squirrel.elastix_registration:make_elastix_default_parameter_file',
+            'apply_multi_step_stack_alignment = squirrel.elastix_registration:apply_multi_step_stack_alignment',
             'amst = squirrel.elastix_registration:amst',
             'h5_to_nii = squirrel.conversions:n5_to_nii',
             'h5_to_tif = squirrel.conversions:h5_to_tif',

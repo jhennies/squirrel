@@ -198,9 +198,15 @@ def amst():
     # parser.add_argument('--pre_fix_big_jumps', action='store_true',
     #                     help='Determines big jumps and fixes them using cross-correlation')
     parser.add_argument('--median_radius', type=int, default=7,
-                        help='Radius of the z-median-smoothing used to create the template stack')
+                        help='Radius of the z-median-smoothing used to create the template stack; default=7')
+    parser.add_argument('--gaussian_sigma', type=float, default=0.,
+                        help='Pre-smooth the images using a gaussian filter; default=0. (no smoothing)')
     parser.add_argument('--z_range', type=int, nargs=2, default=None,
                         help='Use certain slices of the stack only; Defaults to the entire stack')
+    parser.add_argument('--elastix_parameter_filepath', type=str, default=None,
+                        help='Filepath of an elastix parameter file; default=None')
+    parser.add_argument('--crop_to_bounds_off', action='store_true',
+                        help='Switches off automated cropping to image bounds')
     parser.add_argument('-v', '--verbose', action='store_true')
 
     args = parser.parse_args()
@@ -212,7 +218,10 @@ def amst():
     transform = args.transform
     auto_mask_off = args.auto_mask_off
     median_radius = args.median_radius
+    gaussian_sigma = args.gaussian_sigma
     z_range = args.z_range
+    elastix_parameter_filepath = args.elastix_parameter_filepath
+    crop_to_bounds_off = args.crop_to_bounds_off
     verbose = args.verbose
 
     from squirrel.workflows.amst import amst_workflow
@@ -226,7 +235,10 @@ def amst():
         transform=transform,
         auto_mask_off=auto_mask_off,
         median_radius=median_radius,
+        gaussian_sigma=gaussian_sigma,
         z_range=z_range,
+        elastix_parameters=elastix_parameter_filepath,
+        crop_to_bounds_off=crop_to_bounds_off,
         verbose=verbose
     )
 
@@ -359,6 +371,92 @@ def stack_alignment_validation():
         pattern=pattern,
         resolution_yx=resolution_yx,
         verbose=verbose,
+    )
+
+
+def make_elastix_default_parameter_file():
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Generates a default parameter file for Elastix registration',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('out_filepath', type=str,
+                        help='Output directory path for the result plots')
+    parser.add_argument('--transform', type=str, default='translation',
+                        help='One of the available transforms: ["translation", "affine", "bspline"]; '
+                             'default="translation"')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    out_filepath = args.out_filepath
+    transform = args.transform
+    verbose = args.verbose
+
+    if verbose:
+        print(f'out_filepath = {out_filepath}')
+        print(f'transform = {transform}')
+
+    from SimpleITK import GetDefaultParameterMap, WriteParameterFile
+    params = GetDefaultParameterMap(transform)
+    WriteParameterFile(params, out_filepath)
+
+
+def apply_multi_step_stack_alignment():
+
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Applies an affine transformation on a volume',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('image_stack', type=str,
+                        help='Input filepath for the image stack (h5 or tif stack)')
+    parser.add_argument('transform_paths', type=str, nargs='+',
+                        help='Json file or folders containing the transformations for each slice')
+    parser.add_argument('out_filepath', type=str,
+                        help='Output filepath for the result file (only h5 for now)')
+    parser.add_argument('--key', type=str, default='data',
+                        help='Internal path of the input; default="data"; used if stack is h5 file')
+    parser.add_argument('--pattern', type=str, default='*.tif',
+                        help='Used to glob tif files from a tif stack folder; default="*.tif"')
+    parser.add_argument('--auto_pad', action='store_true',
+                        help='Automatically adjust the canvas size of the output stack to best fit the data')
+    parser.add_argument('--target_image_shape', type=int, nargs=3, default=None,
+                        help='Pre-define a stack shape for the output stack; default=None')
+    parser.add_argument('--z_range', type=int, nargs=2, default=None,
+                        help='Use certain slices of the stack only; Defaults to the entire stack')
+    parser.add_argument('--n_workers', type=int, default=1,
+                        help='The number of cores to use for processing')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    image_stack = args.image_stack
+    transform_paths = args.transform_paths
+    out_filepath = args.out_filepath
+    key = args.key
+    pattern = args.pattern
+    auto_pad = args.auto_pad
+    target_image_shape = args.target_image_shape
+    z_range = args.z_range
+    n_workers = args.n_workers
+    verbose = args.verbose
+
+    from squirrel.workflows.elastix import apply_multi_step_stack_alignment_workflow
+
+    apply_multi_step_stack_alignment_workflow(
+        image_stack,
+        transform_paths,
+        out_filepath,
+        key=key,
+        pattern=pattern,
+        auto_pad=auto_pad,
+        target_image_shape=target_image_shape,
+        z_range=z_range,
+        n_workers=n_workers,
+        verbose=verbose
     )
 
 

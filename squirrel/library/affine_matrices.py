@@ -567,6 +567,32 @@ class AffineMatrix:
     def get_dtype(self):
         return self._parameters.dtype
 
+    def to_elastix_affine(self, shape=None, return_parameter_map=False):
+
+        from squirrel.library.elastix import c_to_elastix
+        affine_elastix = c_to_elastix(self.get_matrix().astype('float64'))
+
+        if not return_parameter_map:
+            return affine_elastix
+
+        num_params = len(affine_elastix)
+
+        import SimpleITK as sitk
+        affine_params = sitk.ParameterMap()
+        affine_params['TransformParameters'] = [str(x) for x in affine_elastix]
+        affine_params['NumberOfParameters'] = [str(num_params)]
+        affine_params['CenterOfRotationPoint'] = [str(x) for x in self.get_pivot()[::-1]]
+        affine_params['Transform'] = ['AffineTransform']
+        affine_params['Spacing'] = ['1', '1']
+        if shape is not None:
+            affine_params['Size'] = [str(x) for x in shape[::-1]]
+        affine_params['Index'] = ['0', '0']
+        affine_params['Origin'] = ['0', '0']
+        affine_params['Direction'] = ['1', '0', '0', '1']
+        affine_params['UseDirectionCosines'] = ['true']
+
+        return affine_params
+
 
 if __name__ == '__main__':
 

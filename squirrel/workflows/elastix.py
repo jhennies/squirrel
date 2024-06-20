@@ -348,7 +348,9 @@ def stack_alignment_validation_workflow(
 
     for roi in rois:
 
-        roi_data = stack[roi]
+        if verbose:
+            print(f'roi = {roi}')
+        roi_data = stack[:][roi]
         transforms = AffineStack(is_sequenced=False, pivot=[0., 0.])
 
         for idx in range(len(roi_data) - 1):
@@ -380,17 +382,79 @@ def stack_alignment_validation_workflow(
     plt.show()
 
 
-if __name__ == '__main__':
-    stack_alignment_validation_workflow(
-        '/media/julian/Data/projects/kors/align/4T/amst_parameter_test/pre_align/pre-align.ome.zarr',
-        # '/media/julian/Data/projects/kors/align/4T/amst_parameter_test/amst_results_02/amst-0001-ref.h5',
-        None,
-        [
-            np.s_[:, 330: 458, 2518: 2646],  # Right edge
-            np.s_[:, 386: 514, 440: 568],  # Left edge
-            np.s_[:, 650: 778, 1640: 1768]  # Bottom
-        ],
-        key='s0',
-        # key='data',
-        resolution_yx=[1, 1]
+def apply_multi_step_stack_alignment_workflow(
+        image_stack,
+        transform_paths,
+        out_filepath,
+        key='data',
+        pattern='*.tif',
+        auto_pad=False,
+        target_image_shape=None,
+        z_range=None,
+        n_workers=1,
+        quiet=False,
+        verbose=False,
+):
+    from squirrel.library.elastix import ElastixMultiStepStack, ElastixStack
+    from squirrel.library.affine_matrices import AffineStack
+
+    stacks = []
+    for transform_path in transform_paths:
+        if os.path.isdir(transform_path):
+            stacks.append(ElastixStack(dirpath=transform_path, image_shape=target_image_shape))
+        else:
+            stacks.append(AffineStack(filepath=transform_path))
+            assert stacks[-1].is_sequenced
+
+    emss = ElastixMultiStepStack(stacks=stacks, image_shape=target_image_shape)
+
+    from squirrel.library.io import load_data_handle
+    if target_image_shape is None:
+        image_stack_h, stack_shape = load_data_handle(image_stack, key=key, pattern=pattern)
+        target_image_shape = stack_shape[1:]
+    else:
+        assert not auto_pad, "Don't supply a stack shape if auto padding will be performed!"
+        image_stack_h, _ = load_data_handle(image_stack, key=key, pattern=pattern)
+
+    result_volume = emss.apply_on_image_stack(
+        image_stack_h,
+        target_image_shape=target_image_shape,
+        z_range=z_range,
+        n_workers=n_workers,
+        quiet=quiet,
+        verbose=verbose
     )
+
+    from squirrel.library.io import write_h5_container
+    write_h5_container(out_filepath, result_volume)
+
+
+if __name__ == '__main__':
+    # stack_alignment_validation_workflow(
+    #     '/media/julian/Data/projects/kors/align/4T/amst_parameter_test/pre_align/pre-align.ome.zarr',
+    #     # '/media/julian/Data/projects/kors/align/4T/amst_parameter_test/amst_results_02/amst-0001-ref.h5',
+    #     None,
+    #     [
+    #         np.s_[:, 330: 458, 2518: 2646],  # Right edge
+    #         np.s_[:, 386: 514, 440: 568],  # Left edge
+    #         np.s_[:, 650: 778, 1640: 1768]  # Bottom
+    #     ],
+    #     key='s0',
+    #     # key='data',
+    #     resolution_yx=[1, 1]
+    # )
+
+    apply_multi_step_stack_alignment_workflow(
+        '/media/julian/Data/projects/hennies/amst_devel/hela-tm.ome.zarr/',
+        ['/media/julian/Data/projects/hennies/amst_devel/amst-elastic-transforms-01/'],
+        '/media/julian/Data/projects/hennies/amst_devel/amst-elastic-transforms-01.h5',
+        key='s0',
+        auto_pad=False,
+        target_image_shape=None,
+        z_range=None,
+        n_workers=1,
+        quiet=False,
+        verbose=False,
+    )
+
+
