@@ -640,7 +640,7 @@ def load_transform_stack_from_multiple_files(paths, sequence_stack=False):
 
     stack = ElastixStack(dirpath=paths[0])
     for path in paths[1:]:
-        stack.append(ElastixStack)
+        stack.append(ElastixStack(dirpath=path))
     return stack
 
 
