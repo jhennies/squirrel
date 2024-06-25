@@ -13,7 +13,7 @@ def template_matching_stack_alignment():
     parser.add_argument('out_filepath', type=str,
                         help='Output filepath for the transformations (*.json)')
     parser.add_argument('--template_roi', type=float, nargs=5, default=None,
-                        metavar=('min_x', 'max_x', 'min_y', 'max_y', 'z'),
+                        metavar=('min_x', 'min_y', 'max_x', 'max_y', 'z'),
                         help='Defines where to find the reference template')
     parser.add_argument('--search_roi', type=float, nargs=4, default=None,
                         metavar=('min_x', 'max_x', 'min_y', 'max_y'),
@@ -30,6 +30,9 @@ def template_matching_stack_alignment():
                         help='Use certain slices of the stack only; Defaults to the entire stack')
     parser.add_argument('--save_template', action='store_true',
                         help='Save the template as tif image')
+    parser.add_argument('--determine_bounds', action='store_true',
+                        help='Appends the bounding box of data within each slice to the results metadata. '
+                             'Useful for auto-padding later on')
     parser.add_argument('-v', '--verbose', action='store_true')
 
     args = parser.parse_args()
@@ -42,6 +45,7 @@ def template_matching_stack_alignment():
     pattern = args.pattern
     z_range = args.z_range
     save_template = args.save_template
+    determine_bounds = args.determine_bounds
     verbose = args.verbose
 
     assert template_roi is not None
@@ -58,6 +62,7 @@ def template_matching_stack_alignment():
         pattern=pattern,
         z_range=z_range,
         save_template=save_template,
+        determine_bounds=determine_bounds,
         verbose=verbose
     )
 

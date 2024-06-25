@@ -328,6 +328,8 @@ def stack_alignment_validation_workflow(
         key='data',
         pattern='*.tif',
         resolution_yx=(1.0, 1.0),
+        out_name=None,
+        y_max=None,
         verbose=False
 ):
 
@@ -341,19 +343,42 @@ def stack_alignment_validation_workflow(
 
     from squirrel.library.io import load_data_handle
     from squirrel.library.elastix import register_with_elastix
-    from squirrel.library.affine_matrices import AffineStack
+    from squirrel.library.affine_matrices import AffineStack, AffineMatrix
+    from squirrel.library.transformation import apply_stack_alignment
     from matplotlib import pyplot as plt
+    from h5py import File
+
+    if not os.path.exists(out_dirpath):
+        os.mkdir(out_dirpath)
+
+    if out_name is None:
+        transforms_filepath = os.path.join(out_dirpath, 'transforms.json')
+        plot_filepath = os.path.join(out_dirpath, 'plot.pdf')
+        image_dirpath = os.path.join(out_dirpath, 'images')
+    else:
+        transforms_filepath = os.path.join(out_dirpath, f'transforms-{out_name}.json')
+        plot_filepath = os.path.join(out_dirpath, f'plot-{out_name}.pdf')
+        image_dirpath = os.path.join(out_dirpath, f'images-{out_name}')
+    if not os.path.exists(image_dirpath):
+        os.mkdir(image_dirpath)
+    image_filepath = os.path.join(image_dirpath, 'image_{:04d}.h5')
 
     stack, stack_size = load_data_handle(stack, key=key, pattern=pattern)
+    labels = []
 
-    for roi in rois:
+    for roi_idx, roi in enumerate(rois):
+
+        print(f'roi_idx = {roi_idx} / {len(rois) - 1}')
 
         if verbose:
             print(f'roi = {roi}')
         roi_data = stack[:][roi]
         transforms = AffineStack(is_sequenced=False, pivot=[0., 0.])
+        transforms.append(AffineMatrix(parameters=[1., 0., 0., 0., 1., 0.]))
 
         for idx in range(len(roi_data) - 1):
+
+            # print(f'idx = {idx} / {len(roi_data) - 2}')
 
             z_slice_fixed = roi_data[idx]
             z_slice_moving = roi_data[idx + 1]
@@ -364,22 +389,38 @@ def stack_alignment_validation_workflow(
                 transform='translation',
                 automatic_transform_initialization=False,
                 auto_mask=False,
-                number_of_spatial_samples=256,
-                maximum_number_of_iterations=256,
-                number_of_resolutions=1,
+                # number_of_spatial_samples=256,
+                # maximum_number_of_iterations=256,
+                # number_of_resolutions=1,
                 pre_fix_big_jumps=False,
-                return_result_image=False,
+                return_result_image=True,
                 params_to_origin=True,
+                gaussian_sigma=2.0,
                 verbose=verbose
             )
             transforms.append(result_matrix)
 
+            # result_volume.append(result_image)
+
+        result_volume = apply_stack_alignment(
+            roi_data,
+            roi_data.shape,
+            transforms,
+            n_workers=1,
+            verbose=verbose
+        )
+        with File(image_filepath.format(roi_idx), mode='w') as f:
+            f.create_dataset('data', data=result_volume, compression='gzip')
+
         translations = np.array(transforms.get_translations()) * resolution_yx
-        # TODO Plot and save results
-        # transforms.tofile(out_filepath)
-        plt.plot(np.sqrt(translations[:, 0] ** 2 + translations[:, 1] ** 2))
-    plt.ylim(ymin=0, ymax=None)
-    plt.show()
+        transforms.to_file(transforms_filepath)
+        labels.append(f'roi-{roi_idx}')
+        plt.plot(np.sqrt(translations[:, 0] ** 2 + translations[:, 1] ** 2), label=labels[-1])
+
+    plt.ylim(ymin=0, ymax=y_max)
+    plt.legend()
+    plt.savefig(plot_filepath)
+    # plt.show()
 
 
 def apply_multi_step_stack_alignment_workflow(
@@ -393,20 +434,11 @@ def apply_multi_step_stack_alignment_workflow(
         z_range=None,
         n_workers=1,
         quiet=False,
+        write_result=False,
         verbose=False,
 ):
     from squirrel.library.elastix import ElastixMultiStepStack, ElastixStack
     from squirrel.library.affine_matrices import AffineStack
-
-    stacks = []
-    for transform_path in transform_paths:
-        if os.path.isdir(transform_path):
-            stacks.append(ElastixStack(dirpath=transform_path, image_shape=target_image_shape))
-        else:
-            stacks.append(AffineStack(filepath=transform_path))
-            assert stacks[-1].is_sequenced
-
-    emss = ElastixMultiStepStack(stacks=stacks, image_shape=target_image_shape)
 
     from squirrel.library.io import load_data_handle
     if target_image_shape is None:
@@ -415,6 +447,22 @@ def apply_multi_step_stack_alignment_workflow(
     else:
         assert not auto_pad, "Don't supply a stack shape if auto padding will be performed!"
         image_stack_h, _ = load_data_handle(image_stack, key=key, pattern=pattern)
+
+    stacks = []
+    for transform_path in transform_paths:
+        if os.path.isdir(transform_path):
+            stacks.append(ElastixStack(dirpath=transform_path))  # , image_shape=target_image_shape))
+        else:
+            stack = AffineStack(filepath=transform_path)
+            if stack.exists_meta('stack_shape'):
+                image_shape = stack.get_meta('stack_shape')[1:]
+            else:
+                image_shape = target_image_shape
+            if not stack.is_sequenced:
+                stack = stack.get_sequenced_stack()
+            stacks.append(ElastixStack(stack=stack, image_shape=image_shape))
+
+    emss = ElastixMultiStepStack(stacks=stacks, image_shape=target_image_shape)
 
     result_volume = emss.apply_on_image_stack(
         image_stack_h,
@@ -425,8 +473,12 @@ def apply_multi_step_stack_alignment_workflow(
         verbose=verbose
     )
 
-    from squirrel.library.io import write_h5_container
-    write_h5_container(out_filepath, result_volume)
+    if write_result:
+        from squirrel.library.io import write_h5_container
+        write_h5_container(out_filepath, result_volume)
+        return result_volume
+    else:
+        return result_volume
 
 
 if __name__ == '__main__':

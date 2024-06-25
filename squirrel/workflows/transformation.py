@@ -505,6 +505,8 @@ def apply_stack_alignment_on_volume_workflow(
     else:
         assert not auto_pad, "Don't supply a stack shape if auto padding will be performed!"
         stack_h, _ = load_data_handle(stack, key=key, pattern=pattern)
+    if transforms.exists_meta('stack_shape'):
+        stack_shape = transforms.get_meta('stack_shape')
     stack_len = stack_shape[0]
     if z_range is not None:
         stack_len = z_range[1] - z_range[0]
@@ -596,7 +598,7 @@ def scale_sequential_affines_workflow(
         json.dump(transforms, f, indent=2)
 
 
-def serialize_affine_sequence_workflow(
+def sequence_affine_stack_workflow(
         transform_filepath,
         out_filepath,
         verbose=False
@@ -606,15 +608,21 @@ def serialize_affine_sequence_workflow(
         print(f'Target file exists: {out_filepath}\nSkipping apply affine sequence workflow ...')
         return None
 
-    import json
-    with open(transform_filepath, mode='r') as f:
-        transforms = json.load(f)
+    from squirrel.library.affine_matrices import AffineStack
 
-    from squirrel.library.transformation import sequence_affine_stack
-    result_transforms = sequence_affine_stack(transforms, verbose=verbose)
+    transforms = AffineStack(filepath=transform_filepath)
+    transforms = transforms.get_sequenced_stack()
+    transforms.to_file(out_filepath)
 
-    with open(out_filepath, mode='w') as f:
-        json.dump(result_transforms, f, indent=2)
+    # import json
+    # with open(transform_filepath, mode='r') as f:
+    #     transforms = json.load(f)
+    #
+    # from squirrel.library.transformation import sequence_affine_stack
+    # result_transforms = sequence_affine_stack(transforms, verbose=verbose)
+    #
+    # with open(out_filepath, mode='w') as f:
+    #     json.dump(result_transforms, f, indent=2)
 
 
 def smooth_affine_sequence_workflow(

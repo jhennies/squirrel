@@ -40,5 +40,5 @@ def match_template_on_stack_slice(
         from ..library.image import get_bounds
         return transform, get_bounds(z_slice, return_ints=True)
 
-    return transform
+    return transform, None
 

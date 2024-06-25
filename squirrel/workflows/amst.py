@@ -47,13 +47,36 @@ def get_default_parameters(transform):
         return parameter_map
     if transform == 'bspline':
         parameter_map = GetDefaultParameterMap('bspline')
-        parameter_map['ErodeMask'] = ['true']
-        parameter_map['NumberOfHistogramBins'] = ['32']
-        parameter_map['AutomaticScalesEstimation'] = ['false']
-        parameter_map['FinalGridSpacingInPhysicalUnits'] = ['512']
-        parameter_map['MaximumNumberOfIterations'] = ['1024']
-        parameter_map['NumberOfSpatialSamples'] = ['4096']
-        parameter_map['NumberOfSamplesForExactGradient'] = ['8192']
+
+        parameter_map['AutomaticParameterEstimation'] = ["true"]
+        parameter_map['CheckNumberOfSamples'] = ["true"]
+        parameter_map['DefaultPixelValue'] = ["0.000000"]
+        parameter_map['FinalBSplineInterpolationOrder'] = ["3.000000"]
+        parameter_map['FinalGridSpacingInPhysicalUnits'] = ["512.000000"]
+        parameter_map['FixedImagePyramid'] = ["FixedRecursiveImagePyramid"]
+        parameter_map['GridSpacingSchedule'] = ["2.803221", "1.988100", "1.410000", "1.000000"]
+        parameter_map['ImageSampler'] = ["RandomCoordinate"]
+        parameter_map['Interpolator'] = ["BSplineInterpolator"]
+        parameter_map['MaximumNumberOfIterations'] = ["512.000000"]
+        parameter_map['MaximumNumberOfSamplingAttempts'] = ["8.000000"]
+        parameter_map['Metric'] = ["AdvancedMattesMutualInformation"]
+        parameter_map['MovingImagePyramid'] = ["MovingRecursiveImagePyramid"]
+        parameter_map['NewSamplesEveryIteration'] = ["true"]
+        parameter_map['NumberOfResolutions'] = ["4.000000"]
+        parameter_map['NumberOfSamplesForExactGradient'] = ["4096.000000"]
+        parameter_map['NumberOfSpatialSamples'] = ["2048.000000"]
+        parameter_map['Optimizer'] = ["AdaptiveStochasticGradientDescent"]
+        parameter_map['Registration'] = ["MultiResolutionRegistration"]
+        parameter_map['ResampleInterpolator'] = ["FinalBSplineInterpolator"]
+        parameter_map['Resampler'] = ["DefaultResampler"]
+        parameter_map['ResultImageFormat'] = ["nii"]
+        parameter_map['Transform'] = ["BSplineTransform"]
+        parameter_map['WriteIterationInfo'] = ["false"]
+        parameter_map['WriteResultImage'] = ["false"]
+        parameter_map['ErodeMask'] = ["true"]
+        parameter_map['NumberOfHistogramBins'] = ["32"]
+        parameter_map['AutomaticScalesEstimation'] = ["false"]
+
         return parameter_map
 
 

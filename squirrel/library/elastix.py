@@ -12,12 +12,25 @@ def apply_transforms_on_image(
     import SimpleITK as sitk
 
     txif = sitk.TransformixImageFilter()
-    for transform in transforms:
+    for transform in transforms[::-1]:
         txif.AddTransformParameterMap(transform)
     txif.SetMovingImage(sitk.GetImageFromArray(image))
+    txif.LogToConsoleOff()
     txif.Execute()
     result_final = sitk.GetArrayFromImage(txif.GetResultImage())
     return result_final
+
+    # result = image
+    # for transform in transforms:
+    #     print(f'result.shape = {result.shape}')
+    #     txif = sitk.TransformixImageFilter()
+    #     txif.AddTransformParameterMap(transform)
+    #     txif.SetMovingImage(sitk.GetImageFromArray(result))
+    #     txif.LogToConsoleOff()
+    #     txif.Execute()
+    #     result = sitk.GetArrayFromImage(txif.GetResultImage())
+    #
+    # return result
 
 
 def apply_transforms_on_image_stack_slice(
@@ -602,10 +615,22 @@ class ElastixStack:
 
     def append(self, other):
         if isinstance(other, ElastixStack):
-            raise NotImplementedError('Appending of an ElastixStack is not implemented')
+            for x in other:
+                self.append(x)
+            return
         from SimpleITK import ParameterMap
         if isinstance(other, ParameterMap):
             self.set_from_stack(self[:] + [other])
+            return
+        raise ValueError(f'Invalid type of other: {type(other)}')
+
+
+def load_transform_stack_from_multiple_files(paths, sequence_stack=False):
+
+    stack = ElastixStack(dirpath=paths[0])
+    for path in paths[1:]:
+        stack.append(ElastixStack)
+    return stack
 
 
 class ElastixMultiStepStack:
@@ -625,7 +650,7 @@ class ElastixMultiStepStack:
         stack = ElastixStack(stack=stack, image_shape=image_shape)
         if self._stacks is not None:
             assert len(stack) == len(self), 'The length of the added stack does not match'
-            self._stacks = [self[idx].extend(s) for idx, s in enumerate(stack)]
+            self._stacks = [self[idx] + [s] for idx, s in enumerate(stack)]
             self._num_steps += len(stack)
             return
         self._stacks = [[s] for s in stack]

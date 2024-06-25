@@ -283,6 +283,9 @@ def elastix_stack_alignment():
                         help='Use certain slices of the stack only; Defaults to the entire stack')
     parser.add_argument('--z_step', type=int, default=1,
                         help='Performs an alignment with every n-th slice only.')
+    parser.add_argument('--determine_bounds', action='store_true',
+                        help='Appends the bounding box of data within each slice to the results metadata. '
+                             'Useful for auto-padding later on')
     parser.add_argument('-v', '--verbose', action='store_true')
 
     args = parser.parse_args()
@@ -300,6 +303,7 @@ def elastix_stack_alignment():
     gaussian_sigma = args.gaussian_sigma
     z_range = args.z_range
     z_step = args.z_step
+    determine_bounds = args.determine_bounds
     verbose = args.verbose
 
     from squirrel.workflows.elastix import elastix_stack_alignment_workflow
@@ -319,6 +323,7 @@ def elastix_stack_alignment():
         gaussian_sigma=gaussian_sigma,
         z_range=z_range,
         z_step=z_step,
+        determine_bounds=determine_bounds,
         verbose=verbose
     )
 
@@ -346,6 +351,10 @@ def stack_alignment_validation():
                         help='Used to glob tif files from a tif stack folder; default="*.tif"')
     parser.add_argument('--resolution_yx', type=float, nargs=2, default=(1.0, 1.0),
                         help='xy-resolution used to properly plot the results. Default=(1.0, 1.0)')
+    parser.add_argument('--out_name', type=str, default=None,
+                        help='An additional name for the result files which is added to the filenames')
+    parser.add_argument('--y_max', type=int, default=None,
+                        help='Maximum of the y-axis')
     parser.add_argument('-v', '--verbose', action='store_true')
 
     args = parser.parse_args()
@@ -355,6 +364,8 @@ def stack_alignment_validation():
     key = args.key
     pattern = args.pattern
     resolution_yx = args.resolution_yx
+    out_name = args.out_name
+    y_max = args.y_max
     verbose = args.verbose
 
     from squirrel.workflows.elastix import stack_alignment_validation_workflow
@@ -370,6 +381,8 @@ def stack_alignment_validation():
         key=key,
         pattern=pattern,
         resolution_yx=resolution_yx,
+        out_name=out_name,
+        y_max=y_max,
         verbose=verbose,
     )
 
@@ -455,6 +468,7 @@ def apply_multi_step_stack_alignment():
         auto_pad=auto_pad,
         target_image_shape=target_image_shape,
         z_range=z_range,
+        write_result=True,
         n_workers=n_workers,
         verbose=verbose
     )
@@ -463,5 +477,6 @@ def apply_multi_step_stack_alignment():
 if __name__ == '__main__':
 
     # elastix_stack_alignment()
-    amst()
+    # amst()
     # stack_alignment_validation()
+    apply_multi_step_stack_alignment()
