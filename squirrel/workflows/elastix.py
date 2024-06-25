@@ -432,6 +432,7 @@ def apply_multi_step_stack_alignment_workflow(
         auto_pad=False,
         target_image_shape=None,
         z_range=None,
+        start_transform_id=0,
         n_workers=1,
         quiet=False,
         write_result=False,
@@ -451,9 +452,14 @@ def apply_multi_step_stack_alignment_workflow(
     stacks = []
     for transform_path in transform_paths:
         if os.path.isdir(transform_path):
-            stacks.append(ElastixStack(dirpath=transform_path))  # , image_shape=target_image_shape))
+            stack = ElastixStack(dirpath=transform_path)  # , image_shape=target_image_shape))
+            if z_range is not None:
+                stack = ElastixStack(stack=stack[start_transform_id: start_transform_id + z_range[1] - z_range[0]])
+            stacks.append(stack)
         else:
             stack = AffineStack(filepath=transform_path)
+            if z_range is not None:
+                stack = AffineStack(stack=stack[start_transform_id: start_transform_id + z_range[1] - z_range[0]], is_sequenced=stack.is_sequenced)
             if stack.exists_meta('stack_shape'):
                 image_shape = stack.get_meta('stack_shape')[1:]
             else:
