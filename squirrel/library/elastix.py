@@ -624,6 +624,17 @@ class ElastixStack:
             return
         raise ValueError(f'Invalid type of other: {type(other)}')
 
+    def image_shape(self):
+        shapes = []
+        for transform in self:
+            shapes.append(np.array([int(float(x)) for x in transform['Size']])[::-1])
+        shapes = np.array(shapes)
+        assert np.all(shapes == shapes[0], axis=0).all(), 'Not all shapes of the transforms are equal - but they should be!'
+
+        return shapes[0]
+
+
+
 
 def load_transform_stack_from_multiple_files(paths, sequence_stack=False):
 
@@ -732,18 +743,20 @@ class ElastixMultiStepStack:
 
 
 if __name__ == '__main__':
-    a = [1, 2, 3, 4, 5, 6]
-    print(f'a = {a}')
-    b = affine_to_c(a)
-    print(f'b = {b}')
-    c = c_to_elastix(b)
-    print(f'c = {c}')
+    # a = [1, 2, 3, 4, 5, 6]
+    # print(f'a = {a}')
+    # b = affine_to_c(a)
+    # print(f'b = {b}')
+    # c = c_to_elastix(b)
+    # print(f'c = {c}')
+    #
+    # a = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    # print(f'a = {a}')
+    # b = affine_to_c(a)
+    # print(f'b = {b}')
+    # c = c_to_elastix(b)
+    # print(f'c = {c}')
 
-    a = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-    print(f'a = {a}')
-    b = affine_to_c(a)
-    print(f'b = {b}')
-    c = c_to_elastix(b)
-    print(f'c = {c}')
-
+    es = ElastixStack(dirpath='/media/julian/Data/projects/hennies/amst_devel/240624_snamst_kors_dT/amst.meta/amst/')
+    print(es.image_shape())
 

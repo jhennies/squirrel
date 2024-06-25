@@ -426,7 +426,7 @@ def stack_alignment_validation_workflow(
 def apply_multi_step_stack_alignment_workflow(
         image_stack,
         transform_paths,
-        out_filepath,
+        out_filepath=None,
         key='data',
         pattern='*.tif',
         auto_pad=False,
@@ -461,6 +461,9 @@ def apply_multi_step_stack_alignment_workflow(
             if not stack.is_sequenced:
                 stack = stack.get_sequenced_stack()
             stacks.append(ElastixStack(stack=stack, image_shape=image_shape))
+
+    if verbose:
+        print(f'target_image_shape = {target_image_shape}')
 
     emss = ElastixMultiStepStack(stacks=stacks, image_shape=target_image_shape)
 
