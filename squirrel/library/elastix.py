@@ -184,6 +184,7 @@ def register_with_elastix(
         pre_fix_iou_thresh=0.5,
         parameter_map=None,
         gaussian_sigma=0.,
+        use_edges=False,
         crop_to_bounds_off=False,
         n_workers=os.cpu_count(),
         verbose=False
@@ -251,6 +252,17 @@ def register_with_elastix(
         from skimage.filters import gaussian
         fixed_image = gaussian(fixed_image.astype(float), gaussian_sigma).astype('uint8')
         moving_image = gaussian(moving_image.astype(float), gaussian_sigma).astype('uint8')
+    if use_edges:
+        from skimage.filters import sobel
+        fixed_image = sobel(fixed_image.astype(float))
+        moving_image = sobel(moving_image.astype(float))
+        if mask is not None:
+            fixed_image[mask == 0] = 0
+            moving_image[mask == 0] = 0
+        from tifffile import imwrite
+        imwrite('/media/julian/Data/tmp/fixed_image.tif', fixed_image)
+        imwrite('/media/julian/Data/tmp/moving_image.tif', moving_image)
+        imwrite('/media/julian/Data/tmp/mask.tif', mask)
 
     normalize_images = True
     if normalize_images:
@@ -286,8 +298,7 @@ def register_with_elastix(
     elastixImageFilter = sitk.ElastixImageFilter()
     elastixImageFilter.SetFixedImage(fixed_image)
     elastixImageFilter.SetMovingImage(moving_image)
-    if auto_mask:
-        assert mask is not None
+    if mask is not None:
         # fixed_mask = make_auto_mask(sitk.GetArrayFromImage(fixed_image))
         # moving_mask = make_auto_mask(sitk.GetArrayFromImage(moving_image))
         # mask = fixed_mask * moving_mask
