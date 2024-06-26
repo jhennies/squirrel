@@ -308,6 +308,7 @@ def elastix_stack_alignment_workflow(
                 number_of_resolutions=number_of_resolutions,
                 pre_fix_big_jumps=pre_fix_big_jumps,
                 pre_fix_iou_thresh=pre_fix_iou_thresh,
+                parameter_map=parameter_map,
                 return_result_image=False,
                 params_to_origin=True,
                 gaussian_sigma=gaussian_sigma,
