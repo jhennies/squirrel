@@ -710,18 +710,18 @@ class ElastixMultiStepStack:
 
         # if n_workers == 1:
         #
-        #     for stack_idx, image_idx in enumerate(range(*z_range)):
+        for stack_idx, image_idx in enumerate(range(*z_range)):
 
-        result_volume.append(apply_transforms_on_image_stack_slice(
-            image_stack_h,
-            image_idx,
-            self[stack_idx],
-            target_image_shape=target_image_shape,
-            n_slices=z_range[1],
-            n_workers=1,
-            quiet=quiet,
-            verbose=verbose
-        ))
+            result_volume.append(apply_transforms_on_image_stack_slice(
+                image_stack_h,
+                image_idx,
+                self[stack_idx],
+                target_image_shape=target_image_shape,
+                n_slices=z_range[1],
+                n_workers=1,
+                quiet=quiet,
+                verbose=verbose
+            ))
 
         # else:
         #
