@@ -6,6 +6,7 @@ import numpy as np
 def apply_transforms_on_image(
         image,
         transforms,
+        n_workers=os.cpu_count(),
         verbose=False
 ):
 
@@ -15,7 +16,7 @@ def apply_transforms_on_image(
     for transform in transforms[::-1]:
         txif.AddTransformParameterMap(transform)
     txif.SetMovingImage(sitk.GetImageFromArray(image))
-    txif.LogToConsoleOff()
+    txif.LogToConsoleOn()
     txif.Execute()
     result_final = sitk.GetArrayFromImage(txif.GetResultImage())
     return result_final
@@ -39,6 +40,7 @@ def apply_transforms_on_image_stack_slice(
         transforms,
         target_image_shape=None,
         n_slices=None,
+        n_workers=os.cpu_count(),
         quiet=False,
         verbose=False
 ):
@@ -51,7 +53,8 @@ def apply_transforms_on_image_stack_slice(
 
     return apply_transforms_on_image(
         z_slice,
-        transforms
+        transforms,
+        n_workers=n_workers
     )[:target_image_shape[0], :target_image_shape[1]]
 
 # def save_transforms(parameters, out_filepath, param_order='M', save_order='M', ndim=3, verbose=False):
@@ -182,6 +185,7 @@ def register_with_elastix(
         parameter_map=None,
         gaussian_sigma=0.,
         crop_to_bounds_off=False,
+        n_workers=os.cpu_count(),
         verbose=False
 ):
     import SimpleITK as sitk
@@ -302,7 +306,7 @@ def register_with_elastix(
     if verbose:
         print(f'Running Elastix with these parameters:')
         elastixImageFilter.PrintParameterMap()
-
+    elastixImageFilter.SetNumberOfThreads(n_workers)
     elastixImageFilter.Execute()
     result_image = None
     if return_result_image:
@@ -714,6 +718,7 @@ class ElastixMultiStepStack:
                     self[stack_idx],
                     target_image_shape=target_image_shape,
                     n_slices=z_range[1],
+                    n_wokers=1,
                     quiet=quiet,
                     verbose=verbose
                 ))
@@ -730,6 +735,7 @@ class ElastixMultiStepStack:
                         self[stack_idx],
                         target_image_shape,
                         z_range[1],
+                        1,
                         quiet,
                         verbose
                     )
