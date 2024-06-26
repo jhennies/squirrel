@@ -286,8 +286,8 @@ def elastix_stack_alignment_workflow(
         else:
 
             if average_for_z_step:
-                z_slice_moving = np.mean(stack[idx: idx + z_step], axis=0)
-                z_slice_fixed = np.mean(stack[idx - z_step: idx], axis=0)
+                z_slice_moving = np.mean(stack[idx: idx + z_step], axis=0).astype('uint8')
+                z_slice_fixed = np.mean(stack[idx - z_step: idx], axis=0).astype('uint8')
             else:
                 z_slice_moving = stack[idx]
                 z_slice_fixed = stack[idx - z_step]
