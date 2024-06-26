@@ -459,7 +459,7 @@ def apply_multi_step_stack_alignment_workflow(
         else:
             stack = AffineStack(filepath=transform_path)
             if z_range is not None:
-                stack = AffineStack(stack=stack[start_transform_id: start_transform_id + z_range[1] - z_range[0]], is_sequenced=stack.is_sequenced)
+                stack = stack.new_stack_with_same_meta(stack[start_transform_id: start_transform_id + z_range[1] - z_range[0]])
             if stack.exists_meta('stack_shape'):
                 image_shape = stack.get_meta('stack_shape')[1:]
             else:

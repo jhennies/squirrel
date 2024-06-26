@@ -634,8 +634,6 @@ class ElastixStack:
         return shapes[0]
 
 
-
-
 def load_transform_stack_from_multiple_files(paths, sequence_stack=False):
 
     stack = ElastixStack(dirpath=paths[0])
