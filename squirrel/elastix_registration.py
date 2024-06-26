@@ -279,6 +279,8 @@ def elastix_stack_alignment():
                              'this treshold, the big jump prefix is computed')
     parser.add_argument('--gaussian_sigma', type=float, default=0.,
                         help='Perform a gaussian filter before registration')
+    parser.add_argument('--parameter_map', type=str, default=None,
+                        help='Elastix parameter map file')
     parser.add_argument('--z_range', type=int, nargs=2, default=None,
                         help='Use certain slices of the stack only; Defaults to the entire stack')
     parser.add_argument('--z_step', type=int, default=1,
@@ -301,6 +303,7 @@ def elastix_stack_alignment():
     pre_fix_big_jumps = args.pre_fix_big_jumps
     pre_fix_iou_thresh = args.pre_fix_iou_thresh
     gaussian_sigma = args.gaussian_sigma
+    parameter_map = args.parameter_map
     z_range = args.z_range
     z_step = args.z_step
     determine_bounds = args.determine_bounds
@@ -321,6 +324,7 @@ def elastix_stack_alignment():
         pre_fix_big_jumps=pre_fix_big_jumps,
         pre_fix_iou_thresh=pre_fix_iou_thresh,
         gaussian_sigma=gaussian_sigma,
+        parameter_map=parameter_map,
         z_range=z_range,
         z_step=z_step,
         determine_bounds=determine_bounds,
