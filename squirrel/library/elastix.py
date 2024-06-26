@@ -259,10 +259,6 @@ def register_with_elastix(
         if mask is not None:
             fixed_image[mask == 0] = 0
             moving_image[mask == 0] = 0
-        from tifffile import imwrite
-        imwrite('/media/julian/Data/tmp/fixed_image.tif', fixed_image)
-        imwrite('/media/julian/Data/tmp/moving_image.tif', moving_image)
-        imwrite('/media/julian/Data/tmp/mask.tif', mask)
 
     normalize_images = True
     if normalize_images:
