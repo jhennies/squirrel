@@ -281,15 +281,20 @@ def elastix_stack_alignment_workflow(
         if not quiet:
             print(f'idx = {idx} / {z_range[1]}')
 
+        if average_for_z_step:
+            z_slice_moving = np.mean(stack[idx: idx + z_step], axis=0).astype('uint8')
+        else:
+            z_slice_moving = stack[idx]
+
         if idx == 0:
             transforms.append(AffineMatrix([1., 0., 0., 0., 1., 0.], pivot=[0., 0.]))
         else:
 
             if average_for_z_step:
-                z_slice_moving = np.mean(stack[idx: idx + z_step], axis=0).astype('uint8')
+
                 z_slice_fixed = np.mean(stack[idx - z_step: idx], axis=0).astype('uint8')
             else:
-                z_slice_moving = stack[idx]
+
                 z_slice_fixed = stack[idx - z_step]
 
             result_matrix, _ = register_with_elastix(
