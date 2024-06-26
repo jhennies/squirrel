@@ -279,6 +279,8 @@ def elastix_stack_alignment():
                              'this treshold, the big jump prefix is computed')
     parser.add_argument('--gaussian_sigma', type=float, default=0.,
                         help='Perform a gaussian filter before registration')
+    parser.add_argument('--use_clahe', action='store_true',
+                        help='CLAHE filter before registration')
     parser.add_argument('--use_edges', action='store_true',
                         help='Computes edges before registration using a sobel filter')
     parser.add_argument('--parameter_map', type=str, default=None,
@@ -305,6 +307,7 @@ def elastix_stack_alignment():
     pre_fix_big_jumps = args.pre_fix_big_jumps
     pre_fix_iou_thresh = args.pre_fix_iou_thresh
     gaussian_sigma = args.gaussian_sigma
+    use_clahe = args.use_clahe
     use_edges = args.use_edges
     parameter_map = args.parameter_map
     z_range = args.z_range
@@ -327,6 +330,7 @@ def elastix_stack_alignment():
         pre_fix_big_jumps=pre_fix_big_jumps,
         pre_fix_iou_thresh=pre_fix_iou_thresh,
         gaussian_sigma=gaussian_sigma,
+        use_clahe=use_clahe,
         use_edges=use_edges,
         parameter_map=parameter_map,
         z_range=z_range,

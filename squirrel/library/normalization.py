@@ -66,3 +66,13 @@ def normalize_slices(
             result_stack = [task.get() for task in tasks]
 
     return np.array(result_stack)
+
+
+def clahe_on_image(
+        image,
+        clip_limit=3.0,
+        tile_grid_size=(127, 127)
+):
+    from cv2 import createCLAHE
+    clahe = createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
+    return clahe.apply(image)

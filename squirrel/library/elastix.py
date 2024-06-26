@@ -185,6 +185,7 @@ def register_with_elastix(
         parameter_map=None,
         gaussian_sigma=0.,
         use_edges=False,
+        use_clahe=False,
         crop_to_bounds_off=False,
         n_workers=os.cpu_count(),
         verbose=False
@@ -248,6 +249,10 @@ def register_with_elastix(
         if verbose:
             print(f'image shape after auto_mask: {fixed_image.shape}')
 
+    if use_clahe:
+        from squirrel.library.normalization import clahe_on_image
+        fixed_image = clahe_on_image(fixed_image)
+        moving_image = clahe_on_image(moving_image)
     if gaussian_sigma > 0:
         from skimage.filters import gaussian
         fixed_image = gaussian(fixed_image.astype(float), gaussian_sigma).astype('uint8')

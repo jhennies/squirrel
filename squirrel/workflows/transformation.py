@@ -754,17 +754,24 @@ def modify_step_in_sequence_workflow(transform_filepath, out_filepath, idx, affi
         print(f'affine = {affine}')
         print(f'replace = {replace}')
 
-    from ..library.linalg import modify_step_in_sequence
-    from ..library.transformation import load_transform_matrices, save_transformation_matrices
-    from ..library.elastix import save_transforms
+    # from ..library.linalg import modify_step_in_sequence
+    # from ..library.transformation import load_transform_matrices, save_transformation_matrices
+    # from ..library.elastix import save_transforms
+    #
+    # transforms, sequenced = load_transform_matrices(transform_filepath, validate=True, ndim=2)
+    # transforms = modify_step_in_sequence(transforms, idx, affine, replace=replace)
+    # save_transformation_matrices(
+    #     out_filepath,
+    #     save_transforms(transforms, None, param_order='M', save_order='C', ndim=2),
+    #     sequenced=sequenced
+    # )
 
-    transforms, sequenced = load_transform_matrices(transform_filepath, validate=True, ndim=2)
-    transforms = modify_step_in_sequence(transforms, idx, affine, replace=replace)
-    save_transformation_matrices(
-        out_filepath,
-        save_transforms(transforms, None, param_order='M', save_order='C', ndim=2),
-        sequenced=sequenced
-    )
+    from ..library.affine_matrices import AffineStack, AffineMatrix
+    transforms = AffineStack(filepath=transform_filepath)
+    if replace:
+        transforms[idx] = AffineMatrix(parameters=affine)
+    transforms[idx] = transforms[idx] * AffineMatrix(parameters=affine)
+    transforms.to_file(out_filepath)
 
 
 def create_affine_sequence_workflow(out_filepath, length, verbose=False):
