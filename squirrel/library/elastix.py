@@ -708,40 +708,40 @@ class ElastixMultiStepStack:
         dtype = image_stack_h.dtype
         assert dtype == 'uint8'
 
-        if n_workers == 1:
+        # if n_workers == 1:
+        #
+        #     for stack_idx, image_idx in enumerate(range(*z_range)):
 
-            for stack_idx, image_idx in enumerate(range(*z_range)):
+        result_volume.append(apply_transforms_on_image_stack_slice(
+            image_stack_h,
+            image_idx,
+            self[stack_idx],
+            target_image_shape=target_image_shape,
+            n_slices=z_range[1],
+            n_workers=1,
+            quiet=quiet,
+            verbose=verbose
+        ))
 
-                result_volume.append(apply_transforms_on_image_stack_slice(
-                    image_stack_h,
-                    image_idx,
-                    self[stack_idx],
-                    target_image_shape=target_image_shape,
-                    n_slices=z_range[1],
-                    n_workers=1,
-                    quiet=quiet,
-                    verbose=verbose
-                ))
-
-        else:
-
-            from concurrent.futures import ThreadPoolExecutor
-            with ThreadPoolExecutor(max_workers=n_workers) as tpe:
-                tasks = [
-                    tpe.submit(
-                        apply_transforms_on_image_stack_slice,
-                        image_stack_h,
-                        image_idx,
-                        self[stack_idx],
-                        target_image_shape,
-                        z_range[1],
-                        1,
-                        quiet,
-                        verbose
-                    )
-                    for stack_idx, image_idx in enumerate(range(*z_range))
-                ]
-                result_volume = [task.result() for task in tasks]
+        # else:
+        #
+        #     from concurrent.futures import ThreadPoolExecutor
+        #     with ThreadPoolExecutor(max_workers=n_workers) as tpe:
+        #         tasks = [
+        #             tpe.submit(
+        #                 apply_transforms_on_image_stack_slice,
+        #                 image_stack_h,
+        #                 image_idx,
+        #                 self[stack_idx],
+        #                 target_image_shape,
+        #                 z_range[1],
+        #                 1,
+        #                 quiet,
+        #                 verbose
+        #             )
+        #             for stack_idx, image_idx in enumerate(range(*z_range))
+        #         ]
+        #         result_volume = [task.result() for task in tasks]
 
         return np.clip(np.array(result_volume), 0, 255).astype(dtype)
 
