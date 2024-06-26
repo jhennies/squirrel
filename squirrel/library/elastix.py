@@ -718,7 +718,7 @@ class ElastixMultiStepStack:
                     self[stack_idx],
                     target_image_shape=target_image_shape,
                     n_slices=z_range[1],
-                    n_wokers=1,
+                    n_workers=1,
                     quiet=quiet,
                     verbose=verbose
                 ))
