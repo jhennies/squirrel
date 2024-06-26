@@ -214,6 +214,9 @@ def register_with_elastix(
             parameter_map['NumberOfResolutions'] = (str(number_of_resolutions),)
         if transform == 'SimilarityTransform':
             parameter_map['Transform'] = ['SimilarityTransform']
+    if type(parameter_map) == str:
+        from SimpleITK import ReadParameterFile
+        parameter_map = ReadParameterFile(parameter_map)
     if transform is None:
         assert parameter_map is not None,  'Either parameter_map or transform must be specified!'
         transform = parameter_map['Transform'][0]
