@@ -746,7 +746,7 @@ def add_translational_drift_workflow(
     # #     json.dump(transforms, f, indent=2)
 
 
-def modify_step_in_sequence_workflow(transform_filepath, out_filepath, idx, affine, replace=False, verbose=False):
+def modify_step_in_sequence_workflow(transform_filepath, out_filepath, idx, affine, replace=False, return_result=False, verbose=False):
 
     if verbose:
         print(f'transform_filepath = {transform_filepath}')
@@ -766,16 +766,22 @@ def modify_step_in_sequence_workflow(transform_filepath, out_filepath, idx, affi
     #     sequenced=sequenced
     # )
 
-    from ..library.affine_matrices import AffineStack, AffineMatrix
-    transforms = AffineStack(filepath=transform_filepath)
+    from squirrel.library.affine_matrices import AffineStack, AffineMatrix
+    if not isinstance(transform_filepath, AffineStack):
+        transforms = AffineStack(filepath=transform_filepath)
+    else:
+        transforms = transform_filepath
     if replace:
         assert not transforms.is_sequenced
         transforms[idx] = AffineMatrix(parameters=affine)
     if transforms.is_sequenced:
         for tidx, transform in enumerate(transforms[idx:]):
-            transforms[tidx] = transform * AffineMatrix(parameters=affine)
+            transforms[idx + tidx] = transform * AffineMatrix(parameters=affine)
     else:
         transforms[idx] = transforms[idx] * AffineMatrix(parameters=affine)
+
+    if return_result:
+        return transforms
     transforms.to_file(out_filepath)
 
 
@@ -823,4 +829,16 @@ def crop_transform_sequence_workflow(transform_filepath, out_filepath, z_range, 
 
     out_stack.to_file(out_filepath)
 
+
+if __name__ == '__main__':
+
+    from squirrel.library.affine_matrices import AffineStack, AffineMatrix
+
+    affines = AffineStack(stack = [[1, 0, 0, 0, 1, 0], [1, 0, 0, 0, 1, 0], [1, 0, 0, 0, 1, 0]], is_sequenced=True)
+
+    print(affines['C', :])
+
+    modified_affines = modify_step_in_sequence_workflow(affines, None, 1, [1, 0, 10, 0, 1, 5], return_result=True)
+
+    print(modified_affines['C', :])
 
