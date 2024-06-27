@@ -769,8 +769,13 @@ def modify_step_in_sequence_workflow(transform_filepath, out_filepath, idx, affi
     from ..library.affine_matrices import AffineStack, AffineMatrix
     transforms = AffineStack(filepath=transform_filepath)
     if replace:
+        assert not transforms.is_sequenced
         transforms[idx] = AffineMatrix(parameters=affine)
-    transforms[idx] = transforms[idx] * AffineMatrix(parameters=affine)
+    if transforms.is_sequenced:
+        for tidx, transform in enumerate(transforms[idx:]):
+            transforms[tidx] = transform * AffineMatrix(parameters=affine)
+    else:
+        transforms[idx] = transforms[idx] * AffineMatrix(parameters=affine)
     transforms.to_file(out_filepath)
 
 
