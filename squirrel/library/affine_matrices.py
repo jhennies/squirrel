@@ -298,6 +298,15 @@ class AffineStack:
         new_stack.is_sequenced = True
         return new_stack
 
+    def get_not_sequenced_stack(self):
+
+        new_stack = []
+        for idx in range(1, len(self)):
+            new_stack.append(self[idx] * -self[idx - 1])
+        new_stack = self.new_stack_with_same_meta(np.array(new_stack).flatten())
+        new_stack.is_sequenced = False
+        return new_stack
+
     @staticmethod
     def _z_interpolate(stack, scale):
         stack = np.array(stack)

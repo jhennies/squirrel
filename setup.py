@@ -50,7 +50,8 @@ setup(
             'linalg_apply_z_step = squirrel.linear_algebra:apply_z_step',
             'template_matching_stack_alignment = squirrel.template_matching:template_matching_stack_alignment',
             'crop_from_stack = squirrel.stack_operations:crop_from_stack',
-            'apply_auto_pad = squirrel.apply_transformation:apply_auto_pad'
+            'apply_auto_pad = squirrel.apply_transformation:apply_auto_pad',
+            'fiji_sift_log_to_affine_stack = squirrel.fiji:sift_log_to_affine_stack'
         ]
     },
     install_requires=[

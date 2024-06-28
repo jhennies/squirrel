@@ -146,6 +146,9 @@ def big_jump_pre_fix(moving_image, fixed_image, iou_thresh=0.5):
 
     intersection = np.zeros(moving_image.shape, dtype=bool)
     intersection[np.logical_and(moving_image > 0, fixed_image > 0)] = True
+    # from tifffile import imwrite
+    # imwrite('/media/julian/Data/tmp/00intersection.tif', intersection.astype('uint8'))
+    # imwrite('/media/julian/Data/tmp/00union.tif', union.astype('uint8'))
 
     iou = intersection.sum() / union.sum()
     if iou < iou_thresh:
@@ -257,10 +260,17 @@ def register_with_elastix(
         from skimage.filters import gaussian
         fixed_image = gaussian(fixed_image.astype(float), gaussian_sigma).astype('uint8')
         moving_image = gaussian(moving_image.astype(float), gaussian_sigma).astype('uint8')
+        if mask is not None:
+            from skimage.morphology import erosion
+            from skimage.morphology import disk
+            mask = erosion(mask, footprint=disk(2 * gaussian_sigma))
     if use_edges:
         from skimage.filters import sobel
         fixed_image = sobel(fixed_image.astype(float))
         moving_image = sobel(moving_image.astype(float))
+        # from tifffile import imwrite, imsave
+        # imwrite('/media/julian/Data/tmp/00mask.tif', mask)
+        # imwrite('/media/julian/Data/tmp/00fixed.tif', fixed_image)
         if mask is not None:
             fixed_image[mask == 0] = 0
             moving_image[mask == 0] = 0
