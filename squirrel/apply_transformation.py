@@ -332,17 +332,29 @@ def apply_auto_pad():
                         help='Json file containing the transformation')
     parser.add_argument('out_filepath', type=str,
                         help='Json file to which the result is saved')
+    parser.add_argument('--image_stack_path', type=str, default=None,
+                        help='file/dir-path of the image stack corresponding to transformations')
+    parser.add_argument('--key', type=str, default='data',
+                        help='Internal path of the moving input; default="data"; used if moving_filepath is h5 file')
+    parser.add_argument('--pattern', type=str, default='*.tif',
+                        help='Used to glob tif files from a tif stack folder; default="*.tif"')
     parser.add_argument('-v', '--verbose', action='store_true')
 
     args = parser.parse_args()
     transform_filepath = args.transform_filepath
     out_filepath = args.out_filepath
+    image_stack_path = args.image_stack_path
+    key = args.key
+    pattern = args.pattern
     verbose = args.verbose
 
     from squirrel.workflows.transformation import apply_auto_pad_workflow
     apply_auto_pad_workflow(
         transform_filepath,
         out_filepath,
+        image_stack_path=image_stack_path,
+        key=key,
+        pattern=pattern,
         verbose=verbose
     )
 
