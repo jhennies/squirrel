@@ -818,7 +818,7 @@ def apply_auto_pad_workflow(
         from squirrel.library.io import load_data_handle
         assert image_stack_path is not None, 'A stack needs to be supplied if no bounds information is found in the transformation meta data'
         stack_h, stack_shape = load_data_handle(image_stack_path, key=key, pattern=pattern)
-        stack_bounds = get_bounds_of_stack(stack_h, stack_shape, return_ints=True, z_range=z_range)
+        stack_bounds = get_bounds_of_stack(stack_h, stack_shape, return_ints=True, z_range=None)
     else:
         stack_bounds = transforms.get_meta('bounds')
 
