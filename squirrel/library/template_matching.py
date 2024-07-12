@@ -29,7 +29,7 @@ def match_template_on_stack_slice(
     if search_roi is None:
         z_slice = stack_handle[idx]
     else:
-        z_slice, _ = crop_roi(stack_handle, search_roi + [idx])
+        z_slice = crop_roi(stack_handle, search_roi + [idx])
 
     transform = match_template_on_image(
         z_slice,
