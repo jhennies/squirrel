@@ -12,7 +12,7 @@ def pad_volume(vol, min_shape, axes=None):
         new_shape = np.max([vol.shape, min_shape], axis=0)
 
     else:
-        new_shape = vol.shape
+        new_shape = np.array(vol.shape)
         for a in axes:
             if vol.shape[a] < min_shape[a]:
                 new_shape[a] = min_shape[a]
