@@ -38,7 +38,10 @@ def match_template_on_stack_slice(
 
     if determine_bounds:
         from ..library.image import get_bounds
-        return transform, get_bounds(z_slice, return_ints=True)
+        if search_roi is None:
+            return transform, get_bounds(z_slice, return_ints=True)
+        if search_roi is not None:
+            return transform, get_bounds(stack_handle[idx], return_ints=True)
 
     return transform, None
 
