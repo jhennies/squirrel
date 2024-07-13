@@ -424,7 +424,7 @@ def make_elastix_default_parameter_file():
         print(f'transform = {transform}')
 
     if transform.startswith('amst-'):
-        from workflows.amst import get_default_parameters
+        from squirrel.workflows.amst import get_default_parameters
         params = get_default_parameters(transform.split(sep='-')[1])
     else:
         from SimpleITK import GetDefaultParameterMap
