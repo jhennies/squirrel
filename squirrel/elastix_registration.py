@@ -410,7 +410,7 @@ def make_elastix_default_parameter_file():
     parser.add_argument('out_filepath', type=str,
                         help='Output directory path for the result plots')
     parser.add_argument('--transform', type=str, default='translation',
-                        help='One of the available transforms: ["translation", "affine", "bspline"]; '
+                        help='One of the available transforms: ["translation", "affine", "bspline", "amst-bspline"]; '
                              'default="translation"')
     parser.add_argument('-v', '--verbose', action='store_true')
 
@@ -423,8 +423,13 @@ def make_elastix_default_parameter_file():
         print(f'out_filepath = {out_filepath}')
         print(f'transform = {transform}')
 
-    from SimpleITK import GetDefaultParameterMap, WriteParameterFile
-    params = GetDefaultParameterMap(transform)
+    if transform.startswith('amst-'):
+        from workflows.amst import get_default_parameters
+        params = get_default_parameters(transform.split(sep='-')[1])
+    else:
+        from SimpleITK import GetDefaultParameterMap
+        params = GetDefaultParameterMap(transform)
+    from SimpleITK import WriteParameterFile
     WriteParameterFile(params, out_filepath)
 
 
