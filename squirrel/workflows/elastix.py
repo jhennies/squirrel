@@ -367,24 +367,26 @@ def stack_alignment_validation_workflow(
         os.mkdir(out_dirpath)
 
     if out_name is None:
-        transforms_filepath = os.path.join(out_dirpath, 'transforms.json')
+        transforms_dirpath = os.path.join(out_dirpath, 'transforms')
         plot_filepath = os.path.join(out_dirpath, 'plot.pdf')
         image_dirpath = os.path.join(out_dirpath, 'images')
     else:
-        transforms_filepath = os.path.join(out_dirpath, f'transforms-{out_name}.json')
+        transforms_dirpath = os.path.join(out_dirpath, f'transforms-{out_name}')
         plot_filepath = os.path.join(out_dirpath, f'plot-{out_name}.pdf')
         image_dirpath = os.path.join(out_dirpath, f'images-{out_name}')
     if not os.path.exists(image_dirpath):
         os.mkdir(image_dirpath)
     image_filepath = os.path.join(image_dirpath, 'image_{:04d}.h5')
+    transforms_filepath = os.path.join(transforms_dirpath, 'transforms_{:04d}.h5')
 
     stack, stack_size = load_data_handle(stack, key=key, pattern=pattern)
     labels = []
 
     for roi_idx, roi in enumerate(rois):
 
-        if not os.path.exists(transforms_filepath):
+        this_transforms_fp = transforms_filepath.format(roi_idx)
 
+        if not os.path.exists(this_transforms_fp):
 
             print(f'roi_idx = {roi_idx} / {len(rois) - 1}')
 
@@ -430,12 +432,12 @@ def stack_alignment_validation_workflow(
             )
             with File(image_filepath.format(roi_idx), mode='w') as f:
                 f.create_dataset('data', data=result_volume, compression='gzip')
+            transforms.to_file(this_transforms_fp)
 
         else:
-            transforms = AffineStack(filepath=transforms_filepath)
+            transforms = AffineStack(filepath=this_transforms_fp)
 
         translations = np.array(transforms.get_translations()) * resolution_yx
-        transforms.to_file(transforms_filepath)
         errors = np.sqrt(translations[:, 0] ** 2 + translations[:, 1] ** 2)
         labels.append('roi-{}-mean={}-median={}'.format(roi_idx, np.mean(errors), np.median(errors)))
         plt.plot(errors, label=labels[-1])
