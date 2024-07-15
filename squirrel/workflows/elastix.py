@@ -387,7 +387,7 @@ def stack_alignment_validation_workflow(
 
         if verbose:
             print(f'roi = {roi}')
-        roi_data = stack[:][roi]
+        roi_data = stack[roi]
         transforms = AffineStack(is_sequenced=False, pivot=[0., 0.])
         transforms.append(AffineMatrix(parameters=[1., 0., 0., 0., 1., 0.]))
 
