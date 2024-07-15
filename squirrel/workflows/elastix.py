@@ -412,7 +412,7 @@ def stack_alignment_validation_workflow(
                 return_result_image=True,
                 params_to_origin=True,
                 gaussian_sigma=2.0,
-                verbose=verbose
+                verbose=False  # This produces a ton of output and I don't think I need it here
             )
             transforms.append(result_matrix)
 
