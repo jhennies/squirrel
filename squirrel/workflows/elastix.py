@@ -383,55 +383,62 @@ def stack_alignment_validation_workflow(
 
     for roi_idx, roi in enumerate(rois):
 
-        print(f'roi_idx = {roi_idx} / {len(rois) - 1}')
+        if not os.path.exists(transforms_filepath):
 
-        if verbose:
-            print(f'roi = {roi}')
-        roi_data = stack[roi]
-        transforms = AffineStack(is_sequenced=False, pivot=[0., 0.])
-        transforms.append(AffineMatrix(parameters=[1., 0., 0., 0., 1., 0.]))
 
-        for idx in range(len(roi_data) - 1):
+            print(f'roi_idx = {roi_idx} / {len(rois) - 1}')
 
             if verbose:
-                print(f'idx = {idx} / {len(roi_data) - 2}')
+                print(f'roi = {roi}')
+            roi_data = stack[roi]
+            transforms = AffineStack(is_sequenced=False, pivot=[0., 0.])
+            transforms.append(AffineMatrix(parameters=[1., 0., 0., 0., 1., 0.]))
 
-            z_slice_fixed = roi_data[idx]
-            z_slice_moving = roi_data[idx + 1]
+            for idx in range(len(roi_data) - 1):
 
-            result_matrix, _ = register_with_elastix(
-                z_slice_fixed,
-                z_slice_moving,
-                transform='translation',
-                automatic_transform_initialization=False,
-                auto_mask=False,
-                # number_of_spatial_samples=256,
-                # maximum_number_of_iterations=256,
-                # number_of_resolutions=1,
-                pre_fix_big_jumps=False,
-                return_result_image=True,
-                params_to_origin=True,
-                gaussian_sigma=2.0,
-                verbose=False  # This produces a ton of output and I don't think I need it here
+                if verbose:
+                    print(f'idx = {idx} / {len(roi_data) - 2}')
+
+                z_slice_fixed = roi_data[idx]
+                z_slice_moving = roi_data[idx + 1]
+
+                result_matrix, _ = register_with_elastix(
+                    z_slice_fixed,
+                    z_slice_moving,
+                    transform='translation',
+                    automatic_transform_initialization=False,
+                    auto_mask=False,
+                    # number_of_spatial_samples=256,
+                    # maximum_number_of_iterations=256,
+                    # number_of_resolutions=1,
+                    pre_fix_big_jumps=False,
+                    return_result_image=True,
+                    params_to_origin=True,
+                    gaussian_sigma=2.0,
+                    verbose=False  # This produces a ton of output and I don't think I need it here
+                )
+                transforms.append(result_matrix)
+
+                # result_volume.append(result_image)
+
+            result_volume = apply_stack_alignment(
+                roi_data,
+                roi_data.shape,
+                transforms,
+                n_workers=1,
+                verbose=verbose
             )
-            transforms.append(result_matrix)
+            with File(image_filepath.format(roi_idx), mode='w') as f:
+                f.create_dataset('data', data=result_volume, compression='gzip')
 
-            # result_volume.append(result_image)
-
-        result_volume = apply_stack_alignment(
-            roi_data,
-            roi_data.shape,
-            transforms,
-            n_workers=1,
-            verbose=verbose
-        )
-        with File(image_filepath.format(roi_idx), mode='w') as f:
-            f.create_dataset('data', data=result_volume, compression='gzip')
+        else:
+            transforms = AffineStack(filepath=transforms_filepath)
 
         translations = np.array(transforms.get_translations()) * resolution_yx
         transforms.to_file(transforms_filepath)
-        labels.append(f'roi-{roi_idx}')
-        plt.plot(np.sqrt(translations[:, 0] ** 2 + translations[:, 1] ** 2), label=labels[-1])
+        errors = np.sqrt(translations[:, 0] ** 2 + translations[:, 1] ** 2)
+        labels.append('roi-{}-mean={}-median={}'.format(roi_idx, np.mean(errors), np.median(errors)))
+        plt.plot(errors, label=labels[-1])
 
     plt.ylim(ymin=0, ymax=y_max)
     plt.legend()
