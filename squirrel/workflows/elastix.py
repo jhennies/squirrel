@@ -376,6 +376,8 @@ def stack_alignment_validation_workflow(
         image_dirpath = os.path.join(out_dirpath, f'images-{out_name}')
     if not os.path.exists(image_dirpath):
         os.mkdir(image_dirpath)
+    if not os.path.exists(transforms_dirpath):
+        os.mkdir(transforms_dirpath)
     image_filepath = os.path.join(image_dirpath, 'image_{:04d}.h5')
     transforms_filepath = os.path.join(transforms_dirpath, 'transforms_{:04d}.h5')
 
