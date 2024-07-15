@@ -393,7 +393,8 @@ def stack_alignment_validation_workflow(
 
         for idx in range(len(roi_data) - 1):
 
-            # print(f'idx = {idx} / {len(roi_data) - 2}')
+            if verbose:
+                print(f'idx = {idx} / {len(roi_data) - 2}')
 
             z_slice_fixed = roi_data[idx]
             z_slice_moving = roi_data[idx + 1]
