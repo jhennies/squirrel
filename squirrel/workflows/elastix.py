@@ -441,7 +441,7 @@ def stack_alignment_validation_workflow(
 
         translations = np.array(transforms.get_translations()) * resolution_yx
         errors = np.sqrt(translations[:, 0] ** 2 + translations[:, 1] ** 2)
-        labels.append('roi-{}-mean={}-median={}'.format(roi_idx, np.mean(errors), np.median(errors)))
+        labels.append('roi-{}-mean={:.2f}-median={:.2f}'.format(roi_idx, np.mean(errors), np.median(errors)))
         plt.plot(errors, label=labels[-1])
 
     plt.ylim(ymin=0, ymax=y_max)
