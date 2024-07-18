@@ -24,7 +24,7 @@ def pad_volume(vol, min_shape, axes=None):
 
 
 def _average(a, b):
-    return np.add(a, b).astype(float) / 2
+    return np.add(a.astype(float), b.astype(float)) / 2
 
 
 def _get_math_operation(operation):
