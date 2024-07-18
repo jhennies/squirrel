@@ -198,7 +198,7 @@ def stack_calculator():
     )
     parser.add_argument('stack_paths', type=str, nargs=2,
                         # metavar=('A', 'B'),
-                        help='Path of the input stacks')
+                        help='Paths of the two input stacks')
     parser.add_argument('out_path', type=str,
                         help='Output location. Must be either a directory or an h5 file name. '
                              'Will be created if not existing')
