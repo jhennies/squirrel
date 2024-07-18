@@ -215,6 +215,8 @@ def stack_calculator():
     parser.add_argument('--operation', type=str, default='add',
                         help='Mathematical operation to perform on image slice pairs; default="add"; '
                              'possible values: ("add", "subtract", "multiply", "divide", "min", "max", "average"')
+    parser.add_argument('--n_workers', type=int, default=1,
+                        help='Number of CPUs to use')
     parser.add_argument('-v', '--verbose', action='store_true')
 
     args = parser.parse_args()
@@ -223,6 +225,7 @@ def stack_calculator():
     keys = args.keys
     patterns = args.patterns
     operation = args.operation
+    n_workers = args.n_workers
     verbose = args.verbose
 
     from squirrel.workflows.volume import stack_calculator_workflow
@@ -233,5 +236,6 @@ def stack_calculator():
         keys=keys,
         patterns=patterns,
         operation=operation,
+        n_workers=n_workers,
         verbose=verbose
     )
