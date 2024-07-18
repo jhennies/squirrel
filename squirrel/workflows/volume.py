@@ -41,3 +41,41 @@ def crop_from_stack_workflow(
         return
     raise ValueError(f'Invalid output type = {ft_out}')
 
+
+def stack_calculator_workflow(
+        stack_paths,
+        out_path,
+        keys=('data', 'data'),
+        patterns=('*.tif', '*.tif'),
+        operation='add',
+        verbose=False
+):
+
+    if verbose:
+        print(f'stack_paths = {stack_paths}')
+        print(f'out_path = {out_path}')
+        print(f'keys = {keys}')
+        print(f'patterns = {patterns}')
+        print(f'operation = {operation}')
+
+    from squirrel.library.io import load_data_handle, get_filetype
+
+    h0, s0 = load_data_handle(stack_paths[0], key=keys[0], pattern=patterns[0])
+    h1, s1 = load_data_handle(stack_paths[1], key=keys[1], pattern=patterns[0])
+
+    assert s0 == s1, 'Both stacks must have equal sizes in all three dimensions!'
+
+    from squirrel.library.volume import stack_calculator
+    result = stack_calculator(h0, h1, operation=operation)
+
+    ft_out = get_filetype(out_path)
+
+    if ft_out == 'dir':
+        from squirrel.library.io import write_tif_stack
+        write_tif_stack(result, out_path)
+        return
+    if ft_out == 'h5':
+        from squirrel.library.io import write_h5_container
+        write_h5_container(out_path, result)
+        return
+    raise ValueError(f'Invalid output type = {ft_out}')

@@ -185,3 +185,53 @@ def crop_from_stack():
         pattern=pattern,
         verbose=verbose
     )
+
+
+def stack_calculator():
+
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Performs mathematical operations on two image stacks. E.g. pairwise stack_a + stack_b',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('stack_paths', type=str, nargs=2,
+                        metavar=('A', 'B'),
+                        help='Path of the input stacks')
+    parser.add_argument('out_path', type=str,
+                        help='Output location. Must be either a directory or an h5 file name. '
+                             'Will be created if not existing')
+    parser.add_argument('--keys', type=str, default=('data', 'data'), nargs=2,
+                        metavar=('A', 'B'),
+                        help='For h5 or ome.zarr input stacks this key is used to locate the dataset inside the stack '
+                             'location; default=("data", "data"); '
+                             'Input an empty string if not applicable for one of the stacks, '
+                             'e.g. `--keys "" "data_b"` or `--keys "data_a" ""`')
+    parser.add_argument('--patterns', type=str, default=('*.tif', '*.tif'),
+                        metavar=('A', 'B'),
+                        help='File pattern to search for within the input folder; default = ("*.tif", "*.tif"); '
+                             'Input an empty string if not applicable for one of the stacks (see --keys)')
+    parser.add_argument('--operation', type=str, default='add',
+                        help='Mathematical operation to perform on image slice pairs; default="add"; '
+                             'possible values: ("add", "subtract", "multiply", "divide", "min", "max", "average"')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    stack_paths = args.stack_paths
+    out_path = args.out_path
+    keys = args.keys
+    patterns = args.patterns
+    operation = args.operation
+    verbose = args.verbose
+
+    from squirrel.workflows.volume import stack_calculator_workflow
+
+    stack_calculator_workflow(
+        stack_paths,
+        out_path,
+        keys=keys,
+        patterns=patterns,
+        operation=operation,
+        verbose=verbose
+    )

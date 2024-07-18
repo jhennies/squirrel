@@ -38,6 +38,7 @@ setup(
             'sift2d_stack_alignment = squirrel.sift2d:sift2d_stack_alignment',
             'sift3d = squirrel.sift3d:main',
             'merge_tif_stacks = squirrel.stack_operations:merge_tif_stacks',
+            'stack_calculator = squirrel.stack_operations:stack_calculator',
             'view_in_napari = squirrel.view_in_napari:main',
             'linalg_dot_product_on_affines = squirrel.linear_algebra:dot_product_on_affines',
             'linalg_scale_sequential_affines = squirrel.linear_algebra:scale_sequential_affines',

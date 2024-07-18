@@ -22,3 +22,29 @@ def pad_volume(vol, min_shape, axes=None):
 
     return t_vol
 
+
+def _get_math_operation(operation):
+    if operation == 'add':
+        return np.add
+    if operation == 'subtract':
+        return np.subtract,
+    if operation == 'multiply':
+        return np.multiply
+    if operation == 'divide':
+        return np.divide
+    if operation == 'min':
+        return np.minimum
+    if operation == 'max':
+        return np.maximum
+    if operation == 'average':
+        return lambda a, b: np.add(a, b) / 2
+    raise ValueError(f'Invalid value for operation: {operation}')
+
+
+def stack_calculator(
+        stack_a, stack_b, operation='add'
+):
+
+    func = _get_math_operation(operation)
+
+    return func(stack_a[:], stack_b[:])
