@@ -19,11 +19,15 @@ def crop_from_stack_workflow(
         print(f'pattern = {pattern}')
 
     from squirrel.library.io import load_data_handle, get_filetype
+    from squirrel.library.io import TiffStack
 
     h, s = load_data_handle(stack_path, key=key, pattern=pattern)
 
     roi = np.s_[roi[0]: roi[0] + roi[3], roi[1]: roi[1] + roi[4], roi[2]: roi[2] + roi[5]]
-    data = h[roi]
+    if isinstance(h, TiffStack):
+        data = h[:][roi]
+    else:
+        data = h[roi]
 
     ft_out = get_filetype(out_path)
 
