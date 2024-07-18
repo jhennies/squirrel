@@ -42,12 +42,13 @@ def _get_math_operation(operation):
 
 
 def stack_calculator(
-        stack_a, stack_b, operation='add', n_workers=1
+        stack_a, stack_b, operation='add', n_workers=1, verbose=False
 ):
 
     from multiprocessing import Pool
 
-    print(f'Running stack calculator with operation = {operation}')
+    if verbose:
+        print(f'Running stack calculator with operation = {operation}')
     func = _get_math_operation(operation)
 
     if n_workers == 1:
