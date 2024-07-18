@@ -23,6 +23,10 @@ def pad_volume(vol, min_shape, axes=None):
     return t_vol
 
 
+def _average(a, b):
+    return np.add(a, b) / 2
+
+
 def _get_math_operation(operation):
     if operation == 'add':
         return np.add
@@ -37,7 +41,7 @@ def _get_math_operation(operation):
     if operation == 'max':
         return np.maximum
     if operation == 'average':
-        return lambda a, b: np.add(a, b) / 2
+        return _average
     raise ValueError(f'Invalid value for operation: {operation}')
 
 
