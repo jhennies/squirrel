@@ -48,6 +48,7 @@ def stack_calculator_workflow(
         keys=('data', 'data'),
         patterns=('*.tif', '*.tif'),
         operation='add',
+        target_dtype=None,
         n_workers=1,
         verbose=False
 ):
@@ -58,6 +59,8 @@ def stack_calculator_workflow(
         print(f'keys = {keys}')
         print(f'patterns = {patterns}')
         print(f'operation = {operation}')
+        print(f'target_dtype = {target_dtype}')
+        print(f'n_workers = {n_workers}')
 
     from squirrel.library.io import load_data_handle, get_filetype
 
@@ -67,7 +70,11 @@ def stack_calculator_workflow(
     assert s0 == s1, 'Both stacks must have equal sizes in all three dimensions!'
 
     from squirrel.library.volume import stack_calculator
-    result = stack_calculator(h0, h1, operation=operation, n_workers=n_workers, verbose=verbose)
+    result = stack_calculator(
+        h0, h1, operation=operation,
+        target_dtype=target_dtype,
+        n_workers=n_workers, verbose=verbose
+    )
 
     ft_out = get_filetype(out_path)
 

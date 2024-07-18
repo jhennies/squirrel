@@ -215,6 +215,8 @@ def stack_calculator():
     parser.add_argument('--operation', type=str, default='add',
                         help='Mathematical operation to perform on image slice pairs; default="add"; '
                              'possible values: ("add", "subtract", "multiply", "divide", "min", "max", "average"')
+    parser.add_argument('--target_dtype', type=str, default=None,
+                        help='If set, the result will be casted to the respective data type')
     parser.add_argument('--n_workers', type=int, default=1,
                         help='Number of CPUs to use')
     parser.add_argument('-v', '--verbose', action='store_true')
@@ -225,6 +227,7 @@ def stack_calculator():
     keys = args.keys
     patterns = args.patterns
     operation = args.operation
+    target_dtype = args.target_dtype
     n_workers = args.n_workers
     verbose = args.verbose
 
@@ -236,6 +239,7 @@ def stack_calculator():
         keys=keys,
         patterns=patterns,
         operation=operation,
+        target_dtype=target_dtype,
         n_workers=n_workers,
         verbose=verbose
     )

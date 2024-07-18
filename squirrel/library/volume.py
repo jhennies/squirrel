@@ -45,13 +45,15 @@ def _get_math_operation(operation):
     raise ValueError(f'Invalid value for operation: {operation}')
 
 
-def _slice_calculator(stack_a, stack_b, idx, func):
+def _slice_calculator(stack_a, stack_b, idx, func, target_dtype):
     print(f'idx = {idx}')
+    if target_dtype is not None:
+        return func(stack_a[idx], stack_b[idx]).astype(target_dtype)
     return func(stack_a[idx], stack_b[idx])
 
 
 def stack_calculator(
-        stack_a, stack_b, operation='add', n_workers=1, verbose=False
+        stack_a, stack_b, operation='add', target_dtype=None, n_workers=1, verbose=False
 ):
 
     if verbose:
@@ -67,7 +69,7 @@ def stack_calculator(
         with Pool(processes=n_workers) as p:
             tasks = [
                 p.apply_async(_slice_calculator, (
-                    stack_a, stack_b, idx, func
+                    stack_a, stack_b, idx, func, target_dtype
                 ))
                 for idx in range(len(stack_a))
             ]
