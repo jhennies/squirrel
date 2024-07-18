@@ -208,7 +208,7 @@ def stack_calculator():
                              'location; default=("data", "data"); '
                              'Input an empty string if not applicable for one of the stacks, '
                              'e.g. `--keys "" "data_b"` or `--keys "data_a" ""`')
-    parser.add_argument('--patterns', type=str, default=('*.tif', '*.tif'),
+    parser.add_argument('--patterns', type=str, default=('*.tif', '*.tif'), nargs=2,
                         metavar=('A', 'B'),
                         help='File pattern to search for within the input folder; default = ("*.tif", "*.tif"); '
                              'Input an empty string if not applicable for one of the stacks (see --keys)')
