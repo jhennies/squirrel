@@ -66,7 +66,7 @@ def stack_calculator_workflow(
     assert s0 == s1, 'Both stacks must have equal sizes in all three dimensions!'
 
     from squirrel.library.volume import stack_calculator
-    result = stack_calculator(h0, h1, operation=operation)
+    result = stack_calculator(h0[:], h1[:], operation=operation, verbose=verbose)
 
     ft_out = get_filetype(out_path)
 

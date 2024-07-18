@@ -42,9 +42,24 @@ def _get_math_operation(operation):
 
 
 def stack_calculator(
-        stack_a, stack_b, operation='add'
+        stack_a, stack_b, operation='add', n_workers=1
 ):
 
+    from multiprocessing import Pool
+
+    print(f'Running stack calculator with operation = {operation}')
     func = _get_math_operation(operation)
 
-    return func(stack_a[:], stack_b[:])
+    if n_workers == 1:
+        return func(stack_a, stack_b)
+
+    else:
+
+        with Pool(processes=n_workers) as p:
+            tasks = [
+                p.apply_async(func, (
+                    stack_a[idx], stack_b[idx]
+                ))
+                for idx in range(len(stack_a))
+            ]
+            return [task.get() for task in tasks]
