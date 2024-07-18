@@ -67,7 +67,7 @@ def stack_calculator_workflow(
     assert s0 == s1, 'Both stacks must have equal sizes in all three dimensions!'
 
     from squirrel.library.volume import stack_calculator
-    result = stack_calculator(h0[:], h1[:], operation=operation, n_workers=n_workers, verbose=verbose)
+    result = stack_calculator(h0, h1, operation=operation, n_workers=n_workers, verbose=verbose)
 
     ft_out = get_filetype(out_path)
 
@@ -80,3 +80,15 @@ def stack_calculator_workflow(
         write_h5_container(out_path, result)
         return
     raise ValueError(f'Invalid output type = {ft_out}')
+
+
+if __name__ == '__main__':
+
+    stack_calculator_workflow(
+        ('/media/julian/Data/projects/walter/cryo_fib_preprocessing/2024-03-21_2h/InLensCombined',
+         '/media/julian/Data/projects/walter/cryo_fib_preprocessing/2024-03-21_2h/InLensCombined'),
+        '/tmp/test_stack_calculator',
+        operation='average',
+        n_workers=16,
+        verbose=True
+    )

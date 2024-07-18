@@ -45,25 +45,29 @@ def _get_math_operation(operation):
     raise ValueError(f'Invalid value for operation: {operation}')
 
 
+def _slice_calculator(stack_a, stack_b, idx, func):
+    print(f'idx = {idx}')
+    return func(stack_a[idx], stack_b[idx])
+
+
 def stack_calculator(
         stack_a, stack_b, operation='add', n_workers=1, verbose=False
 ):
-
-    from multiprocessing import Pool
 
     if verbose:
         print(f'Running stack calculator with operation = {operation}')
     func = _get_math_operation(operation)
 
     if n_workers == 1:
-        return func(stack_a, stack_b)
+        return [_slice_calculator(stack_a, stack_b, idx, func) for idx in range(len(stack_a))]
 
     else:
 
+        from multiprocessing import Pool
         with Pool(processes=n_workers) as p:
             tasks = [
-                p.apply_async(func, (
-                    stack_a[idx], stack_b[idx]
+                p.apply_async(_slice_calculator, (
+                    stack_a, stack_b, idx, func
                 ))
                 for idx in range(len(stack_a))
             ]
