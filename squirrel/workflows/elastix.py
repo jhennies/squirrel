@@ -491,6 +491,7 @@ def apply_multi_step_stack_alignment_workflow(
                 image_shape = stack.get_meta('stack_shape')[1:]
             else:
                 image_shape = target_image_shape
+                target_image_shape = image_shape
             if not stack.is_sequenced:
                 stack = stack.get_sequenced_stack()
             stacks.append(ElastixStack(stack=stack, image_shape=image_shape))

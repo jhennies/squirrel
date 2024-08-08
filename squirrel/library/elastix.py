@@ -734,6 +734,9 @@ class ElastixMultiStepStack:
         dtype = image_stack_h.dtype
         assert dtype == 'uint8'
 
+        if verbose:
+            print(f'target_image_shape = {target_image_shape}')
+
         # if n_workers == 1:
         #
         for stack_idx, image_idx in enumerate(range(*z_range)):
@@ -748,6 +751,9 @@ class ElastixMultiStepStack:
                 quiet=quiet,
                 verbose=verbose
             ))
+
+        if verbose:
+            print(f'result_volume[0].shape = {result_volume[0].shape}')
 
         # else:
         #
