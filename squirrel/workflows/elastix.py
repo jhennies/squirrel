@@ -490,6 +490,7 @@ def apply_multi_step_stack_alignment_workflow(
             if stack.exists_meta('stack_shape'):
                 image_shape = stack.get_meta('stack_shape')[1:]
                 target_image_shape = image_shape
+                print(f'found image_shape = {image_shape}')
             else:
                 image_shape = target_image_shape
             if not stack.is_sequenced:
