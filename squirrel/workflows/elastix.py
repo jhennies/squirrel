@@ -430,7 +430,10 @@ def stack_alignment_validation_workflow(
                     )
 
                 elif method == 'xcorr':
-                    shift, error, diffphase = phase_cross_correlation(z_slice_fixed, z_slice_moving)
+                    shift, error, diffphase = phase_cross_correlation(
+                        z_slice_fixed, z_slice_moving,
+                        upsample_factor=10
+                    )
                     print(f'shift = {shift}')
                     print(f'diffphase = {diffphase}')
                     result_matrix = AffineMatrix(parameters=[1, 0, shift[0], 0, 1, shift[1]])
