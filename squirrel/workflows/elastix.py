@@ -345,6 +345,7 @@ def stack_alignment_validation_workflow(
         resolution_yx=(1.0, 1.0),
         out_name=None,
         y_max=None,
+        method='elastix',
         verbose=False
 ):
 
@@ -384,6 +385,10 @@ def stack_alignment_validation_workflow(
     stack, stack_size = load_data_handle(stack, key=key, pattern=pattern)
     labels = []
 
+    phase_cross_correlation = None
+    if method == 'xcorr':
+        from skimage.registration import phase_cross_correlation
+
     for roi_idx, roi in enumerate(rois):
 
         this_transforms_fp = transforms_filepath.format(roi_idx)
@@ -406,21 +411,27 @@ def stack_alignment_validation_workflow(
                 z_slice_fixed = roi_data[idx]
                 z_slice_moving = roi_data[idx + 1]
 
-                result_matrix, _ = register_with_elastix(
-                    z_slice_fixed,
-                    z_slice_moving,
-                    transform='translation',
-                    automatic_transform_initialization=False,
-                    auto_mask=False,
-                    # number_of_spatial_samples=256,
-                    # maximum_number_of_iterations=256,
-                    # number_of_resolutions=1,
-                    pre_fix_big_jumps=False,
-                    return_result_image=True,
-                    params_to_origin=True,
-                    gaussian_sigma=2.0,
-                    verbose=False  # This produces a ton of output and I don't think I need it here
-                )
+                if method == 'elastix':
+
+                    result_matrix, _ = register_with_elastix(
+                        z_slice_fixed,
+                        z_slice_moving,
+                        transform='translation',
+                        automatic_transform_initialization=False,
+                        auto_mask=False,
+                        # number_of_spatial_samples=256,
+                        # maximum_number_of_iterations=256,
+                        # number_of_resolutions=1,
+                        pre_fix_big_jumps=False,
+                        return_result_image=True,
+                        params_to_origin=True,
+                        gaussian_sigma=2.0,
+                        verbose=False  # This produces a ton of output and I don't think I need it here
+                    )
+
+                elif method == 'xcorr':
+                    shift, error, diffphase = phase_cross_correlation(z_slice_fixed, z_slice_moving)
+                    result_matrix = AffineMatrix(parameters=[[1, 0, shift[0]], [0, 1, shift[1]]])
                 transforms.append(result_matrix)
 
                 # result_volume.append(result_image)

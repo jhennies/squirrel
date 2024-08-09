@@ -367,6 +367,8 @@ def stack_alignment_validation():
                         help='An additional name for the result files which is added to the filenames')
     parser.add_argument('--y_max', type=int, default=None,
                         help='Maximum of the y-axis')
+    parser.add_argument('--method', type=str, default='elastix',
+                        help='The registration method; either "elastix" or "xcorr"; default="elastix"')
     parser.add_argument('-v', '--verbose', action='store_true')
 
     args = parser.parse_args()
@@ -378,6 +380,7 @@ def stack_alignment_validation():
     resolution_yx = args.resolution_yx
     out_name = args.out_name
     y_max = args.y_max
+    method = args.method
     verbose = args.verbose
 
     from squirrel.workflows.elastix import stack_alignment_validation_workflow
@@ -395,6 +398,7 @@ def stack_alignment_validation():
         resolution_yx=resolution_yx,
         out_name=out_name,
         y_max=y_max,
+        method=method,
         verbose=verbose,
     )
 
