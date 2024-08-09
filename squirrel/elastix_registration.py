@@ -412,7 +412,7 @@ def make_elastix_default_parameter_file():
     parser.add_argument('--transform', type=str, default='translation',
                         help='One of the available transforms: ["translation", "affine", "bspline", "amst-bspline"]; '
                              'default="translation"')
-    parser.add_argument('-elx', '--elastix_parameters', type=str, default=None,
+    parser.add_argument('-elx', '--elastix_parameters', type=str, nargs='+', default=None,
                         help='Specify any elastix parameter that needs to deviate from the default; default=None\n'
                              'Format example: \n'
                              '    -elx FinalGridSpacingInPhysicalUnits:128 GridSpacingSchedule:2.0,1.4,1.2,1.0')
