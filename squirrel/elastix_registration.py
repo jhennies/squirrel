@@ -412,16 +412,36 @@ def make_elastix_default_parameter_file():
     parser.add_argument('--transform', type=str, default='translation',
                         help='One of the available transforms: ["translation", "affine", "bspline", "amst-bspline"]; '
                              'default="translation"')
+    parser.add_argument('-elx', '--elastix_parameters', type=str, default=None,
+                        help='Specify any elastix parameter that needs to deviate from the default; default=None\n'
+                             'Format example: \n'
+                             '    -elx FinalGridSpacingInPhysicalUnits:128 GridSpacingSchedule:2.0,1.4,1.2,1.0')
     parser.add_argument('-v', '--verbose', action='store_true')
 
     args = parser.parse_args()
     out_filepath = args.out_filepath
     transform = args.transform
+    elastix_parameters = args.elastix_parameters
     verbose = args.verbose
 
     if verbose:
         print(f'out_filepath = {out_filepath}')
         print(f'transform = {transform}')
+        print(f'elastix_parameters = {elastix_parameters}')
+
+    def set_elastix_parameters_from_input(elx_inputs, elx_params):
+
+        if elx_inputs is None:
+            return elx_params
+
+        for elx_input in elx_inputs:
+            key, values = str.split(elx_input, ':')
+            values = str.split(values, ',')
+            elx_params[key] = values
+            if verbose:
+                print(f'{key} = {values}')
+
+        return elx_params
 
     if transform.startswith('amst-'):
         from squirrel.workflows.amst import get_default_parameters
@@ -429,6 +449,7 @@ def make_elastix_default_parameter_file():
     else:
         from SimpleITK import GetDefaultParameterMap
         params = GetDefaultParameterMap(transform)
+    set_elastix_parameters_from_input(elastix_parameters, params)
     from SimpleITK import WriteParameterFile
     WriteParameterFile(params, out_filepath)
 
