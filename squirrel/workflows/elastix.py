@@ -382,7 +382,8 @@ def stack_alignment_validation_workflow(
     if not os.path.exists(transforms_dirpath):
         os.mkdir(transforms_dirpath)
     image_filepath = os.path.join(image_dirpath, 'image_{:04d}.h5')
-    transforms_filepath = os.path.join(transforms_dirpath, 'transforms_{:04d}.h5')
+    input_filepath = os.path.join(image_dirpath, 'input_{:04d}.h5')
+    transforms_filepath = os.path.join(transforms_dirpath, 'transforms_{:04d}.json')
 
     stack, stack_size = load_data_handle(stack, key=key, pattern=pattern)
     labels = []
@@ -457,6 +458,8 @@ def stack_alignment_validation_workflow(
             )
             with File(image_filepath.format(roi_idx), mode='w') as f:
                 f.create_dataset('data', data=result_volume, compression='gzip')
+            with File(input_filepath.format(roi_idx), mode='w') as f:
+                f.create_dataset('data', data=roi_data, compression='gzip')
             transforms.to_file(this_transforms_fp)
 
         else:
