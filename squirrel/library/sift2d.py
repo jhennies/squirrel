@@ -14,8 +14,8 @@ def register_with_sift2(
     sift = cv2.SIFT_create()
 
     # Detect keypoints and descriptors
-    keypoints1, descriptors1 = sift.detectAndCompute(fixed_image, None)
-    keypoints2, descriptors2 = sift.detectAndCompute(moving_image, None)
+    keypoints1, descriptors1 = sift.detectAndCompute(moving_image, None)
+    keypoints2, descriptors2 = sift.detectAndCompute(fixed_image, None)
 
     # Use BFMatcher to match descriptors (using L2 norm for SIFT)
     bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
