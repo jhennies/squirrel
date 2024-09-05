@@ -34,6 +34,9 @@ def register_with_sift2(
     translations = points2 - points1
     offset = np.median(translations, axis=0)
 
+    if verbose:
+        print(f'offset = {offset}')
+
     return offset
 
 
