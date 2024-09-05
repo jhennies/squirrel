@@ -37,7 +37,8 @@ def register_with_sift2(
     if verbose:
         print(f'offset = {offset}')
 
-    return offset
+    from squirrel.library.transformation import setup_translation_matrix
+    return setup_translation_matrix(offset, ndim=2)
 
 
 def register_with_sift(
