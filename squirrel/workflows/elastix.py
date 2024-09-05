@@ -455,6 +455,7 @@ def stack_alignment_validation_workflow(
                     ))
 
                 transforms.append(result_matrix)
+                print(f'len(transforms) = {len(transforms)}')
 
                 # result_volume.append(result_image)
 
