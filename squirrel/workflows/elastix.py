@@ -390,9 +390,12 @@ def stack_alignment_validation_workflow(
 
     # phase_cross_correlation = None
     xcorr = None
+    register_with_sift = None
     if method == 'xcorr':
         from squirrel.library.xcorr import xcorr
     #     from skimage.registration import phase_cross_correlation
+    if method == 'sift':
+        from squirrel.library.sift2d import register_with_sift
 
     for roi_idx, roi in enumerate(rois):
 
@@ -445,6 +448,12 @@ def stack_alignment_validation_workflow(
                     print(f'shift = {shift}')
                     print(f'diffphase = {diffphase}')
                     result_matrix = AffineMatrix(parameters=[1, 0, shift[0], 0, 1, shift[1]])
+
+                elif method == 'sift':
+                    result_matrix = register_with_sift(
+                        z_slice_fixed, z_slice_moving, transform='translation'
+                    )
+
                 transforms.append(result_matrix)
 
                 # result_volume.append(result_image)
