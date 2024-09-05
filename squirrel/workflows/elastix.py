@@ -450,9 +450,9 @@ def stack_alignment_validation_workflow(
                     result_matrix = AffineMatrix(parameters=[1, 0, shift[0], 0, 1, shift[1]])
 
                 elif method == 'sift':
-                    result_matrix = AffineMatrix(register_with_sift(
+                    result_matrix = register_with_sift(
                         z_slice_fixed, z_slice_moving  # , transform='translation'
-                    ))
+                    )
 
                 transforms.append(result_matrix)
                 print(f'len(transforms) = {len(transforms)}')
