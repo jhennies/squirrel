@@ -452,7 +452,7 @@ def stack_alignment_validation_workflow(
                 elif method == 'sift':
                     result_matrix = AffineMatrix(parameters=register_with_sift(
                         z_slice_fixed, z_slice_moving  # , transform='translation'
-                    ))
+                    ).flatten())
 
                 if verbose:
                     print(f'result_matix = {result_matrix}')
