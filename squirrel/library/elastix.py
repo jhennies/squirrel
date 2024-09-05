@@ -167,7 +167,6 @@ def big_jump_pre_fix(moving_image, fixed_image, iou_thresh=0.5, verbose=False):
         # if mask_im is not None:
         #     mask_im = shift(mask_im, np.round(offsets))
 
-
         if verbose:
             print(f'offsets = {offsets}')
 
@@ -250,12 +249,6 @@ def register_with_elastix(
         bounds = np.s_[bounds_total[0]: bounds_total[2], bounds_total[1]: bounds_total[3]]
         fixed_image = fixed_image[bounds]
         moving_image = moving_image[bounds]
-    if auto_mask:
-        fixed_mask = make_auto_mask(fixed_image)
-        moving_mask = make_auto_mask(moving_image)
-        mask = fixed_mask * moving_mask
-        if verbose:
-            print(f'image shape after auto_mask: {fixed_image.shape}')
 
     if use_clahe:
         from squirrel.library.normalization import clahe_on_image
@@ -296,6 +289,13 @@ def register_with_elastix(
             raise NotImplementedError('Big jump fixing only implemented for translations!')
         pre_fix_offsets, moving_image = big_jump_pre_fix(moving_image, fixed_image, iou_thresh=pre_fix_iou_thresh, verbose=verbose)
         pre_fix_offsets = np.array(pre_fix_offsets)
+
+    if auto_mask:
+        fixed_mask = make_auto_mask(fixed_image)
+        moving_mask = make_auto_mask(moving_image)
+        mask = fixed_mask * moving_mask
+        if verbose:
+            print(f'image shape after auto_mask: {fixed_image.shape}')
 
     if type(fixed_image) == np.ndarray:
         if verbose:
