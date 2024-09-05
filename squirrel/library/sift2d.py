@@ -34,8 +34,7 @@ def register_with_sift2(
     translations = points2 - points1
     offset = np.median(translations, axis=0)
 
-    if verbose:
-        print(f'offset = {offset}')
+    print(f'offset = {offset}')
 
     from squirrel.library.transformation import setup_translation_matrix
     return setup_translation_matrix(offset, ndim=2)
