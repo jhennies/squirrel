@@ -447,7 +447,7 @@ def stack_alignment_validation_workflow(
                     # )
                     print(f'shift = {shift}')
                     print(f'diffphase = {diffphase}')
-                    result_matrix = AffineMatrix(parameters=[1, 0, shift[0], 0, 1, shift[1]])
+                    result_matrix = -AffineMatrix(parameters=[1, 0, shift[0], 0, 1, shift[1]])
 
                 elif method == 'sift':
                     result_matrix = AffineMatrix(parameters=register_with_sift(
