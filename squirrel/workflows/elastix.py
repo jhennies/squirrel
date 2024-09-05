@@ -346,7 +346,7 @@ def stack_alignment_validation_workflow(
         out_name=None,
         y_max=None,
         method='elastix',
-        gaussian_sigma=2.0,
+        gaussian_sigma=1.0,
         verbose=False
 ):
 
