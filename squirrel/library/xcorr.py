@@ -7,5 +7,5 @@ def xcorr(fixed, moving, sigma=1.0):
     moving_ = gaussianGradientMagnitude(moving.astype('float32'), sigma)
 
     return phase_cross_correlation(
-        fixed_, moving_, upsample_factor=10
+        fixed_, moving_, upsample_factor=100
     )
