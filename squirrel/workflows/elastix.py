@@ -346,6 +346,7 @@ def stack_alignment_validation_workflow(
         out_name=None,
         y_max=None,
         method='elastix',
+        gaussian_sigma=2.0,
         verbose=False
 ):
 
@@ -363,6 +364,7 @@ def stack_alignment_validation_workflow(
     from squirrel.library.transformation import apply_stack_alignment
     from matplotlib import pyplot as plt
     from h5py import File
+    from vigra.filters import gaussianSmoothing
 
     if not os.path.exists(out_dirpath):
         os.mkdir(out_dirpath)
@@ -385,9 +387,11 @@ def stack_alignment_validation_workflow(
     stack, stack_size = load_data_handle(stack, key=key, pattern=pattern)
     labels = []
 
-    phase_cross_correlation = None
+    # phase_cross_correlation = None
+    xcorr = None
     if method == 'xcorr':
-        from skimage.registration import phase_cross_correlation
+        from squirrel.library.xcorr import xcorr
+    #     from skimage.registration import phase_cross_correlation
 
     for roi_idx, roi in enumerate(rois):
 
@@ -430,10 +434,13 @@ def stack_alignment_validation_workflow(
                     )
 
                 elif method == 'xcorr':
-                    shift, error, diffphase = phase_cross_correlation(
-                        z_slice_fixed, z_slice_moving,
-                        upsample_factor=10
+                    shift, error, diffphase = xcorr(
+                        z_slice_fixed, z_slice_moving, sigma=gaussian_sigma
                     )
+                    # shift, error, diffphase = phase_cross_correlation(
+                    #     z_slice_fixed, z_slice_moving,
+                    #     upsample_factor=10
+                    # )
                     print(f'shift = {shift}')
                     print(f'diffphase = {diffphase}')
                     result_matrix = AffineMatrix(parameters=[1, 0, shift[0], 0, 1, shift[1]])
