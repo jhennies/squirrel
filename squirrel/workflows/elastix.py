@@ -395,7 +395,7 @@ def stack_alignment_validation_workflow(
         from squirrel.library.xcorr import xcorr
     #     from skimage.registration import phase_cross_correlation
     if method == 'sift':
-        from squirrel.library.sift2d import register_with_sift
+        from squirrel.library.sift2d import register_with_sift2 as register_with_sift
 
     for roi_idx, roi in enumerate(rois):
 
@@ -451,7 +451,7 @@ def stack_alignment_validation_workflow(
 
                 elif method == 'sift':
                     result_matrix = register_with_sift(
-                        z_slice_fixed, z_slice_moving, transform='translation'
+                        z_slice_fixed, z_slice_moving  # , transform='translation'
                     )
 
                 transforms.append(result_matrix)
