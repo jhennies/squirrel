@@ -454,8 +454,11 @@ def stack_alignment_validation_workflow(
                         z_slice_fixed, z_slice_moving  # , transform='translation'
                     )
 
+                if verbose:
+                    print(f'result_matix = {result_matrix}')
                 transforms.append(result_matrix)
-                print(f'len(transforms) = {len(transforms)}')
+                if verbose:
+                    print(f'len(transforms) = {len(transforms)}')
 
                 # result_volume.append(result_image)
 
