@@ -10,31 +10,29 @@ def register_with_sift2(
 
     import cv2
 
-    sift = cv2.SIFT_create(nOctaveLayers=3, sigma=1.6, contrastThreshold=0.09)
+    # Create SIFT detector
+    sift = cv2.SIFT_create()
 
-    kp_img, des_img = sift.detectAndCompute(moving_image, None)
-    kp_ref, des_ref = sift.detectAndCompute(fixed_image, None)
+    # Detect keypoints and descriptors
+    keypoints1, descriptors1 = sift.detectAndCompute(fixed_image, None)
+    keypoints2, descriptors2 = sift.detectAndCompute(moving_image, None)
 
+    # Use BFMatcher to match descriptors (using L2 norm for SIFT)
     bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
-    matches = bf.match(des_img, des_ref)
 
+    # Match descriptors
+    matches = bf.match(descriptors1, descriptors2)
+
+    # Sort matches based on distance (best matches first)
     matches = sorted(matches, key=lambda x: x.distance)
 
-    img_matches = cv2.drawMatches(moving_image, kp_img, fixed_image, kp_ref, matches[:10], None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+    # Extract matched keypoints' coordinates
+    points1 = np.float32([keypoints1[m.queryIdx].pt for m in matches]).reshape(-1, 2)
+    points2 = np.float32([keypoints2[m.trainIdx].pt for m in matches]).reshape(-1, 2)
 
-    # Compute the offset by analyzing matched keypoints
-    if len(img_matches) > 0:
-        # Extract location of good matches
-        points1 = np.float32([kp_img[m.queryIdx].pt for m in img_matches])
-        points2 = np.float32([kp_ref[m.trainIdx].pt for m in img_matches])
-
-        # Find translation vector using mean of the differences
-        offset = np.median(points2 - points1, axis=0)
-        if verbose:
-            print(f"Offset between images: {offset}")
-    else:
-        print("Not enough matches found.")
-        offset = [0., 0.]
+    # Calculate translation (difference in keypoints)
+    translations = points2 - points1
+    offset = np.median(translations, axis=0)
 
     return offset
 
