@@ -369,6 +369,9 @@ def stack_alignment_validation():
                         help='Maximum of the y-axis')
     parser.add_argument('--method', type=str, default='elastix',
                         help='The registration method; either "elastix" or "xcorr"; default="elastix"')
+    parser.add_argument('--subtract_average', action='store_true',
+                        help='Subtract the local average of the alignment signal to avoid drift effect to influece the '
+                             'error estimation')
     parser.add_argument('-v', '--verbose', action='store_true')
 
     args = parser.parse_args()
@@ -381,6 +384,7 @@ def stack_alignment_validation():
     out_name = args.out_name
     y_max = args.y_max
     method = args.method
+    subtract_average = args.subtract_average
     verbose = args.verbose
 
     from squirrel.workflows.elastix import stack_alignment_validation_workflow
@@ -399,6 +403,7 @@ def stack_alignment_validation():
         out_name=out_name,
         y_max=y_max,
         method=method,
+        subtract_average=subtract_average,
         verbose=verbose,
     )
 

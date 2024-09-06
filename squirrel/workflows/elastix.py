@@ -347,6 +347,7 @@ def stack_alignment_validation_workflow(
         y_max=None,
         method='elastix',
         gaussian_sigma=1.0,
+        subtract_average=False,
         verbose=False
 ):
 
@@ -461,6 +462,9 @@ def stack_alignment_validation_workflow(
                     print(f'len(transforms) = {len(transforms)}')
 
                 # result_volume.append(result_image)
+
+            if subtract_average:
+                transforms = transforms * -transforms.get_smoothed_stack(8)
 
             result_volume = apply_stack_alignment(
                 roi_data,
