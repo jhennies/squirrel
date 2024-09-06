@@ -146,9 +146,6 @@ def big_jump_pre_fix(moving_image, fixed_image, iou_thresh=0.5, verbose=False):
 
     intersection = np.zeros(moving_image.shape, dtype=bool)
     intersection[np.logical_and(moving_image > 0, fixed_image > 0)] = True
-    # from tifffile import imwrite
-    # imwrite('/media/julian/Data/tmp/00intersection.tif', intersection.astype('uint8'))
-    # imwrite('/media/julian/Data/tmp/00union.tif', union.astype('uint8'))
 
     iou = intersection.sum() / union.sum()
     if iou < iou_thresh:
@@ -160,19 +157,18 @@ def big_jump_pre_fix(moving_image, fixed_image, iou_thresh=0.5, verbose=False):
             fixed_image, moving_image,
             reference_mask=fixed_image > 0,
             moving_mask=moving_image > 0,
-            upsample_factor=1
+            upsample_factor=1,
+            normalization=None
         )[0]
 
         result_image = shift(moving_image, np.round(offsets))
-        # if mask_im is not None:
-        #     mask_im = shift(mask_im, np.round(offsets))
 
         if verbose:
             print(f'offsets = {offsets}')
 
-        return np.round(offsets), result_image  # , mask_im
+        return np.round(offsets), result_image
 
-    return (0., 0.), moving_image  # , mask_im
+    return (0., 0.), moving_image
 
 
 def register_with_elastix(
