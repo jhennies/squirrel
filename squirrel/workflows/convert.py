@@ -139,20 +139,20 @@ def merge_tif_stacks_workflow(
         new_shape = np.max(shapes, axis=0)
         if verbose:
             print(f'new_shape = {new_shape}')
-        # idx = 0
+        out_idx = 0
         for h in handles:
             if verbose:
                 print(f'this_shape = {h[0].shape}')
             # for img in h[:]:
             for idx in range(len(h)):
                 img = h[idx]
-                print(f'idx = {idx}')
+                print(f'out_idx = {out_idx}')
                 write_tif_slice(
                     image_to_shape(img, new_shape),
                     out_folder,
-                    out_pattern.format(idx)
+                    out_pattern.format(out_idx)
                 )
-                # idx += 1
+                out_idx += 1
 
         return
 
