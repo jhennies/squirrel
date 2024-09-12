@@ -139,7 +139,7 @@ def merge_tif_stacks_workflow(
         new_shape = np.max(shapes, axis=0)
         if verbose:
             print(f'new_shape = {new_shape}')
-        idx = 0
+        # idx = 0
         for h in handles:
             if verbose:
                 print(f'this_shape = {h[0].shape}')
@@ -152,7 +152,7 @@ def merge_tif_stacks_workflow(
                     out_folder,
                     out_pattern.format(idx)
                 )
-                idx += 1
+                # idx += 1
 
         return
 
