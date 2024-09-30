@@ -38,6 +38,7 @@ def norm_full_range(im, quantiles, ignore_zeros=False):
     max_val = np.iinfo(dtype).max
     assert dtype == 'uint8' or dtype == 'uint16', \
         f'Only allowing 8 or 16 bit unsigned integer images. Image has dtype = {dtype}'
+    im = im.astype('float32')
 
     if ignore_zeros:
         upper = np.quantile(im[im > 0], quantiles[1])
