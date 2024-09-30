@@ -201,8 +201,11 @@ def register_with_elastix(
     if transform == 'bspline':
         crop_to_bounds = False
 
-    assert fixed_image.dtype == 'uint8'
-    assert moving_image.dtype == 'uint8'
+    dtype = fixed_image.dtype
+    assert dtype == 'uint8' or dtype == 'uint16', \
+        f'Only allowing 8 or 16 bit unsigned integer images. Fixed image has dtype = {dtype}'
+    assert moving_image.dtype == dtype, \
+        f'fixed and moving images must have the same data type: {dtype} != {moving_image.dtype}'
 
     if parameter_map is None:
         assert transform is not None, 'Either parameter_map or transform must be specified!'
@@ -252,8 +255,8 @@ def register_with_elastix(
         moving_image = clahe_on_image(moving_image)
     if gaussian_sigma > 0:
         from skimage.filters import gaussian
-        fixed_image = gaussian(fixed_image.astype(float), gaussian_sigma).astype('uint8')
-        moving_image = gaussian(moving_image.astype(float), gaussian_sigma).astype('uint8')
+        fixed_image = gaussian(fixed_image.astype(float), gaussian_sigma).astype(dtype)
+        moving_image = gaussian(moving_image.astype(float), gaussian_sigma).astype(dtype)
         if mask is not None:
             from skimage.morphology import erosion
             from skimage.morphology import disk
@@ -273,9 +276,9 @@ def register_with_elastix(
     if normalize_images:
         assert type(fixed_image) == np.ndarray
         assert type(moving_image) == np.ndarray
-        from ..library.data import norm_8bit
-        fixed_image = norm_8bit(fixed_image, (0.05, 0.95), ignore_zeros=True)
-        moving_image = norm_8bit(moving_image, (0.05, 0.95), ignore_zeros=True)
+        from squirrel.library.data import norm_full_range
+        fixed_image = norm_full_range(fixed_image, (0.05, 0.95), ignore_zeros=True)
+        moving_image = norm_full_range(moving_image, (0.05, 0.95), ignore_zeros=True)
 
     pre_fix_offsets = np.array((0., 0.))
     if pre_fix_big_jumps:
