@@ -735,7 +735,8 @@ class ElastixMultiStepStack:
         z_range = norm_z_range(z_range, len(image_stack_h))
         result_volume = []
         dtype = image_stack_h.dtype
-        assert dtype == 'uint8'
+        max_val = np.iinfo(dtype).max
+        assert dtype == 'uint8' or dtype == 'uint16'
 
         if verbose:
             print(f'target_image_shape = {target_image_shape}')
@@ -778,7 +779,7 @@ class ElastixMultiStepStack:
         #         ]
         #         result_volume = [task.result() for task in tasks]
 
-        return np.clip(np.array(result_volume), 0, 255).astype(dtype)
+        return np.clip(np.array(result_volume), 0, max_val).astype(dtype)
 
 
 if __name__ == '__main__':
