@@ -98,7 +98,7 @@ def apply_affine(
         out_filepath=None,
         image_key='data',
         no_offset_to_center=False,
-        pivot=None,
+        # pivot=None,
         apply='all',  # Can be ['all' | 'rotation']
         scale_canvas=False,
         verbose=False
@@ -111,20 +111,24 @@ def apply_affine(
         print(f'image_key = {image_key}')
 
     from ..library.transformation import apply_affine_transform
-    from ..library.io import load_data, write_h5_container
+    # from ..library.io import load_data, write_h5_container
+    from ..library.io import load_data_handle, write_h5_container
 
     if type(image) == str:
-        image = load_data(image, key=image_key)
+        # image = load_data(image, key=image_key)
+        image, _ = load_data_handle(image, key=image_key)[:]
 
     if type(transform) == str:
-        from ..library.transformation import load_transform_matrix
-        transform = load_transform_matrix(transform)
+        # from ..library.transformation import load_transform_matrix
+        from ..library.affine_matrices import AffineMatrix
+        # transform = load_transform_matrix(transform)
+        transform = AffineMatrix(filepath=transform)
 
     result = apply_affine_transform(
         image,
         transform,
         no_offset_to_center=no_offset_to_center,
-        pivot=pivot,
+        # pivot=pivot,
         apply=apply,
         scale_canvas=scale_canvas,
         verbose=verbose

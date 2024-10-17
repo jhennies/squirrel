@@ -43,6 +43,7 @@ def transform_matrix_offset_center(matrix, shape, ndim=3):
 #             raise ValueError(f'Matrix shape={matrix.shape} does not match image dimension={ndim}')
 #
 
+
 # def load_transform_matrix(filepath, validate=False):
 #
 #     from squirrel.library.io import get_filetype
@@ -406,7 +407,7 @@ def apply_affine_transform(
     if verbose:
         print(f'x.ndim = {x.ndim}')
         print(f'x.shape = {x.shape}')
-        print(f'transform_matrix = {transform}')
+        print(f'transform_matrix = {transform.get_matrix()}')
 
     if transform.get_pivot() is None and not no_offset_to_center:
         transform.update_parameters(

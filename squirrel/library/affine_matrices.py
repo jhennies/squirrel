@@ -469,7 +469,10 @@ class AffineMatrix:
             import json
             with open(filepath, mode='r') as f:
                 matrix_data = json.load(f)
-                self.set_from_parameters(parameters=matrix_data['transform'], pivot=matrix_data['pivot'])
+                self.set_from_parameters(
+                    parameters=matrix_data['transform'],
+                    pivot=matrix_data['pivot'] if 'pivot' in matrix_data else None
+                )
             return
 
         if filetype == 'csv':
