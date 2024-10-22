@@ -52,7 +52,8 @@ setup(
             'template_matching_stack_alignment = squirrel.template_matching:template_matching_stack_alignment',
             'crop_from_stack = squirrel.stack_operations:crop_from_stack',
             'apply_auto_pad = squirrel.apply_transformation:apply_auto_pad',
-            'fiji_sift_log_to_affine_stack = squirrel.fiji:sift_log_to_affine_stack'
+            'fiji_sift_log_to_affine_stack = squirrel.fiji:sift_log_to_affine_stack',
+            'sq-init-mobie-project = squirrel.mobie:init_mobie_project'
         ]
     },
     install_requires=[
