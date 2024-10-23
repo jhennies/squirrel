@@ -74,7 +74,7 @@ def init_mobie_table(
     def _normalize_inputs(inp):
         if type(inp) == str:
             return [inp] * len(data_map_filepaths)
-        if type(inp) == list or type(inp) == tuple and len(inp) == 1:
+        if (type(inp) == list or type(inp) == tuple) and len(inp) == 1:
             return inp * len(data_map_filepaths)
         if type(inp) == list or type(inp) == tuple:
             assert len(inp) == len(data_map_filepaths), 'Invalid input!'
@@ -109,9 +109,22 @@ class MobieTableProject:
             os.mkdir(project_dirpath)
             return
 
-    def init_with_data_maps(self, data_map_filepaths):
+    def init_with_data_maps(
+            self,
+            data_map_filepaths,
+            types='intensities',
+            views='raw',
+            groups='group0'
+    ):
         assert len(os.listdir(self._project_dirpath)) == 0, 'Can only initialize a project in an empty directory'
-        init_mobie_table(self._mobie_table_path, data_map_filepaths, verbose=self._verbose)
+        init_mobie_table(
+            self._mobie_table_path,
+            data_map_filepaths,
+            types=types,
+            views=views,
+            groups=groups,
+            verbose=self._verbose
+        )
 
     def get_project_dirpath(self):
         return self._project_dirpath
