@@ -80,6 +80,33 @@ def get_default_parameters(transform):
         return parameter_map
 
 
+def _z_smooth(
+        inp,
+        median_radius,
+        method
+):
+    if method == 'median':
+        from scipy.signal import medfilt
+        return medfilt(inp, kernel_size=[median_radius * 2 + 1, 1, 1])
+
+    if method == 'gaussian':
+        from vigra.filters import gaussianSmoothing
+        return gaussianSmoothing(inp, [median_radius, 0, 0])
+
+
+# from h5py import File
+# with File('/media/julian/Data/tmp/raw.h5', mode='r') as f:
+#     data = f['data'][128:-128, 128:-128, 128:-128]
+#
+# mst_gauss = _z_smooth(data, 7, 'gaussian')
+# with File('/media/julian/Data/tmp/mst_gauss.h5', mode='w') as f:
+#     f.create_dataset('data', data=mst_gauss)
+#
+# mst_median = _z_smooth(data, 7, 'median')
+# with File('/media/julian/Data/tmp/mst_median.h5', mode='w') as f:
+#     f.create_dataset('data', data=mst_median)
+
+
 def amst_workflow(
         pre_aligned_stack,
         out_filepath,
@@ -89,6 +116,7 @@ def amst_workflow(
         transform=None,
         auto_mask_off=False,
         median_radius=7,
+        z_smooth_method='median',
         z_range=None,
         gaussian_sigma=0.,
         elastix_parameters=None,
@@ -141,9 +169,10 @@ def amst_workflow(
 
     # Perform the median smoothing
 
-    from scipy.signal import medfilt
+    # from scipy.signal import medfilt
     crop = np.array(z_range) - np.array(z_range_load)
-    mst = medfilt(pre_align_stack, kernel_size=[median_radius * 2 + 1, 1, 1])[crop[0]: crop[1] if crop[1] else None]
+    # mst = medfilt(pre_align_stack, kernel_size=[median_radius * 2 + 1, 1, 1])[crop[0]: crop[1] if crop[1] else None]
+    mst = _z_smooth(pre_align_stack, median_radius=median_radius, method=z_smooth_method)[crop[0]: crop[1] if crop[1] else None]
     pre_align_stack = pre_align_stack[crop[0]: crop[1] if crop[1] else None]
 
     # from h5py import File
