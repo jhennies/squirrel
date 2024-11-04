@@ -91,7 +91,8 @@ def _z_smooth(
 
     if method == 'gaussian':
         from vigra.filters import gaussianSmoothing
-        return gaussianSmoothing(inp, [median_radius, 0, 0])
+        dtype = inp.dtype
+        return gaussianSmoothing(inp.astype('float32'), [median_radius, 0, 0]).astype(dtype)
 
 
 # from h5py import File
