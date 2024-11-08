@@ -562,6 +562,41 @@ def apply_multi_step_stack_alignment_workflow(
         return result_volume
 
 
+def make_elastix_default_parameter_file_workflow(
+        out_filepath,
+        transform='translation',
+        elastix_parameters=None,
+        verbose=False
+):
+
+    def set_elastix_parameters_from_input(elx_inputs, elx_params):
+
+        if elx_inputs is None:
+            return elx_params
+
+        for elx_input in elx_inputs:
+            key, values = str.split(elx_input, ':')
+            values = str.split(values, ',')
+            elx_params[key] = values
+            if verbose:
+                print(f'{key} = {values}')
+
+        return elx_params
+
+    if transform.startswith('amst-'):
+        from squirrel.workflows.amst import get_default_parameters
+        params = get_default_parameters(transform.split(sep='-')[1])
+    else:
+        from SimpleITK import GetDefaultParameterMap
+        params = GetDefaultParameterMap(transform)
+    set_elastix_parameters_from_input(elastix_parameters, params)
+    from SimpleITK import WriteParameterFile
+    if verbose:
+        print(f'params = {params}')
+        print(f'out_filepath = {out_filepath}')
+    WriteParameterFile(params, out_filepath)
+
+
 if __name__ == '__main__':
     # stack_alignment_validation_workflow(
     #     '/media/julian/Data/projects/kors/align/4T/amst_parameter_test/pre_align/pre-align.ome.zarr',

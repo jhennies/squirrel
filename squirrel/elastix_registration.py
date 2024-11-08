@@ -438,29 +438,13 @@ def make_elastix_default_parameter_file():
         print(f'transform = {transform}')
         print(f'elastix_parameters = {elastix_parameters}')
 
-    def set_elastix_parameters_from_input(elx_inputs, elx_params):
-
-        if elx_inputs is None:
-            return elx_params
-
-        for elx_input in elx_inputs:
-            key, values = str.split(elx_input, ':')
-            values = str.split(values, ',')
-            elx_params[key] = values
-            if verbose:
-                print(f'{key} = {values}')
-
-        return elx_params
-
-    if transform.startswith('amst-'):
-        from squirrel.workflows.amst import get_default_parameters
-        params = get_default_parameters(transform.split(sep='-')[1])
-    else:
-        from SimpleITK import GetDefaultParameterMap
-        params = GetDefaultParameterMap(transform)
-    set_elastix_parameters_from_input(elastix_parameters, params)
-    from SimpleITK import WriteParameterFile
-    WriteParameterFile(params, out_filepath)
+    from squirrel.workflows.elastix import make_elastix_default_parameter_file_workflow
+    make_elastix_default_parameter_file_workflow(
+        out_filepath,
+        transform=transform,
+        elastix_parameters=elastix_parameters,
+        verbose=verbose
+    )
 
 
 def apply_multi_step_stack_alignment():
