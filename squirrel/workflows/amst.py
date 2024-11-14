@@ -123,6 +123,7 @@ def amst_workflow(
         elastix_parameters=None,
         crop_to_bounds_off=False,
         quiet=False,
+        debug=False,
         verbose=False
 ):
 
@@ -199,6 +200,7 @@ def amst_workflow(
         gaussian_sigma=gaussian_sigma,
         crop_to_bounds_off=crop_to_bounds_off,
         quiet=quiet,
+        debug=debug,
         verbose=verbose
     )
 

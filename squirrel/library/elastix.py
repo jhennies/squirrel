@@ -190,6 +190,7 @@ def register_with_elastix(
         use_clahe=False,
         crop_to_bounds_off=False,
         n_workers=os.cpu_count(),
+        debug=False,
         verbose=False
 ):
     import SimpleITK as sitk
@@ -308,6 +309,16 @@ def register_with_elastix(
     if verbose:
         print(f'fixed_image.GetSize() = {fixed_image.GetSize()}')
         print(f'moving_image.GetSize() = {moving_image.GetSize()}')
+
+    if debug:
+        import random
+        idx = random.randint(0, 1000)
+        debug_out_filepath = os.path.join(os.getcwd(), f'elastix_inputs_{idx}.h5')
+        print(f'Writing input images to {debug_out_filepath}')
+        from h5py import File
+        with File(debug_out_filepath, mode='w') as f:
+            f.create_dataset('fixed', data=fixed_image)
+            f.create_dataset('moving', data=moving_image)
 
     # Set the input images
     elastixImageFilter = sitk.ElastixImageFilter()
@@ -466,6 +477,7 @@ def slice_wise_stack_to_stack_alignment(
         parameter_map=None,
         crop_to_bounds_off=False,
         quiet=False,
+        debug=False,
         verbose=False
 ):
 
@@ -497,6 +509,7 @@ def slice_wise_stack_to_stack_alignment(
             parameter_map=parameter_map,
             gaussian_sigma=gaussian_sigma,
             crop_to_bounds_off=crop_to_bounds_off,
+            debug=debug,
             verbose=verbose
         )
         if transform != 'bspline':
