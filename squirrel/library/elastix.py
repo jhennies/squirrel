@@ -297,6 +297,17 @@ def register_with_elastix(
         if verbose:
             print(f'image shape after auto_mask: {fixed_image.shape}')
 
+    debug=True
+    if debug:
+        import random
+        idx = random.randint(0, 1000)
+        debug_out_filepath = os.path.join(os.getcwd(), f'elastix_inputs_{idx}.h5')
+        print(f'Writing input images to {debug_out_filepath}')
+        from h5py import File
+        with File(debug_out_filepath, mode='w') as f:
+            f.create_dataset('fixed', data=fixed_image)
+            f.create_dataset('moving', data=moving_image)
+
     if type(fixed_image) == np.ndarray:
         if verbose:
             print(f'Getting fixed image from array with shape = {fixed_image.shape}')
@@ -310,15 +321,6 @@ def register_with_elastix(
         print(f'fixed_image.GetSize() = {fixed_image.GetSize()}')
         print(f'moving_image.GetSize() = {moving_image.GetSize()}')
 
-    if debug:
-        import random
-        idx = random.randint(0, 1000)
-        debug_out_filepath = os.path.join(os.getcwd(), f'elastix_inputs_{idx}.h5')
-        print(f'Writing input images to {debug_out_filepath}')
-        from h5py import File
-        with File(debug_out_filepath, mode='w') as f:
-            f.create_dataset('fixed', data=fixed_image)
-            f.create_dataset('moving', data=moving_image)
 
     # Set the input images
     elastixImageFilter = sitk.ElastixImageFilter()
