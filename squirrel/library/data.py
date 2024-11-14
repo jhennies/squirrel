@@ -49,7 +49,7 @@ def norm_full_range(im, quantiles, ignore_zeros=False):
 
     # im = (im - lower + quantiles[0] * max_val) / (upper - lower + quantiles[0] * max_val) * quantiles[1] * max_val
 
-    im = (im - lower) / (upper - lower) * max_val
+    im = (im - lower) / (upper - lower)
     im = im * (1 - quantiles[0] - (1 - quantiles[1])) + quantiles[0]
     im = im * max_val
 
