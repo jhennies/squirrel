@@ -33,7 +33,11 @@ def norm_8bit(im, quantiles, ignore_zeros=False):
     return im.astype('uint8')
 
 
-def norm_full_range(im, quantiles, ignore_zeros=False):
+def norm_full_range(im, quantiles, anchors=None, ignore_zeros=False):
+
+    if anchors is None:
+        anchors = (quantiles[0] * 2, 2 * quantiles[1] - 1)
+
     dtype = im.dtype
     max_val = np.iinfo(dtype).max
     assert dtype == 'uint8' or dtype == 'uint16', \
@@ -50,7 +54,7 @@ def norm_full_range(im, quantiles, ignore_zeros=False):
     # im = (im - lower + quantiles[0] * max_val) / (upper - lower + quantiles[0] * max_val) * quantiles[1] * max_val
 
     im = (im - lower) / (upper - lower)
-    im = im * (1 - quantiles[0] - (1 - quantiles[1])) + quantiles[0]
+    im = im * (1 - 2 * anchors[0] - 2 * (1 - anchors[1])) +  2 * anchors[0]
     im = im * max_val
 
     # im -= lower
