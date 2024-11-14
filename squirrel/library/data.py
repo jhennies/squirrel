@@ -46,9 +46,13 @@ def norm_full_range(im, quantiles, ignore_zeros=False):
     else:
         upper = np.quantile(im, quantiles[1])
         lower = np.quantile(im, quantiles[0])
-    im -= lower
-    im /= (upper - lower)
-    im *= max_val
+
+    im = (im - lower + q[0] * max_val) / (upper - lower + q[0] * max_val) * q[1] * max_val
+
+    # im -= lower
+    # im /= (upper - lower)
+    # im *= max_val
+
     im[im > max_val] = max_val
     im[im < 0] = 0
     return im.astype(dtype)
