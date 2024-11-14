@@ -38,6 +38,8 @@ def norm_full_range(im, quantiles, anchors=None, ignore_zeros=False):
     if anchors is None:
         anchors = (quantiles[0] * 2, 2 * quantiles[1] - 1)
 
+    mask = im > 0
+
     dtype = im.dtype
     max_val = np.iinfo(dtype).max
     assert dtype == 'uint8' or dtype == 'uint16', \
@@ -47,8 +49,8 @@ def norm_full_range(im, quantiles, anchors=None, ignore_zeros=False):
     anchors = np.array(anchors) * max_val
 
     if ignore_zeros:
-        upper = np.quantile(im[im > 0], quantiles[1])
-        lower = np.quantile(im[im > 0], quantiles[0])
+        upper = np.quantile(im[mask], quantiles[1])
+        lower = np.quantile(im[mask], quantiles[0])
     else:
         upper = np.quantile(im, quantiles[1])
         lower = np.quantile(im, quantiles[0])
@@ -70,6 +72,7 @@ def norm_full_range(im, quantiles, anchors=None, ignore_zeros=False):
 
     im[im > max_val] = max_val
     im[im < 0] = 0
+    im[mask] = 0
     return im.astype(dtype)
 
 
