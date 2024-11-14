@@ -72,7 +72,7 @@ def norm_full_range(im, quantiles, anchors=None, ignore_zeros=False):
 
     im[im > max_val] = max_val
     im[im < 0] = 0
-    im[mask] = 0
+    im[np.logical_not(mask)] = 0
     return im.astype(dtype)
 
 
