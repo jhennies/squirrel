@@ -210,14 +210,12 @@ def register_with_elastix(
         print(f'pre_fix_iou_thresh={pre_fix_iou_thresh}')
         print(f'parameter_map={parameter_map}')
         print(f'median_radius={median_radius}')
-        print(f'gaussian_sigma={gaussian_sigma}=')
+        print(f'gaussian_sigma={gaussian_sigma}')
         print(f'use_edges={use_edges}')
         print(f'use_clahe={use_clahe}')
         print(f'crop_to_bounds_off={crop_to_bounds_off}')
         print(f'n_workers={n_workers}')
         print(f'normalize_images={normalize_images}')
-
-    raise RuntimeError('Ending here...')
 
     import SimpleITK as sitk
 
@@ -303,6 +301,8 @@ def register_with_elastix(
         if mask is not None:
             fixed_image[mask == 0] = 0
             moving_image[mask == 0] = 0
+
+    raise RuntimeError('Ending here...')
 
     if auto_mask:
         fixed_mask = make_auto_mask(fixed_image, disk_size=6)
