@@ -303,8 +303,8 @@ def register_with_elastix(
             moving_image[mask == 0] = 0
 
     if auto_mask:
-        fixed_mask = make_auto_mask(fixed_image, disk_size=20)
-        moving_mask = make_auto_mask(moving_image, disk_size=20)
+        fixed_mask = make_auto_mask(fixed_image, disk_size=6)
+        moving_mask = make_auto_mask(moving_image, disk_size=6)
         mask = fixed_mask * moving_mask
         if verbose:
             print(f'image shape after auto_mask: {fixed_image.shape}')
