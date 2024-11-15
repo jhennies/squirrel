@@ -33,9 +33,11 @@ def norm_8bit(im, quantiles, ignore_zeros=False):
     return im.astype('uint8')
 
 
-def norm_full_range(im, quantiles, anchors=None, ignore_zeros=False):
+def norm_full_range(im, quantiles, anchors=None, ignore_zeros=False, mask=None):
 
-    mask = im > 0
+    # mask = im > 0
+
+    is_zero = im < 0
 
     dtype = im.dtype
     max_val = np.iinfo(dtype).max
@@ -47,12 +49,18 @@ def norm_full_range(im, quantiles, anchors=None, ignore_zeros=False):
         anchors = (quantiles[0], quantiles[1])
     anchors = np.array(anchors) * max_val
 
-    if ignore_zeros:
-        upper = np.quantile(im[mask], quantiles[1])
-        lower = np.quantile(im[mask], quantiles[0])
-    else:
+    if ignore_zeros and mask is None:
+        upper = np.quantile(im[im > 0], quantiles[1])
+        lower = np.quantile(im[im > 0], quantiles[0])
+    if not ignore_zeros and mask is None:
         upper = np.quantile(im, quantiles[1])
         lower = np.quantile(im, quantiles[0])
+    if ignore_zeros and mask is not None:
+        upper = np.quantile(im[np.logical_and(im > 0, mask)], quantiles[1])
+        lower = np.quantile(im[np.logical_and(im > 0, mask)], quantiles[0])
+    if not ignore_zeros and mask is not None:
+        upper = np.quantile(im[mask], quantiles[1])
+        lower = np.quantile(im[mask], quantiles[0])
 
     im -= lower
     im /= upper - lower
@@ -61,7 +69,15 @@ def norm_full_range(im, quantiles, anchors=None, ignore_zeros=False):
 
     im[im > max_val] = max_val
     im[im < 0] = 0
-    im[np.logical_not(mask)] = 0
+
+    if ignore_zeros and mask is None:
+        im[is_zero] = 0
+    if not ignore_zeros and mask is None:
+        pass
+    if ignore_zeros and mask is not None:
+        im[np.logical_and(np.logical_not(mask), is_zero)] = 0
+    if not ignore_zeros and mask is not None:
+        im[np.logical_not(mask)] = 0
     return im.astype(dtype)
 
 

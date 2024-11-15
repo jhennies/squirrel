@@ -273,13 +273,20 @@ def register_with_elastix(
             fixed_image[mask == 0] = 0
             moving_image[mask == 0] = 0
 
+    if auto_mask:
+        fixed_mask = make_auto_mask(fixed_image, disk_size=20)
+        moving_mask = make_auto_mask(moving_image, disk_size=20)
+        mask = fixed_mask * moving_mask
+        if verbose:
+            print(f'image shape after auto_mask: {fixed_image.shape}')
+
     normalize_images = True
     if normalize_images:
         assert type(fixed_image) == np.ndarray
         assert type(moving_image) == np.ndarray
         from squirrel.library.data import norm_full_range
-        fixed_image = norm_full_range(fixed_image, (0.05, 0.95), ignore_zeros=True)
-        moving_image = norm_full_range(moving_image, (0.05, 0.95), ignore_zeros=True)
+        fixed_image = norm_full_range(fixed_image, (0.05, 0.95), ignore_zeros=False, mask=mask)
+        moving_image = norm_full_range(moving_image, (0.05, 0.95), ignore_zeros=False, mask=mask)
 
     pre_fix_offsets = np.array((0., 0.))
     if pre_fix_big_jumps:
@@ -289,13 +296,6 @@ def register_with_elastix(
             raise NotImplementedError('Big jump fixing only implemented for translations!')
         pre_fix_offsets, moving_image = big_jump_pre_fix(moving_image, fixed_image, iou_thresh=pre_fix_iou_thresh, verbose=verbose)
         pre_fix_offsets = np.array(pre_fix_offsets)
-
-    if auto_mask:
-        fixed_mask = make_auto_mask(fixed_image, disk_size=100)
-        moving_mask = make_auto_mask(moving_image, disk_size=100)
-        mask = fixed_mask * moving_mask
-        if verbose:
-            print(f'image shape after auto_mask: {fixed_image.shape}')
 
     debug=True
     if debug:
