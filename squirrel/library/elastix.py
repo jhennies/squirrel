@@ -280,6 +280,7 @@ def register_with_elastix(
         if verbose:
             print(f'image shape after auto_mask: {fixed_image.shape}')
 
+    # FIXME expose this parameter!
     normalize_images = True
     if normalize_images:
         assert type(fixed_image) == np.ndarray
@@ -321,7 +322,6 @@ def register_with_elastix(
     if verbose:
         print(f'fixed_image.GetSize() = {fixed_image.GetSize()}')
         print(f'moving_image.GetSize() = {moving_image.GetSize()}')
-
 
     # Set the input images
     elastixImageFilter = sitk.ElastixImageFilter()
