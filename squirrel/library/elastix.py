@@ -130,7 +130,7 @@ def make_auto_mask(image, disk_size=6):
     from skimage.morphology import binary_closing, disk
 
     footprint = disk(disk_size)
-    mask = binary_closing((image > 0).astype('uint8'), footprint)
+    mask = binary_closing((image > 0).astype('uint8'), footprint).astype('uint8')
 
     # from vigra.filters import discClosing
     # mask = (image > 0).astype('uint8')
