@@ -108,6 +108,81 @@ def _z_smooth(
 #     f.create_dataset('data', data=mst_median)
 
 
+def _try_slice_wise_stack_to_stack_alignment(
+        median_radius,
+        z_range,
+        z_range_load,
+        pre_align_stack,
+        z_smooth_method,
+        transform,
+        auto_mask_off,
+        elastix_parameters,
+        gaussian_sigma,
+        crop_to_bounds_off,
+        quiet=False,
+        debug=False,
+        verbose=False
+):
+    # from scipy.signal import medfilt
+    crop = np.array(z_range) - np.array(z_range_load)
+    mst = _z_smooth(pre_align_stack, median_radius=median_radius, method=z_smooth_method)[
+          crop[0]: crop[1] if crop[1] else None]
+    pre_align_stack = pre_align_stack[crop[0]: crop[1] if crop[1] else None]
+
+    if verbose:
+        print(f'pre_align_stack.shape = {pre_align_stack.shape}')
+        print(f'mst.shape = {mst.shape}')
+
+    # Alignment to median smoothed template
+
+    # FIXME this should be derived from the input parameter (switching off for now)
+    pre_smooth_median_radius = 0.
+
+    try:
+        from ..library.elastix import slice_wise_stack_to_stack_alignment
+        return slice_wise_stack_to_stack_alignment(
+            pre_align_stack, mst,
+            transform=transform,
+            automatic_transform_initialization=False,
+            out_dir=None,
+            auto_mask=not auto_mask_off,
+            return_result_image=True,
+            pre_fix_big_jumps=False,
+            parameter_map=elastix_parameters,
+            median_radius=pre_smooth_median_radius,
+            gaussian_sigma=gaussian_sigma,
+            crop_to_bounds_off=crop_to_bounds_off,
+            normalize_images=False,  # Do not normalize since the images come from the same source
+            quiet=quiet,
+            debug=debug,
+            verbose=verbose
+        )
+
+    except:
+
+        print(f'Running AMST with median_radius={median_radius} failed!')
+        median_radius = int(median_radius / 2)
+        if median_radius > 0:
+            print(f'Trying with median_radius={median_radius}')
+            return _try_slice_wise_stack_to_stack_alignment(
+                median_radius,
+                z_range,
+                z_range_load,
+                pre_align_stack,
+                z_smooth_method,
+                transform,
+                auto_mask_off,
+                elastix_parameters,
+                gaussian_sigma,
+                crop_to_bounds_off,
+                quiet=quiet,
+                debug=debug,
+                verbose=verbose
+            )
+        else:
+            raise
+
+
 def amst_workflow(
         pre_aligned_stack,
         out_filepath,
@@ -123,6 +198,7 @@ def amst_workflow(
         elastix_parameters=None,
         crop_to_bounds_off=False,
         quiet=False,
+        try_again=False,
         debug=False,
         verbose=False
 ):
@@ -171,43 +247,62 @@ def amst_workflow(
 
     # Perform the median smoothing
 
-    # from scipy.signal import medfilt
-    crop = np.array(z_range) - np.array(z_range_load)
-    # mst = medfilt(pre_align_stack, kernel_size=[median_radius * 2 + 1, 1, 1])[crop[0]: crop[1] if crop[1] else None]
-    mst = _z_smooth(pre_align_stack, median_radius=median_radius, method=z_smooth_method)[crop[0]: crop[1] if crop[1] else None]
-    pre_align_stack = pre_align_stack[crop[0]: crop[1] if crop[1] else None]
+    if try_again:
 
-    # from h5py import File
-    # with File('/media/julian/Data/tmp/mst.h5', mode='w') as f:
-    #     f.create_dataset('data', data=mst, compression='gzip')
-    # assert mst.shape == stack_shape, f'mst.shape = {mst.shape}; stack_shape = {stack_shape}'
-    if verbose:
-        print(f'pre_align_stack.shape = {pre_align_stack.shape}')
-        print(f'mst.shape = {mst.shape}')
+        result_transforms, _ = _try_slice_wise_stack_to_stack_alignment(
+            median_radius,
+            z_range,
+            z_range_load,
+            pre_align_stack,
+            z_smooth_method,
+            transform,
+            auto_mask_off,
+            elastix_parameters,
+            gaussian_sigma,
+            crop_to_bounds_off,
+            quiet=False,
+            debug=False,
+            verbose=False
+        )
 
-    # Alignment to median smoothed template
+    else:
 
-    # FIXME this should be derived from the input parameter
-    pre_smooth_median_radius = gaussian_sigma
+        # from scipy.signal import medfilt
+        crop = np.array(z_range) - np.array(z_range_load)
+        mst = _z_smooth(pre_align_stack, median_radius=median_radius, method=z_smooth_method)[crop[0]: crop[1] if crop[1] else None]
+        pre_align_stack = pre_align_stack[crop[0]: crop[1] if crop[1] else None]
 
-    from ..library.elastix import slice_wise_stack_to_stack_alignment
-    result_transforms, _ = slice_wise_stack_to_stack_alignment(
-        pre_align_stack, mst,
-        transform=transform,
-        automatic_transform_initialization=False,
-        out_dir=None,
-        auto_mask=not auto_mask_off,
-        return_result_image=True,
-        pre_fix_big_jumps=False,
-        parameter_map=elastix_parameters,
-        median_radius=pre_smooth_median_radius,
-        gaussian_sigma=gaussian_sigma,
-        crop_to_bounds_off=crop_to_bounds_off,
-        normalize_images=False,  # Do not normalize since the images come from the same source
-        quiet=quiet,
-        debug=debug,
-        verbose=verbose
-    )
+        # from h5py import File
+        # with File('/media/julian/Data/tmp/mst.h5', mode='w') as f:
+        #     f.create_dataset('data', data=mst, compression='gzip')
+        # assert mst.shape == stack_shape, f'mst.shape = {mst.shape}; stack_shape = {stack_shape}'
+        if verbose:
+            print(f'pre_align_stack.shape = {pre_align_stack.shape}')
+            print(f'mst.shape = {mst.shape}')
+
+        # Alignment to median smoothed template
+
+        # FIXME this should be derived from the input parameter (switching off for now)
+        pre_smooth_median_radius = 0.
+
+        from ..library.elastix import slice_wise_stack_to_stack_alignment
+        result_transforms, _ = slice_wise_stack_to_stack_alignment(
+            pre_align_stack, mst,
+            transform=transform,
+            automatic_transform_initialization=False,
+            out_dir=None,
+            auto_mask=not auto_mask_off,
+            return_result_image=True,
+            pre_fix_big_jumps=False,
+            parameter_map=elastix_parameters,
+            median_radius=pre_smooth_median_radius,
+            gaussian_sigma=gaussian_sigma,
+            crop_to_bounds_off=crop_to_bounds_off,
+            normalize_images=False,  # Do not normalize since the images come from the same source
+            quiet=quiet,
+            debug=debug,
+            verbose=verbose
+        )
 
     # from h5py import File
     # with File('/media/julian/Data/projects/hennies/amst_devel/amst_stack_elastic_ref.h5', mode='w') as f:
