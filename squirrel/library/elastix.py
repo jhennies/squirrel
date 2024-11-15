@@ -195,6 +195,28 @@ def register_with_elastix(
         debug=False,
         verbose=False
 ):
+
+    if verbose:
+        print('Running register_with_elastix with:')
+        print(f'automatic_transform_initialization={automatic_transform_initialization}')
+        print(f'out_dir={out_dir}')
+        print(f'params_to_origin={params_to_origin}')
+        print(f'auto_mask={auto_mask}')
+        print(f'number_of_spatial_samples={number_of_spatial_samples}')
+        print(f'maximum_number_of_iterations={maximum_number_of_iterations}')
+        print(f'number_of_resolutions={number_of_resolutions}')
+        print(f'return_result_image={return_result_image}')
+        print(f'pre_fix_big_jumps={pre_fix_big_jumps}')
+        print(f'pre_fix_iou_thresh={pre_fix_iou_thresh}')
+        print(f'parameter_map={parameter_map}')
+        print(f'median_radius={median_radius}')
+        print(f'gaussian_sigma={gaussian_sigma}=')
+        print(f'use_edges={use_edges}')
+        print(f'use_clahe={use_clahe}')
+        print(f'crop_to_bounds_off={crop_to_bounds_off}')
+        print(f'n_workers={n_workers}')
+        print(f'normalize_images={normalize_images}')
+
     import SimpleITK as sitk
 
     # TODO: Properly expose crop_to_bounds independently of auto-masking
