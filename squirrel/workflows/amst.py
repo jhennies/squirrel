@@ -86,8 +86,11 @@ def _z_smooth(
         method
 ):
     if method == 'median':
-        from scipy.signal import medfilt
-        return medfilt(inp, kernel_size=[median_radius * 2 + 1, 1, 1])
+        # from scipy.signal import medfilt
+        # return medfilt(inp, kernel_size=[median_radius * 2 + 1, 1, 1])
+
+        from scipy.ndimage import median_filter
+        return median_filter(inp, footprint=np.ones((median_radius * 2 + 1, 1, 1)), mode='nearest')
 
     if method == 'gaussian':
         from vigra.filters import gaussianSmoothing
@@ -198,7 +201,7 @@ def amst_workflow(
         elastix_parameters=None,
         crop_to_bounds_off=False,
         quiet=False,
-        try_again=True,
+        try_again=False,
         debug=False,
         verbose=False
 ):
