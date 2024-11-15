@@ -302,6 +302,8 @@ def register_with_elastix(
             fixed_image[mask == 0] = 0
             moving_image[mask == 0] = 0
 
+    raise RuntimeError('Ending here...')
+
     if auto_mask:
         fixed_mask = make_auto_mask(fixed_image, disk_size=6)
         moving_mask = make_auto_mask(moving_image, disk_size=6)
@@ -336,7 +338,6 @@ def register_with_elastix(
             f.create_dataset('fixed', data=fixed_image)
             f.create_dataset('moving', data=moving_image)
             f.create_dataset('mask', data=mask.astype('uint8'), compression='gzip')
-        raise RuntimeError('Ending here...')
 
     if type(fixed_image) == np.ndarray:
         if verbose:
