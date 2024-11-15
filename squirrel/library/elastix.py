@@ -185,6 +185,7 @@ def register_with_elastix(
         pre_fix_big_jumps=False,
         pre_fix_iou_thresh=0.5,
         parameter_map=None,
+        median_radius=0,
         gaussian_sigma=0.,
         use_edges=False,
         use_clahe=False,
@@ -255,6 +256,11 @@ def register_with_elastix(
         from squirrel.library.normalization import clahe_on_image
         fixed_image = clahe_on_image(fixed_image)
         moving_image = clahe_on_image(moving_image)
+    if median_radius > 0:
+        from skimage.filters import median
+        from skimage.morphology import disk
+        fixed_image = median(fixed_image, footprint=disk(median_radius))
+        moving_image = median(moving_image, footprint=disk(median_radius))
     if gaussian_sigma > 0:
         from skimage.filters import gaussian
         fixed_image = gaussian(fixed_image.astype(float), gaussian_sigma).astype(dtype)
@@ -470,6 +476,7 @@ def slice_wise_stack_to_stack_alignment(
         automatic_transform_initialization=False,
         out_dir=None,
         auto_mask=False,
+        median_radius=0,
         gaussian_sigma=0.,
         number_of_spatial_samples=None,
         maximum_number_of_iterations=None,

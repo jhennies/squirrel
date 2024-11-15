@@ -187,6 +187,9 @@ def amst_workflow(
 
     # Alignment to median smoothed template
 
+    # FIXME this should be derived from the input parameter
+    pre_smooth_median_radius = gaussian_sigma
+
     from ..library.elastix import slice_wise_stack_to_stack_alignment
     result_transforms, _ = slice_wise_stack_to_stack_alignment(
         pre_align_stack, mst,
@@ -197,6 +200,7 @@ def amst_workflow(
         return_result_image=True,
         pre_fix_big_jumps=False,
         parameter_map=elastix_parameters,
+        median_radius=pre_smooth_median_radius,
         gaussian_sigma=gaussian_sigma,
         crop_to_bounds_off=crop_to_bounds_off,
         normalize_images=False,  # Do not normalize since the images come from the same source
