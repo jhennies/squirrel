@@ -198,7 +198,7 @@ def amst_workflow(
         elastix_parameters=None,
         crop_to_bounds_off=False,
         quiet=False,
-        try_again=False,
+        try_again=True,
         debug=False,
         verbose=False
 ):
