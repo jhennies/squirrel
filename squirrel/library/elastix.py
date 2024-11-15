@@ -217,6 +217,8 @@ def register_with_elastix(
         print(f'n_workers={n_workers}')
         print(f'normalize_images={normalize_images}')
 
+    raise RuntimeError('Ending here...')
+
     import SimpleITK as sitk
 
     # TODO: Properly expose crop_to_bounds independently of auto-masking
@@ -301,8 +303,6 @@ def register_with_elastix(
         if mask is not None:
             fixed_image[mask == 0] = 0
             moving_image[mask == 0] = 0
-
-    raise RuntimeError('Ending here...')
 
     if auto_mask:
         fixed_mask = make_auto_mask(fixed_image, disk_size=6)
