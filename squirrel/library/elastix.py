@@ -337,8 +337,6 @@ def register_with_elastix(
             f.create_dataset('moving', data=moving_image)
             f.create_dataset('mask', data=mask.astype('uint8'), compression='gzip')
 
-    raise RuntimeError('Ending here...')
-
     if type(fixed_image) == np.ndarray:
         if verbose:
             print(f'Getting fixed image from array with shape = {fixed_image.shape}')
