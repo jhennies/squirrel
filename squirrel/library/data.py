@@ -62,6 +62,8 @@ def norm_full_range(im, quantiles, anchors=None, ignore_zeros=False, mask=None):
         upper = np.quantile(im[mask], quantiles[1])
         lower = np.quantile(im[mask], quantiles[0])
 
+    raise RuntimeError('Ending here...')
+
     im -= lower
     im /= upper - lower
     im *= anchors[1] - anchors[0]
