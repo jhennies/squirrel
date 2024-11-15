@@ -129,7 +129,7 @@ def get_affine_rotation_parameters(euler_angles):
 def make_auto_mask(image, disk_size=6):
     from skimage.morphology import binary_closing, disk
 
-    footprint = disk(6)
+    footprint = disk(disk_size)
     mask = binary_closing((image > 0).astype('uint8'), footprint)
 
     # from vigra.filters import discClosing
@@ -291,8 +291,8 @@ def register_with_elastix(
         pre_fix_offsets = np.array(pre_fix_offsets)
 
     if auto_mask:
-        fixed_mask = make_auto_mask(fixed_image)
-        moving_mask = make_auto_mask(moving_image)
+        fixed_mask = make_auto_mask(fixed_image, disk_size=100)
+        moving_mask = make_auto_mask(moving_image, disk_size=100)
         mask = fixed_mask * moving_mask
         if verbose:
             print(f'image shape after auto_mask: {fixed_image.shape}')
