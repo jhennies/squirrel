@@ -309,14 +309,14 @@ def register_with_elastix(
         if verbose:
             print(f'image shape after auto_mask: {fixed_image.shape}')
 
-    raise RuntimeError('Ending here...')
-
     if normalize_images:
         assert type(fixed_image) == np.ndarray
         assert type(moving_image) == np.ndarray
         from squirrel.library.data import norm_full_range
         fixed_image = norm_full_range(fixed_image, (0.05, 0.95), ignore_zeros=False, mask=mask)
         moving_image = norm_full_range(moving_image, (0.05, 0.95), ignore_zeros=False, mask=mask)
+
+    raise RuntimeError('Ending here...')
 
     pre_fix_offsets = np.array((0., 0.))
     if pre_fix_big_jumps:
