@@ -190,6 +190,7 @@ def register_with_elastix(
         use_clahe=False,
         crop_to_bounds_off=False,
         n_workers=os.cpu_count(),
+        normalize_images=True,
         debug=False,
         verbose=False
 ):
@@ -280,8 +281,6 @@ def register_with_elastix(
         if verbose:
             print(f'image shape after auto_mask: {fixed_image.shape}')
 
-    # FIXME expose this parameter!
-    normalize_images = True
     if normalize_images:
         assert type(fixed_image) == np.ndarray
         assert type(moving_image) == np.ndarray
@@ -479,6 +478,7 @@ def slice_wise_stack_to_stack_alignment(
         pre_fix_big_jumps=False,
         parameter_map=None,
         crop_to_bounds_off=False,
+        normalize_images=False,
         quiet=False,
         debug=False,
         verbose=False
@@ -512,6 +512,7 @@ def slice_wise_stack_to_stack_alignment(
             parameter_map=parameter_map,
             gaussian_sigma=gaussian_sigma,
             crop_to_bounds_off=crop_to_bounds_off,
+            normalize_images=normalize_images,
             debug=debug,
             verbose=verbose
         )

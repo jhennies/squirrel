@@ -199,6 +199,7 @@ def amst_workflow(
         parameter_map=elastix_parameters,
         gaussian_sigma=gaussian_sigma,
         crop_to_bounds_off=crop_to_bounds_off,
+        normalize_images=False,  # Do not normalize since the images come from the same source
         quiet=quiet,
         debug=debug,
         verbose=verbose
