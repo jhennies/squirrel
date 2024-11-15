@@ -192,7 +192,6 @@ def register_with_elastix(
         crop_to_bounds_off=False,
         n_workers=os.cpu_count(),
         normalize_images=True,
-        debug=False,
         verbose=False
 ):
 
@@ -325,8 +324,7 @@ def register_with_elastix(
         pre_fix_offsets, moving_image = big_jump_pre_fix(moving_image, fixed_image, iou_thresh=pre_fix_iou_thresh, verbose=verbose)
         pre_fix_offsets = np.array(pre_fix_offsets)
 
-    debug=True
-    if debug:
+    if verbose:
         import random
         idx = random.randint(0, 1000)
         debug_out_filepath = os.path.join(os.getcwd(), f'elastix_inputs_{idx}.h5')
@@ -509,7 +507,6 @@ def slice_wise_stack_to_stack_alignment(
         crop_to_bounds_off=False,
         normalize_images=False,
         quiet=False,
-        debug=False,
         verbose=False
 ):
 
@@ -543,7 +540,6 @@ def slice_wise_stack_to_stack_alignment(
             gaussian_sigma=gaussian_sigma,
             crop_to_bounds_off=crop_to_bounds_off,
             normalize_images=normalize_images,
-            debug=debug,
             verbose=verbose
         )
         if transform != 'bspline':
