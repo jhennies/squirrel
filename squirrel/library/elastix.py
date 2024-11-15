@@ -126,11 +126,11 @@ def get_affine_rotation_parameters(euler_angles):
     return sitk.Euler3DTransform((0, 0, 0), *euler_angles).GetMatrix()
 
 
-def make_auto_mask(image):
-    from skimage.morphology import closing, disk
+def make_auto_mask(image, disk_size=6):
+    from skimage.morphology import binary_closing, disk
 
     footprint = disk(6)
-    mask = closing((image > 0).astype('uint8'), footprint)
+    mask = binary_closing((image > 0).astype('uint8'), footprint)
 
     # from vigra.filters import discClosing
     # mask = (image > 0).astype('uint8')
@@ -307,6 +307,7 @@ def register_with_elastix(
         with File(debug_out_filepath, mode='w') as f:
             f.create_dataset('fixed', data=fixed_image)
             f.create_dataset('moving', data=moving_image)
+            f.create_dataset('mask', data=mask.astype('uint8'), compression='gzip')
 
     if type(fixed_image) == np.ndarray:
         if verbose:
