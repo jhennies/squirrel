@@ -49,18 +49,20 @@ def norm_full_range(im, quantiles, anchors=None, ignore_zeros=False, mask=None):
         anchors = (quantiles[0], quantiles[1])
     anchors = np.array(anchors) * max_val
 
-    raise RuntimeError('Ending here...')
-
     if ignore_zeros and mask is None:
+        raise RuntimeError('Ending here... ignore_zeros and mask is None')
         upper = np.quantile(im[im > 0], quantiles[1])
         lower = np.quantile(im[im > 0], quantiles[0])
     if not ignore_zeros and mask is None:
+        raise RuntimeError('Ending here... not ignore_zeros and mask is None')
         upper = np.quantile(im, quantiles[1])
         lower = np.quantile(im, quantiles[0])
     if ignore_zeros and mask is not None:
+        raise RuntimeError('Ending here... ignore_zeros and mask is not None')
         upper = np.quantile(im[np.logical_and(im > 0, mask)], quantiles[1])
         lower = np.quantile(im[np.logical_and(im > 0, mask)], quantiles[0])
     if not ignore_zeros and mask is not None:
+        raise RuntimeError('Ending here... not ignore_zeros and mask is not None')
         upper = np.quantile(im[mask], quantiles[1])
         lower = np.quantile(im[mask], quantiles[0])
 
