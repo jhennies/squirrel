@@ -35,9 +35,6 @@ def norm_8bit(im, quantiles, ignore_zeros=False):
 
 def norm_full_range(im, quantiles, anchors=None, ignore_zeros=False):
 
-    if anchors is None:
-        anchors = (quantiles[0] * 2, 2 * quantiles[1] - 1)
-
     mask = im > 0
 
     dtype = im.dtype
@@ -46,6 +43,8 @@ def norm_full_range(im, quantiles, anchors=None, ignore_zeros=False):
         f'Only allowing 8 or 16 bit unsigned integer images. Image has dtype = {dtype}'
     im = im.astype('float32')
 
+    if anchors is None:
+        anchors = (quantiles[0], quantiles[1])
     anchors = np.array(anchors) * max_val
 
     if ignore_zeros:
@@ -54,16 +53,6 @@ def norm_full_range(im, quantiles, anchors=None, ignore_zeros=False):
     else:
         upper = np.quantile(im, quantiles[1])
         lower = np.quantile(im, quantiles[0])
-
-    # im = (im - lower + quantiles[0] * max_val) / (upper - lower + quantiles[0] * max_val) * quantiles[1] * max_val
-
-    # im = (im - lower) / (upper - lower)
-    # im = im * (1 - anchors[0] - (1 - anchors[1])) + anchors[0]
-    # im = im * max_val
-
-    # im -= lower
-    # im /= (upper - lower)
-    # im *= max_val
 
     im -= lower
     im /= upper - lower
