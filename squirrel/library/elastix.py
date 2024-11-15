@@ -517,6 +517,7 @@ def slice_wise_stack_to_stack_alignment(
             return_result_image=return_result_image,
             pre_fix_big_jumps=pre_fix_big_jumps,
             parameter_map=parameter_map,
+            median_radius=median_radius,
             gaussian_sigma=gaussian_sigma,
             crop_to_bounds_off=crop_to_bounds_off,
             normalize_images=normalize_images,
