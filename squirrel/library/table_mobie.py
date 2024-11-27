@@ -89,7 +89,7 @@ def init_mobie_table(
     append_mobie_table(
         table_filepath,
         dict(
-            uri=[os.path.relpath(p) for p in data_map_filepaths],
+            uri=[os.path.relpath(p, os.path.split(table_filepath)[0]) for p in data_map_filepaths],
             type=types,
             view=views,
             group=groups
