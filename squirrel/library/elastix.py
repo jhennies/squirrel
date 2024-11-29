@@ -1,15 +1,61 @@
-import SimpleITK as sitk
+import os
+
 import numpy as np
 
 
-def apply_transform(
+def apply_transforms_on_image(
         image,
-        transform,
+        transforms,
+        n_workers=os.cpu_count(),
         verbose=False
 ):
-    # TODO Figure out a way to do this with Transformix
-    pass
 
+    import SimpleITK as sitk
+
+    txif = sitk.TransformixImageFilter()
+    for transform in transforms[::-1]:
+        txif.AddTransformParameterMap(transform)
+    txif.SetMovingImage(sitk.GetImageFromArray(image))
+    txif.LogToConsoleOn()
+    txif.Execute()
+    result_final = sitk.GetArrayFromImage(txif.GetResultImage())
+    return result_final
+
+    # result = image
+    # for transform in transforms:
+    #     print(f'result.shape = {result.shape}')
+    #     txif = sitk.TransformixImageFilter()
+    #     txif.AddTransformParameterMap(transform)
+    #     txif.SetMovingImage(sitk.GetImageFromArray(result))
+    #     txif.LogToConsoleOff()
+    #     txif.Execute()
+    #     result = sitk.GetArrayFromImage(txif.GetResultImage())
+    #
+    # return result
+
+
+def apply_transforms_on_image_stack_slice(
+        image_stack_h,
+        image_idx,
+        transforms,
+        target_image_shape=None,
+        n_slices=None,
+        n_workers=os.cpu_count(),
+        quiet=False,
+        verbose=False
+):
+    target_image_shape = image_stack_h[0].shape if target_image_shape is None else target_image_shape
+    if not quiet or verbose:
+        print(f'image_idx = {image_idx} / {n_slices}')
+
+    from squirrel.library.io import get_reshaped_data
+    z_slice = get_reshaped_data(image_stack_h, image_idx, target_image_shape)
+
+    return apply_transforms_on_image(
+        z_slice,
+        transforms,
+        n_workers=n_workers
+    )[:target_image_shape[0], :target_image_shape[1]]
 
 # def save_transforms(parameters, out_filepath, param_order='M', save_order='M', ndim=3, verbose=False):
 #
@@ -80,11 +126,11 @@ def get_affine_rotation_parameters(euler_angles):
     return sitk.Euler3DTransform((0, 0, 0), *euler_angles).GetMatrix()
 
 
-def make_auto_mask(image):
-    from skimage.morphology import closing, disk
+def make_auto_mask(image, disk_size=6):
+    from skimage.morphology import binary_closing, disk
 
-    footprint = disk(6)
-    mask = closing((image > 0).astype('uint8'), footprint)
+    footprint = disk(disk_size)
+    mask = binary_closing((image > 0).astype('uint8'), footprint).astype('uint8')
 
     # from vigra.filters import discClosing
     # mask = (image > 0).astype('uint8')
@@ -92,7 +138,7 @@ def make_auto_mask(image):
     return mask
 
 
-def big_jump_pre_fix(moving_image, fixed_image, iou_thresh=0.5):
+def big_jump_pre_fix(moving_image, fixed_image, iou_thresh=0.5, verbose=False):
 
     union = np.zeros(moving_image.shape, dtype=bool)
     union[moving_image > 0] = True
@@ -103,7 +149,7 @@ def big_jump_pre_fix(moving_image, fixed_image, iou_thresh=0.5):
 
     iou = intersection.sum() / union.sum()
     if iou < iou_thresh:
-        print(f'Fixing big jump! (IoU = {iou}')
+        print(f'Fixing big jump! (IoU = {iou})')
         from skimage.registration import phase_cross_correlation
         from scipy.ndimage.interpolation import shift
 
@@ -111,16 +157,18 @@ def big_jump_pre_fix(moving_image, fixed_image, iou_thresh=0.5):
             fixed_image, moving_image,
             reference_mask=fixed_image > 0,
             moving_mask=moving_image > 0,
-            upsample_factor=1
+            upsample_factor=1,
+            normalization=None
         )[0]
 
         result_image = shift(moving_image, np.round(offsets))
-        # if mask_im is not None:
-        #     mask_im = shift(mask_im, np.round(offsets))
 
-        return np.round(offsets), result_image  # , mask_im
+        if verbose:
+            print(f'offsets = {offsets}')
 
-    return (0., 0.), moving_image  # , mask_im
+        return np.round(offsets), result_image
+
+    return (0., 0.), moving_image
 
 
 def register_with_elastix(
@@ -137,12 +185,51 @@ def register_with_elastix(
         pre_fix_big_jumps=False,
         pre_fix_iou_thresh=0.5,
         parameter_map=None,
+        median_radius=0,
         gaussian_sigma=0.,
+        use_edges=False,
+        use_clahe=False,
+        crop_to_bounds_off=False,
+        n_workers=os.cpu_count(),
+        normalize_images=True,
         verbose=False
 ):
 
-    assert fixed_image.dtype == 'uint8'
-    assert moving_image.dtype == 'uint8'
+    if verbose:
+        print('Running register_with_elastix with:')
+        print(f'automatic_transform_initialization={automatic_transform_initialization}')
+        print(f'out_dir={out_dir}')
+        print(f'params_to_origin={params_to_origin}')
+        print(f'auto_mask={auto_mask}')
+        print(f'number_of_spatial_samples={number_of_spatial_samples}')
+        print(f'maximum_number_of_iterations={maximum_number_of_iterations}')
+        print(f'number_of_resolutions={number_of_resolutions}')
+        print(f'return_result_image={return_result_image}')
+        print(f'pre_fix_big_jumps={pre_fix_big_jumps}')
+        print(f'pre_fix_iou_thresh={pre_fix_iou_thresh}')
+        print(f'parameter_map={parameter_map}')
+        print(f'median_radius={median_radius}')
+        print(f'gaussian_sigma={gaussian_sigma}')
+        print(f'use_edges={use_edges}')
+        print(f'use_clahe={use_clahe}')
+        print(f'crop_to_bounds_off={crop_to_bounds_off}')
+        print(f'n_workers={n_workers}')
+        print(f'normalize_images={normalize_images}')
+
+    import SimpleITK as sitk
+
+    # TODO: Properly expose crop_to_bounds independently of auto-masking
+    crop_to_bounds = auto_mask
+    if crop_to_bounds_off:
+        crop_to_bounds = False
+    if transform == 'bspline':
+        crop_to_bounds = False
+
+    dtype = fixed_image.dtype
+    assert dtype == 'uint8' or dtype == 'uint16', \
+        f'Only allowing 8 or 16 bit unsigned integer images. Fixed image has dtype = {dtype}'
+    assert moving_image.dtype == dtype, \
+        f'fixed and moving images must have the same data type: {dtype} != {moving_image.dtype}'
 
     if parameter_map is None:
         assert transform is not None, 'Either parameter_map or transform must be specified!'
@@ -158,6 +245,10 @@ def register_with_elastix(
             parameter_map['NumberOfResolutions'] = (str(number_of_resolutions),)
         if transform == 'SimilarityTransform':
             parameter_map['Transform'] = ['SimilarityTransform']
+    if type(parameter_map) == str:
+        from SimpleITK import ReadParameterFile
+        assert os.path.exists(parameter_map)
+        parameter_map = ReadParameterFile(parameter_map)
     if transform is None:
         assert parameter_map is not None,  'Either parameter_map or transform must be specified!'
         transform = parameter_map['Transform'][0]
@@ -165,7 +256,7 @@ def register_with_elastix(
 
     mask = None
     bounds_offset = np.array([0., 0.])
-    if auto_mask:
+    if crop_to_bounds:
         if verbose:
             print(f'image shape before auto_mask: {fixed_image.shape}')
         from squirrel.library.image import get_bounds
@@ -181,24 +272,48 @@ def register_with_elastix(
         bounds = np.s_[bounds_total[0]: bounds_total[2], bounds_total[1]: bounds_total[3]]
         fixed_image = fixed_image[bounds]
         moving_image = moving_image[bounds]
-        fixed_mask = make_auto_mask(fixed_image)
-        moving_mask = make_auto_mask(moving_image)
+
+    if use_clahe:
+        from squirrel.library.normalization import clahe_on_image
+        fixed_image = clahe_on_image(fixed_image)
+        moving_image = clahe_on_image(moving_image)
+    if median_radius > 0:
+        from skimage.filters import median
+        from skimage.morphology import disk
+        fixed_image = median(fixed_image, footprint=disk(median_radius))
+        moving_image = median(moving_image, footprint=disk(median_radius))
+    if gaussian_sigma > 0:
+        from skimage.filters import gaussian
+        fixed_image = gaussian(fixed_image.astype(float), gaussian_sigma).astype(dtype)
+        moving_image = gaussian(moving_image.astype(float), gaussian_sigma).astype(dtype)
+        if mask is not None:
+            from skimage.morphology import erosion
+            from skimage.morphology import disk
+            mask = erosion(mask, footprint=disk(2 * gaussian_sigma))
+    if use_edges:
+        from skimage.filters import sobel
+        fixed_image = sobel(fixed_image.astype(float))
+        moving_image = sobel(moving_image.astype(float))
+        # from tifffile import imwrite, imsave
+        # imwrite('/media/julian/Data/tmp/00mask.tif', mask)
+        # imwrite('/media/julian/Data/tmp/00fixed.tif', fixed_image)
+        if mask is not None:
+            fixed_image[mask == 0] = 0
+            moving_image[mask == 0] = 0
+
+    if auto_mask:
+        fixed_mask = make_auto_mask(fixed_image, disk_size=6)
+        moving_mask = make_auto_mask(moving_image, disk_size=6)
         mask = fixed_mask * moving_mask
         if verbose:
             print(f'image shape after auto_mask: {fixed_image.shape}')
 
-    if gaussian_sigma > 0:
-        from skimage.filters import gaussian
-        fixed_image = gaussian(fixed_image.astype(float), gaussian_sigma).astype('uint8')
-        moving_image = gaussian(moving_image.astype(float), gaussian_sigma).astype('uint8')
-
-    normalize_images = True
     if normalize_images:
         assert type(fixed_image) == np.ndarray
         assert type(moving_image) == np.ndarray
-        from ..library.data import norm_8bit
-        fixed_image = norm_8bit(fixed_image, (0.05, 0.95), ignore_zeros=True)
-        moving_image = norm_8bit(moving_image, (0.05, 0.95), ignore_zeros=True)
+        from squirrel.library.data import norm_full_range
+        fixed_image = norm_full_range(fixed_image, (0.05, 0.95), ignore_zeros=False, mask=mask)
+        moving_image = norm_full_range(moving_image, (0.05, 0.95), ignore_zeros=False, mask=mask)
 
     pre_fix_offsets = np.array((0., 0.))
     if pre_fix_big_jumps:
@@ -206,8 +321,19 @@ def register_with_elastix(
         assert type(moving_image) == np.ndarray
         if transform != 'translation':
             raise NotImplementedError('Big jump fixing only implemented for translations!')
-        pre_fix_offsets, moving_image = big_jump_pre_fix(moving_image, fixed_image, iou_thresh=pre_fix_iou_thresh)
+        pre_fix_offsets, moving_image = big_jump_pre_fix(moving_image, fixed_image, iou_thresh=pre_fix_iou_thresh, verbose=verbose)
         pre_fix_offsets = np.array(pre_fix_offsets)
+
+    if verbose:
+        import random
+        idx = random.randint(0, 1000)
+        debug_out_filepath = os.path.join(os.getcwd(), f'elastix_inputs_{idx}.h5')
+        print(f'Writing input images to {debug_out_filepath}')
+        from h5py import File
+        with File(debug_out_filepath, mode='w') as f:
+            f.create_dataset('fixed', data=fixed_image)
+            f.create_dataset('moving', data=moving_image)
+            f.create_dataset('mask', data=mask.astype('uint8'), compression='gzip')
 
     if type(fixed_image) == np.ndarray:
         if verbose:
@@ -226,8 +352,7 @@ def register_with_elastix(
     elastixImageFilter = sitk.ElastixImageFilter()
     elastixImageFilter.SetFixedImage(fixed_image)
     elastixImageFilter.SetMovingImage(moving_image)
-    if auto_mask:
-        assert mask is not None
+    if mask is not None:
         # fixed_mask = make_auto_mask(sitk.GetArrayFromImage(fixed_image))
         # moving_mask = make_auto_mask(sitk.GetArrayFromImage(moving_image))
         # mask = fixed_mask * moving_mask
@@ -249,35 +374,41 @@ def register_with_elastix(
     if verbose:
         print(f'Running Elastix with these parameters:')
         elastixImageFilter.PrintParameterMap()
-
+    elastixImageFilter.SetNumberOfThreads(n_workers)
     elastixImageFilter.Execute()
     result_image = None
     if return_result_image:
         result_image = sitk.GetArrayFromImage(elastixImageFilter.GetResultImage())
 
     elastix_transform_param_map = elastixImageFilter.GetTransformParameterMap()[0]
-    result_transform_parameters = elastix_transform_param_map['TransformParameters']
-    try:
-        pivot = np.array([float(x) for x in elastix_transform_param_map['CenterOfRotationPoint']])[::-1]
-    except IndexError:
-        pivot = np.array([0., 0.])
-    pivot += bounds_offset
 
-    from ..library.affine_matrices import AffineMatrix
-    result_matrix = AffineMatrix(
-        elastix_parameters=[transform, [float(x) for x in result_transform_parameters]]
-    )
-    result_matrix = result_matrix * -AffineMatrix(parameters=[1., 0., pre_fix_offsets[0], 0., 1., pre_fix_offsets[1]])
-    result_matrix.set_pivot(pivot)
-    # result_matrix = result_matrix * AffineMatrix(parameters=[1., 0., bounds_offset[0], 0., 1., bounds_offset[1]])
+    # Return an affine matrix object for any rigid or affine transformation
+    if transform != 'bspline':
+        result_transform_parameters = elastix_transform_param_map['TransformParameters']
+        try:
+            pivot = np.array([float(x) for x in elastix_transform_param_map['CenterOfRotationPoint']])[::-1]
+        except IndexError:
+            pivot = np.array([0., 0.])
+        pivot += bounds_offset
 
-    if params_to_origin:
-        if verbose:
-            print(f'shifting params to origin')
-            print(f'result_matrix.get_pivot() = {result_matrix.get_pivot()}')
-        result_matrix.shift_pivot_to_origin()
+        from ..library.affine_matrices import AffineMatrix
+        result_matrix = AffineMatrix(
+            elastix_parameters=[transform, [float(x) for x in result_transform_parameters]]
+        )
+        result_matrix = result_matrix * -AffineMatrix(parameters=[1., 0., pre_fix_offsets[0], 0., 1., pre_fix_offsets[1]])
+        result_matrix.set_pivot(pivot)
+        # result_matrix = result_matrix * AffineMatrix(parameters=[1., 0., bounds_offset[0], 0., 1., bounds_offset[1]])
 
-    return result_matrix, result_image
+        if params_to_origin:
+            if verbose:
+                print(f'shifting params to origin')
+                print(f'result_matrix.get_pivot() = {result_matrix.get_pivot()}')
+            result_matrix.shift_pivot_to_origin()
+
+        return result_matrix, result_image
+
+    # Return the elastix parameters for non-rigid registration
+    return elastix_transform_param_map, result_image
 
     # if transform == 'translation':
     #
@@ -365,19 +496,28 @@ def slice_wise_stack_to_stack_alignment(
         automatic_transform_initialization=False,
         out_dir=None,
         auto_mask=False,
+        median_radius=0,
+        gaussian_sigma=0.,
         number_of_spatial_samples=None,
         maximum_number_of_iterations=None,
         number_of_resolutions=None,
         return_result_image=False,
         pre_fix_big_jumps=False,
         parameter_map=None,
+        crop_to_bounds_off=False,
+        normalize_images=False,
         quiet=False,
         verbose=False
 ):
 
-    from ..library.affine_matrices import AffineStack
+    if transform in ['translation', 'affine']:
+        from ..library.affine_matrices import AffineStack
+        result_transforms = AffineStack(is_sequenced=True, pivot=[0., 0.])
+    elif transform == 'bspline':
+        result_transforms = ElastixStack()
+    else:
+        raise ValueError(f'Invalid transform: {transform}')
     result_stack = []
-    result_transforms = AffineStack(is_sequenced=True, pivot=[0., 0.])
 
     for zidx, z_slice_moving in enumerate(moving_stack):
         if not quiet:
@@ -396,9 +536,14 @@ def slice_wise_stack_to_stack_alignment(
             return_result_image=return_result_image,
             pre_fix_big_jumps=pre_fix_big_jumps,
             parameter_map=parameter_map,
+            median_radius=median_radius,
+            gaussian_sigma=gaussian_sigma,
+            crop_to_bounds_off=crop_to_bounds_off,
+            normalize_images=normalize_images,
             verbose=verbose
         )
-        result_matrix.shift_pivot_to_origin()
+        if transform != 'bspline':
+            result_matrix.shift_pivot_to_origin()
 
         if result_image is not None:
             result_stack.append(result_image)
@@ -453,3 +598,248 @@ def elastix_to_c(transform, parameters):
     if func is None:
         raise ValueError(f'Invalid transform: {transform}')
     return func(parameters)
+
+def c_to_elastix(parameters):
+    parameters = np.array(parameters)
+
+    ndim = 0
+    if len(parameters) == 6:
+        ndim = 2
+    if len(parameters) == 12:
+        ndim = 3
+    assert ndim in [2, 3], f'Invalid parameters: {parameters}'
+
+    out_parameters = np.zeros(parameters.shape, dtype=parameters.dtype)
+
+    pr = np.array([parameters[((ndim + 1) * idx): ((ndim + 1) * (idx + 1))] for idx in range(ndim)])
+    out_parameters[: ndim ** 2] = pr[:, :ndim].flatten()[::-1]
+    out_parameters[ndim ** 2:] = pr[:, ndim][::-1]
+
+    return out_parameters
+
+
+class ElastixStack:
+
+    def __init__(
+            self,
+            stack=None,
+            dirpath=None,
+            pattern='*.txt',
+            image_shape=None
+    ):
+        self._dirpath = None
+        self._pattern = None
+        self._stack = None
+        self._it = 0
+        if stack is not None:
+            self.set_from_stack(stack, image_shape=image_shape)
+        if dirpath is not None:
+            self.set_from_dir(dirpath, pattern)
+
+    def set_from_stack(self, stack, image_shape=None):
+        # assert type(stack) is list or type(stack) is tuple, 'Only accepting lists or tuples'
+        from SimpleITK import ParameterMap
+        if isinstance(stack[0], ParameterMap):
+            self._stack = list(stack)
+            return
+        from squirrel.library.affine_matrices import AffineStack
+        if isinstance(stack, AffineStack):
+            self._stack = [
+                x.to_elastix_affine(return_parameter_map=True, shape=image_shape) for x in stack
+            ]
+
+    def set_from_dir(self, dirpath, pattern):
+        from SimpleITK import ReadParameterFile
+        import glob
+        filepaths = sorted(glob.glob(os.path.join(dirpath, pattern)))
+        self._stack = [ReadParameterFile(filepath) for filepath in filepaths]
+        self._dirpath = dirpath
+        self._pattern = pattern
+
+    def to_file(self, dirpath):
+        from SimpleITK import WriteParameterFile
+        if not os.path.exists(dirpath):
+            os.mkdir(dirpath)
+        for idx, transform in enumerate(self._stack):
+            filepath = os.path.join(dirpath, 'transform_{:05d}.txt'.format(idx))
+            WriteParameterFile(transform, filepath)
+
+    def __getitem__(self, item):
+        if self._stack is not None:
+            return self._stack[item]
+        return []
+
+    def __setitem__(self, key, value):
+        self._stack[key] = value
+
+    def __len__(self):
+        if self._stack is None:
+            return 0
+        return len(self._stack)
+
+    def __iter__(self):
+        self._it = 0
+        return self
+
+    def __next__(self):
+        if self._it < len(self):
+            x = self[self._it]
+            self._it += 1
+            return x
+        else:
+            raise StopIteration
+
+    def append(self, other):
+        if isinstance(other, ElastixStack):
+            for x in other:
+                self.append(x)
+            return
+        from SimpleITK import ParameterMap
+        if isinstance(other, ParameterMap):
+            self.set_from_stack(self[:] + [other])
+            return
+        raise ValueError(f'Invalid type of other: {type(other)}')
+
+    def image_shape(self):
+        shapes = []
+        for transform in self:
+            shapes.append(np.array([int(float(x)) for x in transform['Size']])[::-1])
+        shapes = np.array(shapes)
+        assert np.all(shapes == shapes[0], axis=0).all(), 'Not all shapes of the transforms are equal - but they should be!'
+
+        return shapes[0]
+
+
+def load_transform_stack_from_multiple_files(paths, sequence_stack=False):
+
+    stack = ElastixStack(dirpath=paths[0])
+    for path in paths[1:]:
+        stack.append(ElastixStack(dirpath=path))
+    return stack
+
+
+class ElastixMultiStepStack:
+
+    def __init__(
+            self,
+            stacks=None,
+            image_shape=None
+    ):
+        self._stacks = None
+        self._num_steps = 0
+        self._it = 0
+        if stacks is not None:
+            [self.add_stack(stack, image_shape=image_shape) for stack in stacks]
+
+    def add_stack(self, stack, image_shape=None):
+        stack = ElastixStack(stack=stack, image_shape=image_shape)
+        if self._stacks is not None:
+            assert len(stack) == len(self), 'The length of the added stack does not match'
+            self._stacks = [self[idx] + [s] for idx, s in enumerate(stack)]
+            self._num_steps += len(stack)
+            return
+        self._stacks = [[s] for s in stack]
+        self._num_steps = len(stack)
+
+    def __len__(self):
+        return len(self[:])
+
+    def __getitem__(self, item):
+        if self._stacks is None:
+            return []
+        return self._stacks[item]
+
+    def __setitem__(self, key, value):
+        assert len(value) == self._num_steps, 'Number of elements in value does not match number of steps!'
+        self._stacks[key] = value
+
+    def __iter__(self):
+        self._it = 0
+        return self
+
+    def __next__(self):
+        if self._it < len(self):
+            x = self[self._it]
+            self._it += 1
+            return x
+        else:
+            raise StopIteration
+
+    def apply_on_image_stack(
+            self,
+            image_stack_h,
+            target_image_shape=None,
+            z_range=None,
+            n_workers=1,
+            quiet=False,
+            verbose=False
+    ):
+        from squirrel.library.data import norm_z_range
+        z_range = norm_z_range(z_range, len(image_stack_h))
+        result_volume = []
+        dtype = image_stack_h.dtype
+        max_val = np.iinfo(dtype).max
+        assert dtype == 'uint8' or dtype == 'uint16'
+
+        if verbose:
+            print(f'target_image_shape = {target_image_shape}')
+
+        # if n_workers == 1:
+        #
+        for stack_idx, image_idx in enumerate(range(*z_range)):
+
+            result_volume.append(apply_transforms_on_image_stack_slice(
+                image_stack_h,
+                image_idx,
+                self[stack_idx],
+                target_image_shape=target_image_shape,
+                n_slices=z_range[1],
+                n_workers=1,
+                quiet=quiet,
+                verbose=verbose
+            ))
+
+        if verbose:
+            print(f'result_volume[0].shape = {result_volume[0].shape}')
+
+        # else:
+        #
+        #     from concurrent.futures import ThreadPoolExecutor
+        #     with ThreadPoolExecutor(max_workers=n_workers) as tpe:
+        #         tasks = [
+        #             tpe.submit(
+        #                 apply_transforms_on_image_stack_slice,
+        #                 image_stack_h,
+        #                 image_idx,
+        #                 self[stack_idx],
+        #                 target_image_shape,
+        #                 z_range[1],
+        #                 1,
+        #                 quiet,
+        #                 verbose
+        #             )
+        #             for stack_idx, image_idx in enumerate(range(*z_range))
+        #         ]
+        #         result_volume = [task.result() for task in tasks]
+
+        return np.clip(np.array(result_volume), 0, max_val).astype(dtype)
+
+
+if __name__ == '__main__':
+    # a = [1, 2, 3, 4, 5, 6]
+    # print(f'a = {a}')
+    # b = affine_to_c(a)
+    # print(f'b = {b}')
+    # c = c_to_elastix(b)
+    # print(f'c = {c}')
+    #
+    # a = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    # print(f'a = {a}')
+    # b = affine_to_c(a)
+    # print(f'b = {b}')
+    # c = c_to_elastix(b)
+    # print(f'c = {c}')
+
+    es = ElastixStack(dirpath='/media/julian/Data/projects/hennies/amst_devel/240624_snamst_kors_dT/amst.meta/amst/')
+    print(es.image_shape())
+

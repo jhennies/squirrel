@@ -29,11 +29,12 @@ def create_ome_zarr(
     print(chunk_size)
 
     from zarr import open as zarr_open
+    from numcodecs import Blosc
     handle = zarr_open(filepath, mode='w')
     handle.create_dataset(
         's0',
         shape=shape,
-        compression='gzip',
+        compressor=Blosc(cname='zstd', clevel=9),
         chunks=chunk_size[0],
         dtype=dtype,
         dimension_separator='/'

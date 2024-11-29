@@ -57,6 +57,9 @@ def template_matching_stack_alignment_workflow(
     stack_h, stack_size = load_data_handle(stack, key=key, pattern=pattern)
 
     template = crop_roi(stack_h, template_roi)
+    if verbose:
+        print(f'stack_h.shape = {stack_h.shape}')
+        print(f'template.shape = {template.shape}')
 
     if save_template:
         template_filepath = os.path.splitext(out_filepath)[0] + '.template.tif'

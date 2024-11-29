@@ -2,6 +2,44 @@
 import numpy as np
 
 
+def register_with_sift2(
+        fixed_image,
+        moving_image,
+        verbose=False
+):
+
+    import cv2
+
+    # Create SIFT detector
+    sift = cv2.SIFT_create(sigma=1.6)
+
+    # Detect keypoints and descriptors
+    keypoints1, descriptors1 = sift.detectAndCompute(fixed_image, None)
+    keypoints2, descriptors2 = sift.detectAndCompute(moving_image, None)
+
+    # Use BFMatcher to match descriptors (using L2 norm for SIFT)
+    bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
+
+    # Match descriptors
+    matches = bf.match(descriptors1, descriptors2)
+
+    # Sort matches based on distance (best matches first)
+    matches = sorted(matches, key=lambda x: x.distance)
+
+    # Extract matched keypoints' coordinates
+    points1 = np.float32([keypoints1[m.queryIdx].pt for m in matches]).reshape(-1, 2)
+    points2 = np.float32([keypoints2[m.trainIdx].pt for m in matches]).reshape(-1, 2)
+
+    # Calculate translation (difference in keypoints)
+    translations = points2 - points1
+    offset = np.median(translations, axis=0)
+
+    print(f'offset = {offset}')
+
+    from squirrel.library.transformation import setup_translation_matrix
+    return setup_translation_matrix(offset, ndim=2)
+
+
 def register_with_sift(
         fixed_image,
         moving_image,

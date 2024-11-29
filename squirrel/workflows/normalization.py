@@ -18,12 +18,12 @@ def normalize_slices_workflow(
     if verbose:
         print(f'in_path = {in_path}')
         print(f'out_path = {out_path}')
-        print(f'pattern = {pattern}')
-        print(f'in_h5_key = {in_h5_key}')
-        print(f'out_h5_key = {out_h5_key}')
+        print(f'pattern = {in_pattern}')
+        print(f'in_h5_key = {in_key}')
+        print(f'out_h5_key = {out_key}')
 
     from squirrel.library.io import load_data_handle, write_stack
-    from ..library.data import norm_z_range
+    # from ..library.data import norm_z_range
     stack_handle, stack_shape = load_data_handle(in_path, in_key, in_pattern)
 
     from squirrel.library.normalization import normalize_slices

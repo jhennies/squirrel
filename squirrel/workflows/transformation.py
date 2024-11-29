@@ -98,7 +98,7 @@ def apply_affine(
         out_filepath=None,
         image_key='data',
         no_offset_to_center=False,
-        pivot=None,
+        # pivot=None,
         apply='all',  # Can be ['all' | 'rotation']
         scale_canvas=False,
         verbose=False
@@ -111,20 +111,24 @@ def apply_affine(
         print(f'image_key = {image_key}')
 
     from ..library.transformation import apply_affine_transform
-    from ..library.io import load_data, write_h5_container
+    # from ..library.io import load_data, write_h5_container
+    from ..library.io import load_data_handle, write_h5_container
 
     if type(image) == str:
-        image = load_data(image, key=image_key)
+        # image = load_data(image, key=image_key)
+        image, _ = load_data_handle(image, key=image_key)[:]
 
     if type(transform) == str:
-        from ..library.transformation import load_transform_matrix
-        transform = load_transform_matrix(transform)
+        # from ..library.transformation import load_transform_matrix
+        from ..library.affine_matrices import AffineMatrix
+        # transform = load_transform_matrix(transform)
+        transform = AffineMatrix(filepath=transform)
 
     result = apply_affine_transform(
         image,
         transform,
         no_offset_to_center=no_offset_to_center,
-        pivot=pivot,
+        # pivot=pivot,
         apply=apply,
         scale_canvas=scale_canvas,
         verbose=verbose
@@ -505,6 +509,8 @@ def apply_stack_alignment_on_volume_workflow(
     else:
         assert not auto_pad, "Don't supply a stack shape if auto padding will be performed!"
         stack_h, _ = load_data_handle(stack, key=key, pattern=pattern)
+    if transforms.exists_meta('stack_shape'):
+        stack_shape = transforms.get_meta('stack_shape')
     stack_len = stack_shape[0]
     if z_range is not None:
         stack_len = z_range[1] - z_range[0]
@@ -596,7 +602,7 @@ def scale_sequential_affines_workflow(
         json.dump(transforms, f, indent=2)
 
 
-def serialize_affine_sequence_workflow(
+def sequence_affine_stack_workflow(
         transform_filepath,
         out_filepath,
         verbose=False
@@ -606,15 +612,21 @@ def serialize_affine_sequence_workflow(
         print(f'Target file exists: {out_filepath}\nSkipping apply affine sequence workflow ...')
         return None
 
-    import json
-    with open(transform_filepath, mode='r') as f:
-        transforms = json.load(f)
+    from squirrel.library.affine_matrices import AffineStack
 
-    from squirrel.library.transformation import sequence_affine_stack
-    result_transforms = sequence_affine_stack(transforms, verbose=verbose)
+    transforms = AffineStack(filepath=transform_filepath)
+    transforms = transforms.get_sequenced_stack()
+    transforms.to_file(out_filepath)
 
-    with open(out_filepath, mode='w') as f:
-        json.dump(result_transforms, f, indent=2)
+    # import json
+    # with open(transform_filepath, mode='r') as f:
+    #     transforms = json.load(f)
+    #
+    # from squirrel.library.transformation import sequence_affine_stack
+    # result_transforms = sequence_affine_stack(transforms, verbose=verbose)
+    #
+    # with open(out_filepath, mode='w') as f:
+    #     json.dump(result_transforms, f, indent=2)
 
 
 def smooth_affine_sequence_workflow(
@@ -738,7 +750,7 @@ def add_translational_drift_workflow(
     # #     json.dump(transforms, f, indent=2)
 
 
-def modify_step_in_sequence_workflow(transform_filepath, out_filepath, idx, affine, replace=False, verbose=False):
+def modify_step_in_sequence_workflow(transform_filepath, out_filepath, idx, affine, replace=False, return_result=False, verbose=False):
 
     if verbose:
         print(f'transform_filepath = {transform_filepath}')
@@ -746,17 +758,35 @@ def modify_step_in_sequence_workflow(transform_filepath, out_filepath, idx, affi
         print(f'affine = {affine}')
         print(f'replace = {replace}')
 
-    from ..library.linalg import modify_step_in_sequence
-    from ..library.transformation import load_transform_matrices, save_transformation_matrices
-    from ..library.elastix import save_transforms
+    # from ..library.linalg import modify_step_in_sequence
+    # from ..library.transformation import load_transform_matrices, save_transformation_matrices
+    # from ..library.elastix import save_transforms
+    #
+    # transforms, sequenced = load_transform_matrices(transform_filepath, validate=True, ndim=2)
+    # transforms = modify_step_in_sequence(transforms, idx, affine, replace=replace)
+    # save_transformation_matrices(
+    #     out_filepath,
+    #     save_transforms(transforms, None, param_order='M', save_order='C', ndim=2),
+    #     sequenced=sequenced
+    # )
 
-    transforms, sequenced = load_transform_matrices(transform_filepath, validate=True, ndim=2)
-    transforms = modify_step_in_sequence(transforms, idx, affine, replace=replace)
-    save_transformation_matrices(
-        out_filepath,
-        save_transforms(transforms, None, param_order='M', save_order='C', ndim=2),
-        sequenced=sequenced
-    )
+    from squirrel.library.affine_matrices import AffineStack, AffineMatrix
+    if not isinstance(transform_filepath, AffineStack):
+        transforms = AffineStack(filepath=transform_filepath)
+    else:
+        transforms = transform_filepath
+    if replace:
+        assert not transforms.is_sequenced
+        transforms[idx] = AffineMatrix(parameters=affine)
+    if transforms.is_sequenced:
+        for tidx, transform in enumerate(transforms[idx:]):
+            transforms[idx + tidx] = transform * AffineMatrix(parameters=affine)
+    else:
+        transforms[idx] = transforms[idx] * AffineMatrix(parameters=affine)
+
+    if return_result:
+        return transforms
+    transforms.to_file(out_filepath)
 
 
 def create_affine_sequence_workflow(out_filepath, length, verbose=False):
@@ -773,7 +803,11 @@ def create_affine_sequence_workflow(out_filepath, length, verbose=False):
     save_transformation_matrices(out_filepath, transforms, sequenced=False)
 
 
-def apply_auto_pad_workflow(transform_filepath, out_filepath, verbose=False):
+def apply_auto_pad_workflow(
+        transform_filepath, out_filepath,
+        image_stack_path=None, key='data', pattern='*.tif',
+        verbose=False
+):
 
     if verbose:
         print(f'transform_filepath = {transform_filepath}')
@@ -783,8 +817,17 @@ def apply_auto_pad_workflow(transform_filepath, out_filepath, verbose=False):
     from squirrel.library.affine_matrices import AffineStack
 
     transforms = AffineStack(filepath=transform_filepath)
+    if not transforms.exists_meta('bounds'):
+        from squirrel.library.image import get_bounds_of_stack, apply_auto_pad
+        from squirrel.library.io import load_data_handle
+        assert image_stack_path is not None, 'A stack needs to be supplied if no bounds information is found in the transformation meta data'
+        stack_h, stack_shape = load_data_handle(image_stack_path, key=key, pattern=pattern)
+        stack_bounds = get_bounds_of_stack(stack_h, stack_shape, return_ints=True, z_range=None)
+    else:
+        stack_bounds = transforms.get_meta('bounds')
+
     transforms, stack_shape = apply_auto_pad(
-        transforms, [len(transforms), 0, 0], transforms.get_meta('bounds'), extra_padding=16
+        transforms, [len(transforms), 0, 0], stack_bounds, extra_padding=16
     )
     transforms.set_meta('stack_shape', stack_shape)
     transforms.to_file(out_filepath)
@@ -803,4 +846,16 @@ def crop_transform_sequence_workflow(transform_filepath, out_filepath, z_range, 
 
     out_stack.to_file(out_filepath)
 
+
+if __name__ == '__main__':
+
+    from squirrel.library.affine_matrices import AffineStack, AffineMatrix
+
+    affines = AffineStack(stack = [[1, 0, 0, 0, 1, 0], [1, 0, 0, 0, 1, 0], [1, 0, 0, 0, 1, 0]], is_sequenced=True)
+
+    print(affines['C', :])
+
+    modified_affines = modify_step_in_sequence_workflow(affines, None, 1, [1, 0, 10, 0, 1, 5], return_result=True)
+
+    print(modified_affines['C', :])
 

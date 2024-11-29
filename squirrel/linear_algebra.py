@@ -73,7 +73,7 @@ def scale_sequential_affines():
     )
 
 
-def apply_affine_sequence():
+def sequence_affine_stack():
 
     # ----------------------------------------------------
     import argparse
@@ -93,8 +93,8 @@ def apply_affine_sequence():
     out_filepath = args.out_filepath
     verbose = args.verbose
 
-    from squirrel.workflows.transformation import serialize_affine_sequence_workflow
-    serialize_affine_sequence_workflow(
+    from squirrel.workflows.transformation import sequence_affine_stack_workflow
+    sequence_affine_stack_workflow(
         transform_filepath,
         out_filepath,
         verbose=verbose,
@@ -292,6 +292,34 @@ def crop_transform_sequence():
 
     from squirrel.workflows.transformation import crop_transform_sequence_workflow
     crop_transform_sequence_workflow(transform_filepath, out_filepath, z_range, verbose=verbose)
+
+
+def apply_z_step():
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Applies a z-step to a transform stack such that the result has the complete stack length',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('transform_filepath', type=str,
+                        help='The input stack of transformations')
+    parser.add_argument('out_filepath', type=str,
+                        help='Where the result will be saved')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    transform_filepath = args.transform_filepath
+    out_filepath = args.out_filepath
+    verbose = args.verbose
+
+    from squirrel.library.affine_matrices import AffineStack
+    stack = AffineStack(filepath=transform_filepath)
+    assert stack.exists_meta('z_step')
+    if not stack.is_sequenced:
+        stack = stack.get_sequenced_stack()
+    stack = stack.apply_z_step()
+    stack.to_file(out_filepath)
 
 
 if __name__ == '__main__':

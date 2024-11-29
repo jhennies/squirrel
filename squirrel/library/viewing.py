@@ -10,4 +10,5 @@ def add_labels_to_napari(viewer, labels, names=None):
     if names is None:
         names = [f'label{idx}' for idx in range(len(labels))]
     for lbl_idx, lbl in enumerate(labels):
-        viewer.add_labels(lbl.astype('uint8'), name=names[lbl_idx])
+        # viewer.add_labels(lbl.astype('uint8'), name=names[lbl_idx])
+        viewer.add_labels(lbl.astype('uint32'), name=names[lbl_idx])

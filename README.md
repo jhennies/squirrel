@@ -52,6 +52,18 @@ mamba install -c conda-forge opencv
 mamba install -c conda-forge zarr
 ```
 
+### For faster filters or morphological operations
+
+Note: this changes the numpy version!
+```
+mamba install -c conda-forge vigra
+```
+
+### For MoBIE project support
+```
+mamba install -c conda-forge pandas
+```
+
 ## Usage
 
 The main functions can be used directly after activation of the 
