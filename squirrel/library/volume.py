@@ -217,6 +217,7 @@ def axis_median_filter(
             np.iinfo(stack.dtype).max
         ).astype(stack.dtype)
         result = np.array(result).swapaxes(0, axis)
+        result[stack == 0] = 0
         return result
 
     raise ValueError(
