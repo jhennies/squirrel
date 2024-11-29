@@ -74,3 +74,151 @@ def stack_calculator(
                 for idx in range(len(stack_a))
             ]
             return [task.get() for task in tasks]
+
+
+def running_volume_average(
+        stack, axis=0, average_method='mean', window_size=None, operation=None, verbose=False
+):
+    assert average_method in ['mean', 'median']
+
+    stack = np.array(stack)
+    stack = stack.swapaxes(axis, 0)
+
+    shape = stack.shape
+
+    result = []
+
+    if average_method == 'mean':
+
+        assert window_size is None, 'average_method="mean" only implemented for window_size=None'
+
+        cumulative = np.zeros((shape[1], shape[2]), dtype=float)
+
+        for idx, slice in enumerate(stack):
+
+            if verbose:
+                print(f'idx = {idx} / {shape[0]}')
+
+            cumulative = cumulative + slice
+            cumulative_avg = cumulative / (idx + 1)
+
+            result.append(cumulative_avg)
+
+    if average_method == 'median':
+
+        def _run_median_filter(idx):
+            if verbose:
+                print(f'idx = {idx} / {shape[0]}')
+
+            if window_size is None:
+                start = 0
+            if window_size is not None:
+                start = idx - window_size
+                if start < 0:
+                    start = 0
+
+            return np.median(stack[start: idx], axis=0)
+
+        n_workers = 16
+        if n_workers == 1:
+            for idx, slice in enumerate(stack):
+
+                result.append(
+                    _run_median_filter(idx)
+                )
+
+        else:
+            from concurrent.futures import ThreadPoolExecutor
+            with ThreadPoolExecutor(max_workers=n_workers) as tpe:
+
+                tasks = [
+                    tpe.submit(_run_median_filter, idx)
+                    for idx, slice in enumerate(stack)
+                ]
+
+                result = [task.result() for task in tasks]
+
+    if operation is None:
+        result = np.array(result).swapaxes(0, axis)
+        return result
+
+    if operation == 'difference':
+        result = stack.astype(float) - result
+        result = np.array(result).swapaxes(0, axis)
+        return result
+
+    if operation == 'difference-clip':
+        result = np.clip(
+            stack.astype(float) - result + np.iinfo(stack.dtype).max / 2,
+            np.iinfo(stack.dtype).min,
+            np.iinfo(stack.dtype).max
+        ).astype(stack.dtype)
+        result = np.array(result).swapaxes(0, axis)
+        return result
+
+    raise ValueError(
+        f'Invalid value for operation: {operation}; possible values = [None, "difference", "difference-clip"'
+    )
+
+
+def axis_median_filter(
+        stack,
+        median_radius=2,
+        axis=0,
+        operation=None,
+        n_workers=1,
+        verbose=False
+):
+
+    stack = np.array(stack)
+    stack = stack.swapaxes(axis, 0)
+
+    shape = stack.shape
+
+    def _run_median_filter(idx):
+        if verbose:
+            print(f'idx = {idx} / {shape[0]}')
+
+        start = idx - median_radius
+        if start < 0:
+            start = 0
+        stop = idx + median_radius + 1
+        if stop > shape[0]:
+            stop = shape[0]
+        return np.median(stack[start: stop], axis=0)
+
+    if n_workers == 1:
+        result = [_run_median_filter(idx) for idx, slice in enumerate(stack)]
+
+    else:
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=n_workers) as tpe:
+
+            tasks = [
+                tpe.submit(_run_median_filter, idx)
+                for idx, slice in enumerate(stack)
+            ]
+
+            result = [task.result() for task in tasks]
+
+    if operation is None:
+        result = np.array(result).swapaxes(0, axis)
+        return result
+
+    if operation == 'difference':
+        result = stack.astype(float) - result
+        result = np.array(result).swapaxes(0, axis)
+        return result
+
+    if operation == 'difference-clip':
+        result = np.clip(
+            stack.astype(float) - result + np.iinfo(stack.dtype).max / 2,
+            np.iinfo(stack.dtype).min,
+            np.iinfo(stack.dtype).max
+        ).astype(stack.dtype)
+        result = np.array(result).swapaxes(0, axis)
+        return result
+
+    raise ValueError(
+        f'Invalid value for operation: {operation}; possible values = [None, "difference", "difference-clip"'
+    )

@@ -243,3 +243,70 @@ def stack_calculator():
         n_workers=n_workers,
         verbose=verbose
     )
+
+
+def axis_median_filter():
+
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Performs a median filtering on an image stack along the given axis',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('stack', type=str,
+                        help='Path of the input stack')
+    parser.add_argument('out_path', type=str,
+                        help='Output location. Must be either a directory or an h5 file name. '
+                             'Will be created if not existing')
+    parser.add_argument('--key', type=str, default='data',
+                        help='For h5 or ome.zarr input stacks this key is used to locate the dataset inside the stack '
+                             'location; default="data"')
+    parser.add_argument('--pattern', type=str, default='*.tif',
+                        help='File pattern to search for within the input folder; default = "*.tif"')
+    parser.add_argument('--median_radius', type=int, default=2,
+                        help='Radius of the median filter. The window for the filter will be 2*radius+1; default=2')
+    parser.add_argument('--axis', type=int, default=0,
+                        help='Axis along which the filter will be applied; default=0 (z-axis)')
+    parser.add_argument('--operation', type=str, default=None,
+                        help='Operation performed with input and result; default=None \n'
+                             ' - None: output = result; dtype = float \n'
+                             ' - "difference": output = input - result; dtype: float \n'
+                             ' - "difference-clip": output = clip(input - result); dtype: dtype(input)')
+    parser.add_argument('--z_range', type=int, nargs=2, default=None,
+                        help='Use certain slices of the stack only; Defaults to the entire stack')
+    parser.add_argument('--batch_size', type=int, default=None,
+                        help='Defines the number of slices per batch (decreases memory requirement); default=None')
+    parser.add_argument('--n_workers', type=int, default=1,
+                        help='Number of CPUs to use; Parallelization is implemented over the slices within one batch;'
+                             'Hence, n_workers > batch_size does not decrease run-time')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    stack = args.stack
+    out_path = args.out_path
+    key = args.key
+    pattern = args.pattern
+    median_radius = args.median_radius
+    axis = args.axis
+    operation = args.operation
+    z_range = args.z_range
+    batch_size = args.batch_size
+    n_workers = args.n_workers
+    verbose = args.verbose
+
+    from squirrel.workflows.volume import axis_median_filter_workflow
+
+    axis_median_filter_workflow(
+        stack,
+        out_path,
+        key=key,
+        pattern=pattern,
+        median_radius=median_radius,
+        axis=axis,
+        operation=operation,
+        z_range=z_range,
+        batch_size=batch_size,
+        n_workers=n_workers,
+        verbose=verbose,
+    )

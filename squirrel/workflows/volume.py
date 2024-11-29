@@ -89,13 +89,162 @@ def stack_calculator_workflow(
     raise ValueError(f'Invalid output type = {ft_out}')
 
 
+def running_average_workflow(
+        stack,
+        out_filepath,
+        key='data',
+        pattern='*.tif',
+        average_method='mean',
+        window_size=None,
+        operation=None,
+        axis=0,
+        z_range=None,
+        batch_size=None,
+        quiet=False,
+        verbose=False
+):
+
+    if verbose:
+        print(f'stack = {stack}')
+        print(f'out_filepath = {out_filepath}')
+        print(f'key = {key}')
+        print(f'pattern = {pattern}')
+        print(f'average_method = {average_method}')
+        print(f'window_size = {window_size}')
+        print(f'operation = {operation}')
+        print(f'axis = {axis}')
+        print(f'z_range = {z_range}')
+        print(f'batch_size = {batch_size}')
+        print(f'quiet = {quiet}')
+
+    from squirrel.library.io import load_data_handle, write_stack
+    from squirrel.library.data import norm_z_range
+    from squirrel.library.volume import running_volume_average
+
+    stack, stack_size = load_data_handle(stack, key=key, pattern=pattern)
+
+    z_range = norm_z_range(z_range, stack_size[0])
+    if batch_size is None:
+        batch_size = stack_size[0]
+
+    result = []
+
+    for idx in range(*z_range, batch_size):
+        if not quiet:
+            print(f'idx = {idx} / {z_range[1]}')
+
+        result.append(
+            running_volume_average(
+                stack[idx: idx + batch_size],
+                average_method=average_method,
+                window_size=window_size,
+                operation=operation,
+                axis=axis,
+                verbose=verbose
+            )
+        )
+
+    result = np.concatenate(result, axis=0)
+    write_stack(out_filepath, result, key)
+
+
+def axis_median_filter_workflow(
+        stack,
+        out_path,
+        key='data',
+        pattern='*.tif',
+        median_radius=2,
+        axis=0,
+        operation=None,
+        z_range=None,
+        batch_size=None,
+        n_workers=1,
+        quiet=False,
+        verbose=False
+):
+
+    if verbose:
+        print(f'stack = {stack}')
+        print(f'out_path = {out_path}')
+        print(f'key = {key}')
+        print(f'pattern = {pattern}')
+        print(f'median_radius = {median_radius}')
+        print(f'axis = {axis}')
+        print(f'operation = {operation}')
+        print(f'z_range = {z_range}')
+        print(f'batch_size = {batch_size}')
+        print(f'n_workers = {n_workers}')
+        print(f'quiet = {quiet}')
+
+    from squirrel.library.io import load_data_handle, write_stack
+    from squirrel.library.data import norm_z_range
+    from squirrel.library.volume import axis_median_filter
+
+    stack, stack_size = load_data_handle(stack, key=key, pattern=pattern)
+
+    z_range = norm_z_range(z_range, stack_size[0])
+    if batch_size is None:
+        batch_size = stack_size[0]
+
+    result = []
+
+    for idx in range(*z_range, batch_size):
+        if not quiet:
+            print(f'idx = {idx} / {z_range[1]}')
+
+        result.append(
+            axis_median_filter(
+                stack[idx: idx + batch_size],
+                median_radius=median_radius,
+                axis=axis,
+                operation=operation,
+                n_workers=n_workers,
+                verbose=verbose
+            )
+        )
+
+    result = np.concatenate(result, axis=0)
+    write_stack(out_path, result, key)
+
+
 if __name__ == '__main__':
 
-    stack_calculator_workflow(
-        ('/media/julian/Data/projects/walter/cryo_fib_preprocessing/2024-03-21_2h/InLensCombined',
-         '/media/julian/Data/projects/walter/cryo_fib_preprocessing/2024-03-21_2h/InLensCombined'),
-        '/tmp/test_stack_calculator',
-        operation='average',
-        n_workers=16,
+    # stack_calculator_workflow(
+    #     ('/media/julian/Data/projects/walter/cryo_fib_preprocessing/2024-03-21_2h/InLensCombined',
+    #      '/media/julian/Data/projects/walter/cryo_fib_preprocessing/2024-03-21_2h/InLensCombined'),
+    #     '/tmp/test_stack_calculator',
+    #     operation='average',
+    #     n_workers=16,
+    #     verbose=True
+    # )
+
+    # running_average_workflow(
+    #     '/media/julian/Data/projects/ionescu/cryofib-achromarium-segmentation/2022-02-23_giant-bacteria/segmentations/chunks/chunk_0000_2048_0000.h5',
+    #     '/media/julian/Data/tmp/test-running-volume-avg.h5',
+    #     key='em',
+    #     average_method='median',
+    #     window_size=200,
+    #     operation='difference-clip',
+    #     axis=1,
+    #     verbose=True
+    # )
+
+    axis_median_filter_workflow(
+        '/media/julian/Data/projects/ionescu/cryofib-achromarium-segmentation/2022-02-23_giant-bacteria/segmentations/chunks/chunk_0000_2048_0000.h5',
+        '/media/julian/Data/tmp/test-axis_median.h5',
+        key='em',
+        median_radius=200,
+        axis=1,
+        operation='difference-clip',
+        verbose=True
+    )
+
+    axis_median_filter_workflow(
+        '/media/julian/Data/tmp/test-axis_median.h5',
+        '/media/julian/Data/tmp/test-axis_median-ax2.h5',
+        key='em',
+        median_radius=200,
+        axis=2,
+        operation='difference-clip',
         verbose=True
     )
