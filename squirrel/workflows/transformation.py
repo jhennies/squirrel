@@ -169,7 +169,7 @@ def apply_sequential_affine(
         if transform is None:
             transform = AffineMatrix(filepath=t)
         else:
-            transform = transform.dot(t)
+            transform = transform.dot(AffineMatrix(filepath=t))
 
     transform.set_pivot(pivot)
 
