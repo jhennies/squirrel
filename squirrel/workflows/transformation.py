@@ -40,16 +40,14 @@ def decompose_affine(
             [
                 [1, 0, 0, shear_to_translation_pivot[0]],
                 [0, 1, 0, shear_to_translation_pivot[1]],
-                [0, 0, 1, shear_to_translation_pivot[2]],
-                [0, 0, 0, 1]
+                [0, 0, 1, shear_to_translation_pivot[2]]
             ]
         ).flatten())
         tpivot_ = AffineMatrix(np.array(
             [
                 [1, 0, 0, -shear_to_translation_pivot[0]],
                 [0, 1, 0, -shear_to_translation_pivot[1]],
-                [0, 0, 1, -shear_to_translation_pivot[2]],
-                [0, 0, 0, 1]
+                [0, 0, 1, -shear_to_translation_pivot[2]]
             ]
         ).flatten())
         transform = transform.dot(tpivot)
