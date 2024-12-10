@@ -36,23 +36,23 @@ def decompose_affine(
         print(f'transform.get_matrix() = {transform.get_matrix()}')
 
     if shear_to_translation_pivot is not None:
-        tpivot = np.array(
+        tpivot = AffineMatrix(np.array(
             [
                 [1, 0, 0, shear_to_translation_pivot[0]],
                 [0, 1, 0, shear_to_translation_pivot[1]],
                 [0, 0, 1, shear_to_translation_pivot[2]],
                 [0, 0, 0, 1]
             ]
-        )
-        tpivot_ = np.array(
+        ).flatten())
+        tpivot_ = AffineMatrix(np.array(
             [
                 [1, 0, 0, -shear_to_translation_pivot[0]],
                 [0, 1, 0, -shear_to_translation_pivot[1]],
                 [0, 0, 1, -shear_to_translation_pivot[2]],
                 [0, 0, 0, 1]
             ]
-        )
-        transform = np.dot(transform, tpivot)
+        ).flatten())
+        transform = transform.dot(tpivot)
     if verbose:
         print(f'transform = {transform}')
     decomposition = transform.decompose()
