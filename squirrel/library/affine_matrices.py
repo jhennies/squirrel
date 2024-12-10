@@ -477,7 +477,7 @@ class AffineMatrix:
 
         if filetype == 'csv':
             from numpy import genfromtxt
-            self.set_from_parameters(genfromtxt(filepath, delimiter=','))
+            self.set_from_parameters(parameters=genfromtxt(filepath, delimiter=',').flatten())
             return
 
         raise ValueError(f'Invalid filetype: {filetype}')
