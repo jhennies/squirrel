@@ -162,32 +162,50 @@ def apply_sequential_affine(
         verbose=False
 ):
 
-    from ..library.transformation import load_transform_matrix, validate_and_reshape_matrix
-    if len(transforms) == 1:
-        transforms = load_transform_matrix(transforms[0])
-        transform = validate_and_reshape_matrix(transforms[0], 3)
-        for t in transforms[1:]:
-            transform = np.dot(transform, validate_and_reshape_matrix(t, 3))
+    from ..library.affine_matrices import AffineMatrix
 
-    else:
-        transform = validate_and_reshape_matrix(load_transform_matrix(transforms[0]), 3)
-        for t in transforms[1:]:
-            t = validate_and_reshape_matrix(load_transform_matrix(t), 3)
-            transform = np.dot(transform, t)
+    transform = None
+    for t in transforms:
+        if transform is None:
+            transform = AffineMatrix(filepath=t)
+        else:
+            transform = transform.dot(t)
 
-    from ..library.elastix import save_transforms
-    import os
-    save_transforms(
-        transform[:3, :],
+    transform.set_pivot(pivot)
+
+    transform.to_file(
         os.path.join(
             os.path.split(out_filepath)[0],
             os.path.splitext(os.path.split(out_filepath)[1])[0] + '.json'
-        ),
-        param_order='M',
-        save_order='C',
-        ndim=3,
-        verbose=verbose
+        )
     )
+
+    # from ..library.transformation import load_transform_matrix, validate_and_reshape_matrix
+    # if len(transforms) == 1:
+    #     transforms = load_transform_matrix(transforms[0])
+    #     transform = validate_and_reshape_matrix(transforms[0], 3)
+    #     for t in transforms[1:]:
+    #         transform = np.dot(transform, validate_and_reshape_matrix(t, 3))
+    #
+    # else:
+    #     transform = validate_and_reshape_matrix(load_transform_matrix(transforms[0]), 3)
+    #     for t in transforms[1:]:
+    #         t = validate_and_reshape_matrix(load_transform_matrix(t), 3)
+    #         transform = np.dot(transform, t)
+    #
+    # from ..library.elastix import save_transforms
+    # import os
+    # save_transforms(
+    #     transform[:3, :],
+    #     os.path.join(
+    #         os.path.split(out_filepath)[0],
+    #         os.path.splitext(os.path.split(out_filepath)[1])[0] + '.json'
+    #     ),
+    #     param_order='M',
+    #     save_order='C',
+    #     ndim=3,
+    #     verbose=verbose
+    # )
 
     apply_affine(
         image,
@@ -195,7 +213,6 @@ def apply_sequential_affine(
         out_filepath=out_filepath,
         image_key=image_key,
         no_offset_to_center=no_offset_to_center,
-        pivot=pivot,
         verbose=verbose
     )
 
