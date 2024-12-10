@@ -10,24 +10,30 @@ def decompose_affine(
         pivot=None,
         verbose=False
 ):
-    from ..library.transformation import (
-        load_transform_matrix,
-        extract_approximate_rotation_affine,
-        decompose_3d_transform,
-        validate_and_reshape_matrix
-    )
-    from ..library.elastix import save_transforms
+    # from ..library.transformation import (
+    #     load_transform_matrix,
+    #     extract_approximate_rotation_affine,
+    #     decompose_3d_transform,
+    #     validate_and_reshape_matrix
+    # )
+    # from ..library.elastix import save_transforms
 
+    # if type(transform) == str:
+    #     transform = load_transform_matrix(transform)
+    #
+    # if verbose:
+    #     print(f'transform = {transform}')
+
+    # transform = validate_and_reshape_matrix(transform, 3)
+
+    from ..library.affine_matrices import AffineMatrix
     if type(transform) == str:
-        transform = load_transform_matrix(transform)
+        transform = AffineMatrix(filepath=transform)
+    else:
+        transform = AffineMatrix(parameters=transform)
 
     if verbose:
-        print(f'transform = {transform}')
-
-    transform = validate_and_reshape_matrix(transform, 3)
-
-    if verbose:
-        print(f'transform = {transform}')
+        print(f'transform.get_matrix() = {transform.get_matrix()}')
 
     if shear_to_translation_pivot is not None:
         tpivot = np.array(
@@ -49,7 +55,8 @@ def decompose_affine(
         transform = np.dot(transform, tpivot)
     if verbose:
         print(f'transform = {transform}')
-    decomposition = decompose_3d_transform(transform, verbose=verbose)
+    decomposition = transform.decompose()
+    # decomposition = decompose_3d_transform(transform, verbose=verbose)
     if verbose:
         print(f'decomposition = {decomposition}')
 
@@ -61,34 +68,42 @@ def decompose_affine(
     #     translation[1] += shear_to_translation_pivot[1] * math.atan(shear[1])
     #     translation[2] += shear_to_translation_pivot[2] * math.atan(shear[2])
 
-    from ..library.transformation import (
-        setup_translation_matrix,
-        setup_scale_matrix,
-        setup_shear_matrix
-    )
+    # from ..library.transformation import (
+    #     setup_translation_matrix,
+    #     setup_scale_matrix,
+    #     setup_shear_matrix
+    # )
+    #
+    # translation = decomposition[0]
+    # translation = setup_translation_matrix(translation)
+    # if shear_to_translation_pivot is not None:
+    #     translation = np.dot(translation, tpivot_)
+    # scale = decomposition[2]
+    # scale = setup_scale_matrix(scale)
+    # rotation = np.concatenate([decomposition[1], np.swapaxes([[0., 0., 0.]], 0, 1)], axis=1)
+    # shear = decomposition[3]
+    # shear = setup_shear_matrix(shear)
 
-    translation = decomposition[0]
-    translation = setup_translation_matrix(translation)
-    if shear_to_translation_pivot is not None:
-        translation = np.dot(translation, tpivot_)
-    scale = decomposition[2]
-    scale = setup_scale_matrix(scale)
-    rotation = np.concatenate([decomposition[1], np.swapaxes([[0., 0., 0.]], 0, 1)], axis=1)
-    shear = decomposition[3]
-    shear = setup_shear_matrix(shear)
+    translation, rotation, scale, shear = decomposition
+    if shear_to_translation_pivot:
+        translation = translation.dot(tpivot_)
 
     if verbose:
-        print(f'translation = {translation}')
-        print(f'rotation = {rotation}')
-        print(f'scale = {scale}')
-        print(f'shear = {shear}')
+        print(f'translation = {translation.get_matrix()}')
+        print(f'rotation = {rotation.get_matrix()}')
+        print(f'scale = {scale.get_matrix()}')
+        print(f'shear = {shear.get_matrix()}')
 
     if out_folder is not None:
         import os
-        save_transforms(translation, os.path.join(out_folder, 'translation.json'), param_order='M', save_order='C', ndim=3, verbose=verbose)
-        save_transforms(rotation, os.path.join(out_folder, 'rotation.json'), param_order='M', save_order='C', ndim=3, verbose=verbose)
-        save_transforms(scale, os.path.join(out_folder, 'scale.json'), param_order='M', save_order='C', ndim=3, verbose=verbose)
-        save_transforms(shear, os.path.join(out_folder, 'shear.json'), param_order='M', save_order='C', ndim=3, verbose=verbose)
+        translation.to_file(os.path.join(out_folder, 'translation.json'))
+        rotation.to_file(os.path.join(out_folder, 'rotation.json'))
+        scale.to_file(os.path.join(out_folder, 'scale.json'))
+        shear.to_file(os.path.join(out_folder, 'shear.json'))
+        # save_transforms(translation, os.path.join(out_folder, 'translation.json'), param_order='M', save_order='C', ndim=3, verbose=verbose)
+        # save_transforms(rotation, os.path.join(out_folder, 'rotation.json'), param_order='M', save_order='C', ndim=3, verbose=verbose)
+        # save_transforms(scale, os.path.join(out_folder, 'scale.json'), param_order='M', save_order='C', ndim=3, verbose=verbose)
+        # save_transforms(shear, os.path.join(out_folder, 'shear.json'), param_order='M', save_order='C', ndim=3, verbose=verbose)
     return decomposition
 
 
