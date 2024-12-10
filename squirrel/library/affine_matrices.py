@@ -493,7 +493,7 @@ class AffineMatrix:
         import json
         print(f'dtype: {self.get_matrix(order="C").dtype}')
         out_data = dict(
-            transform=self.get_matrix(order='C').tolist(),
+            transform=self.get_matrix(order='C').astype('float64').tolist(),
             pivot=self._pivot.tolist()
         )
         with open(filepath, mode='w') as f:
