@@ -148,8 +148,9 @@ def big_jump_pre_fix(moving_image, fixed_image, iou_thresh=0.5, verbose=False):
     intersection[np.logical_and(moving_image > 0, fixed_image > 0)] = True
 
     iou = intersection.sum() / union.sum()
+    print(f'IoU = {iou}')
     if iou < iou_thresh:
-        print(f'Fixing big jump! (IoU = {iou})')
+        print(f'Fixing big jump! (IoU = {iou} > {iou_thresh})')
         from skimage.registration import phase_cross_correlation
         from scipy.ndimage.interpolation import shift
 
