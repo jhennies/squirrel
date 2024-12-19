@@ -138,19 +138,19 @@ def make_auto_mask(image, disk_size=6):
     return mask
 
 
-def big_jump_pre_fix(moving_image, fixed_image, iou_thresh=0.5, verbose=False):
+def big_jump_pre_fix(moving_orig, fixed_orig, moving_image, fixed_image, iou_thresh=0.5, verbose=False):
 
-    union = np.zeros(moving_image.shape, dtype=bool)
-    union[moving_image > 0] = True
-    union[fixed_image > 0] = True
+    union = np.zeros(moving_orig.shape, dtype=bool)
+    union[moving_orig > 0] = True
+    union[fixed_orig > 0] = True
 
-    intersection = np.zeros(moving_image.shape, dtype=bool)
-    intersection[np.logical_and(moving_image > 0, fixed_image > 0)] = True
+    intersection = np.zeros(moving_orig.shape, dtype=bool)
+    intersection[np.logical_and(moving_orig > 0, fixed_orig > 0)] = True
 
     iou = intersection.sum() / union.sum()
     print(f'IoU = {iou}')
     if iou < iou_thresh:
-        print(f'Fixing big jump! (IoU = {iou} > {iou_thresh})')
+        print(f'Fixing big jump! (IoU = {iou} < {iou_thresh})')
         from skimage.registration import phase_cross_correlation
         from scipy.ndimage.interpolation import shift
 
@@ -274,6 +274,12 @@ def register_with_elastix(
         fixed_image = fixed_image[bounds]
         moving_image = moving_image[bounds]
 
+    moving_orig = None
+    fixed_orig = None
+    if pre_fix_big_jumps:
+        moving_orig = moving_image.copy()
+        fixed_orig = fixed_image.copy()
+
     if use_clahe:
         from squirrel.library.normalization import clahe_on_image
         fixed_image = clahe_on_image(fixed_image)
@@ -326,7 +332,11 @@ def register_with_elastix(
         assert type(moving_image) == np.ndarray
         if transform != 'translation':
             raise NotImplementedError('Big jump fixing only implemented for translations!')
-        pre_fix_offsets, moving_image = big_jump_pre_fix(moving_image, fixed_image, iou_thresh=pre_fix_iou_thresh, verbose=verbose)
+        pre_fix_offsets, moving_image = big_jump_pre_fix(
+            moving_orig, fixed_orig,
+            moving_image, fixed_image,
+            iou_thresh=pre_fix_iou_thresh, verbose=verbose
+        )
         pre_fix_offsets = np.array(pre_fix_offsets)
 
     if verbose:
