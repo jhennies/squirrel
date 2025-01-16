@@ -265,3 +265,34 @@ def ome_zarr_to_stack_workflow(
     from squirrel.library.io import write_tif_stack
     write_tif_stack(chunk_data, target_dirpath, id_offset=z_range[0], slice_name='slice_{:05d}.tif')
 
+
+def n5_to_stack_workflow(
+        ome_zarr_filepath,
+        target_dirpath,
+        ome_zarr_key='s0',
+        z_range=None,
+        n_threads=1,
+        verbose=False
+):
+
+    if verbose:
+        print(f'ome_zarr_filepath = {ome_zarr_filepath}')
+        print(f'target_dirpath = {target_dirpath}')
+        print(f'ome_zarr_key = {ome_zarr_key}')
+        print(f'z_range = {z_range}')
+        print(f'n_threads = {n_threads}')
+
+    # Load the n5
+    from squirrel.library.data import norm_z_range
+    from squirrel.library.n5 import get_n5_handle
+    handle = get_n5_handle(ome_zarr_filepath, ome_zarr_key, mode='r')
+    z_range = norm_z_range(z_range, handle.shape[0])
+    chunk_data = handle[z_range[0]: z_range[1], :]
+
+    # Save to the tif stack
+    if not os.path.exists(target_dirpath):
+        os.mkdir(target_dirpath)
+    from squirrel.library.io import write_tif_stack
+    write_tif_stack(chunk_data, target_dirpath, id_offset=z_range[0], slice_name='slice_{:05d}.tif')
+
+

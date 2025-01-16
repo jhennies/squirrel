@@ -184,7 +184,7 @@ def ome_zarr_to_stack():
     import argparse
 
     parser = argparse.ArgumentParser(
-        description='Convert a dataset within a h5 container or a tif stack to ome.zarr',
+        description='Convert a ome.zarr dataset to a tif stack',
         formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument('ome_zarr_filepath', type=str,
@@ -210,6 +210,46 @@ def ome_zarr_to_stack():
     from squirrel.workflows.convert import ome_zarr_to_stack_workflow
 
     ome_zarr_to_stack_workflow(
+        ome_zarr_filepath,
+        target_dirpath,
+        ome_zarr_key=ome_zarr_key,
+        z_range=z_range,
+        n_threads=n_threads,
+        verbose=verbose,
+    )
+
+
+def n5_to_stack():
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Convert a n5 dataset to a tif stack',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('n5_filepath', type=str,
+                        help='Input n5 dataset')
+    parser.add_argument('target_dirpath', type=str,
+                        help='Output tif stack')
+    parser.add_argument('--n5_key', type=str, default='setup0/timepoint0/s0',
+                        help='Path within input n5 dataset; default="setup0/timepoint0/s0"')
+    parser.add_argument('--z_range', type=int, nargs=2, default=None,
+                        help='Use certain slices of the stack only; Defaults to the entire stack')
+    parser.add_argument('--n_threads', type=int, default=1,
+                        help='Number of CPUs to use')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    ome_zarr_filepath = args.ome_zarr_filepath
+    target_dirpath = args.target_dirpath
+    ome_zarr_key = args.ome_zarr_key
+    z_range = args.z_range
+    n_threads = args.n_threads
+    verbose = args.verbose
+
+    from squirrel.workflows.convert import n5_to_stack_workflow
+
+    n5_to_stack_workflow(
         ome_zarr_filepath,
         target_dirpath,
         ome_zarr_key=ome_zarr_key,
