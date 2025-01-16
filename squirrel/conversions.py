@@ -242,7 +242,7 @@ def n5_to_stack():
     args = parser.parse_args()
     n5_filepath = args.n5_filepath
     target_dirpath = args.target_dirpath
-    ome_zarr_key = args.ome_zarr_key
+    n5_key = args.n5_key
     z_range = args.z_range
     n_threads = args.n_threads
     verbose = args.verbose
@@ -252,7 +252,7 @@ def n5_to_stack():
     n5_to_stack_workflow(
         n5_filepath,
         target_dirpath,
-        ome_zarr_key=ome_zarr_key,
+        n5_key=n5_key,
         z_range=z_range,
         n_threads=n_threads,
         verbose=verbose,
