@@ -240,7 +240,7 @@ def n5_to_stack():
     parser.add_argument('-v', '--verbose', action='store_true')
 
     args = parser.parse_args()
-    ome_zarr_filepath = args.ome_zarr_filepath
+    n5_filepath = args.n5_filepath
     target_dirpath = args.target_dirpath
     ome_zarr_key = args.ome_zarr_key
     z_range = args.z_range
@@ -250,7 +250,7 @@ def n5_to_stack():
     from squirrel.workflows.convert import n5_to_stack_workflow
 
     n5_to_stack_workflow(
-        ome_zarr_filepath,
+        n5_filepath,
         target_dirpath,
         ome_zarr_key=ome_zarr_key,
         z_range=z_range,
