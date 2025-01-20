@@ -55,7 +55,8 @@ setup(
             'fiji_sift_log_to_affine_stack = squirrel.fiji:sift_log_to_affine_stack',
             'sq-init-mobie-project = squirrel.mobie:init_mobie_project',
             'sq-axis-median-filter = squirrel.stack_operations:axis_median_filter',
-            'sq-n5-to-stack = squirrel.conversions:n5_to_stack'
+            'sq-n5-to-stack = squirrel.conversions:n5_to_stack',
+            'sq-cast-dtype = squirrel.conversions:cast_dtype'
         ]
     },
     install_requires=[

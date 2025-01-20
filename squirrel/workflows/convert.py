@@ -296,3 +296,24 @@ def n5_to_stack_workflow(
     write_tif_stack(chunk_data, target_dirpath, id_offset=z_range[0], slice_name='slice_{:05d}.tif')
 
 
+def cast_dtype_workflow(
+        input_path,
+        target_dirpath,
+        input_key='data',
+        input_pattern='*.tif',
+        target_dtype='float32',
+        verbose=False
+):
+
+    if verbose:
+        print(f'input_path = {input_path}')
+        print(f'target_dirpath = {target_dirpath}')
+        print(f'input_key = {input_key}')
+
+    from squirrel.library.io import load_data_handle
+
+    h, shape = load_data_handle(input_path, input_key, input_pattern)
+
+    from squirrel.library.io import write_stack
+
+    write_stack(target_dirpath, h[:].astype('target_dtype'), key=input_key)

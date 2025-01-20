@@ -262,10 +262,15 @@ class TiffStack(list):
 
 def write_stack(path, data, key='data'):
 
-    if os.path.splitext(path)[1] == '.h5':
+    # if os.path.splitext(path)[1] == '.h5':
+    filetype = get_filetype(path)
+    if filetype == 'h5':
         write_h5_container(path, data, key=key)
         return
-    write_tif_stack(data, path)
+    if filetype == 'dir':
+        write_tif_stack(data, path)
+        return
+    raise ValueError(f'Invalid filetype={filetype} of target path={path}')
 
 
 if __name__ == '__main__':

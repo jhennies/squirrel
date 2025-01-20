@@ -259,5 +259,45 @@ def n5_to_stack():
     )
 
 
+def cast_dtype():
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Casts a dataset to a different data type',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('input_path', type=str,
+                        help='Input data')
+    parser.add_argument('target_dirpath', type=str,
+                        help='Output stack')
+    parser.add_argument('--input_key', type=str, default='data',
+                        help='Path within input dataset; default="data"')
+    parser.add_argument('--input_pattern', type=str, default='*.tif',
+                        help='File pattern used for tif stacks')
+    parser.add_argument('-dtype', '--target_dtype', type=str, default='float32',
+                        help='The datatype to cast to ')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    input_path = args.input_path
+    target_dirpath = args.target_dirpath
+    input_key = args.input_key
+    input_pattern = args.input_pattern
+    target_dtype = args.target_dtype
+    verbose = args.verbose
+
+    from squirrel.workflows.convert import cast_dtype_workflow
+
+    cast_dtype_workflow(
+        input_path,
+        target_dirpath,
+        input_key=input_key,
+        input_pattern=input_pattern,
+        target_dtype=target_dtype,
+        verbose=verbose,
+    )
+
+
 if __name__ == '__main__':
     stack_to_ome_zarr()
