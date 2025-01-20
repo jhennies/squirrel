@@ -316,4 +316,4 @@ def cast_dtype_workflow(
 
     from squirrel.library.io import write_stack
 
-    write_stack(target_dirpath, h[:].astype('target_dtype'), key=input_key)
+    write_stack(target_dirpath, h[:].astype(target_dtype), key=input_key)
