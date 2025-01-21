@@ -207,6 +207,62 @@ def axis_median_filter_workflow(
     write_stack(out_path, result, key)
 
 
+def _get_label_list(data_h, z_range):
+
+    data = data_h[z_range[0]: z_range[1]]
+    return np.unique(data)
+
+
+def get_label_list_workflow(
+        input_path,
+        key=None,
+        pattern='*.tif',
+        out_json=None,
+        z_batch_size=1,
+        n_workers=1,
+        verbose=False
+):
+
+    if verbose:
+        print(f'input_path = {input_path}')
+        print(f'key = {key}')
+        print(f'pattern = {pattern}')
+        print(f'out_json = {out_json}')
+        print(f'z_batch_size = {z_batch_size}')
+        print(f'n_workers = {n_workers}')
+
+    from squirrel.library.io import load_data_handle
+    h, shape = load_data_handle(input_path, key, pattern)
+
+    label_lists = []
+
+    if n_workers == 1:
+        for idx in range(0, shape[0], z_batch_size):
+            z_range = [idx, min(idx + z_batch_size, shape[0])]
+            label_lists.append(_get_label_list(h, z_range))
+
+    else:
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=n_workers) as tpe:
+            tasks = [
+                tpe.submit(_get_label_list, h, [idx, min(idx + z_batch_size, shape[0])])
+                for idx in range(0, shape[0], z_batch_size)
+            ]
+            label_lists = [task.result() for task in tasks]
+
+    label_list = np.unique(label_lists)
+
+    if out_json is not None:
+        # Write label-list to file
+        import json
+        with open(out_json, mode='w') as f:
+            json.dump(label_list, indent=2)
+
+    print(f'label_list = {label_list}')
+
+    return label_list
+
+
 if __name__ == '__main__':
 
     # stack_calculator_workflow(

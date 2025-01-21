@@ -317,3 +317,30 @@ def cast_dtype_workflow(
     from squirrel.library.io import write_stack
 
     write_stack(target_dirpath, h[:].astype(target_dtype), key=input_key)
+
+
+def cast_segmentations_workflow(
+        input_path,
+        target_dirpath,
+        input_key=None,  # Defaults: ome.zarr: "s0"; n5: "setup0/timepoint0/s0"
+        input_pattern='*.tif',
+        target_key=None,  # Defaults to input_key
+        target_dtype=None,  # None: Tries to find the best-suitable data type. Only for integer types and only use for segmentations!
+        z_batch_size=64,
+        n_workers=1,
+        verbose=False
+):
+
+    from squirrel.library.io import load_data_handle
+    if target_dtype is None:
+        h, shape = load_data_handle(input_path, input_key, input_pattern)
+        if h.dtype in ['uint8', 'uint16', 'uint32', 'uint64']:
+            label_list = get_label_list_workflow(input_path, input_key, input_pattern, n_workers=n_workers, verbose=verbose)
+
+    # If target_dtype is None and source_dtype in ['uint8', 'uint16', 'uint32', 'uint64']
+    #   -> Determine all labels in the data
+    
+    # Set up a dictionary to re-assign the labels
+
+    # Iterate the batches and write the results
+    pass

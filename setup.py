@@ -11,7 +11,7 @@ setup(
     url='https://github.com/jhennies/squirrel',
     license="GPLv3",
     packages=['squirrel'],
-    entry_points={
+    entry_points={  # Naming scheme: sq-<namespace>-<func-name>
         'console_scripts': [
             'apply_stack_alignment = squirrel.apply_transformation:apply_stack_alignment',
             'apply_affine_on_volume = squirrel.apply_transformation:affine_on_volume',
@@ -53,10 +53,11 @@ setup(
             'crop_from_stack = squirrel.stack_operations:crop_from_stack',
             'apply_auto_pad = squirrel.apply_transformation:apply_auto_pad',
             'fiji_sift_log_to_affine_stack = squirrel.fiji:sift_log_to_affine_stack',
-            'sq-init-mobie-project = squirrel.mobie:init_mobie_project',
-            'sq-axis-median-filter = squirrel.stack_operations:axis_median_filter',
-            'sq-n5-to-stack = squirrel.conversions:n5_to_stack',
-            'sq-cast-dtype = squirrel.conversions:cast_dtype'
+            'sq-mobie-init-project = squirrel.mobie:init_mobie_project',
+            'sq-stack-axis-median-filter = squirrel.stack_operations:axis_median_filter',
+            'sq-stack-n5-to-stack = squirrel.conversions:n5_to_stack',
+            'sq-stack-cast-dtype = squirrel.conversions:cast_dtype',
+            'sq-stack-get-label-list'
         ]
     },
     install_requires=[

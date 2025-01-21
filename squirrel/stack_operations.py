@@ -310,3 +310,50 @@ def axis_median_filter():
         n_workers=n_workers,
         verbose=verbose,
     )
+
+
+def get_label_list():
+
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Runs numpy unique on a large volume dataset',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('input_path', type=str,
+                        help='Path of the input stack')
+    parser.add_argument('--key', type=str, default='data',
+                        help='For h5 or ome.zarr input stacks this key is used to locate the dataset inside the stack '
+                             'location; default="data"')
+    parser.add_argument('--pattern', type=str, default='*.tif',
+                        help='File pattern to search for within the input folder; default = "*.tif"')
+    parser.add_argument('--out_json', type=str, default=None,
+                        help='This will trigger writing an output file in json format containing the unique labels; '
+                             'default=None will only write it to console')
+    parser.add_argument('--z_batch_size', type=int, default=1,
+                        help='Defines the number of slices per batch (decreases memory requirement); default=1')
+    parser.add_argument('--n_workers', type=int, default=1,
+                        help='Number of CPUs to use; Parallelization is implemented over the batches')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    input_path = args.input_path
+    key = args.key
+    pattern = args.pattern
+    out_json = args.out_json
+    z_batch_size = args.z_batch_size
+    n_workers = args.n_workers
+    verbose = args.verbose
+
+    from squirrel.workflows.volume import get_label_list_workflow
+
+    get_label_list_workflow(
+        input_path,
+        key=key,
+        pattern=pattern,
+        out_json=out_json,
+        z_batch_size=z_batch_size,
+        n_workers=n_workers,
+        verbose=verbose,
+    )
