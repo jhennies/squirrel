@@ -220,6 +220,7 @@ def get_label_list_workflow(
         out_json=None,
         z_batch_size=1,
         n_workers=1,
+        quiet=False,
         verbose=False
 ):
 
@@ -258,7 +259,7 @@ def get_label_list_workflow(
         with open(out_json, mode='w') as f:
             json.dump(label_list.tolist(), f, indent=2)
 
-    if out_json is None or verbose:
+    if out_json is None or verbose and not quiet:
         print(f'label_list = {[x for x in label_list]}')
 
     return label_list

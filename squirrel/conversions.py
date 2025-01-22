@@ -299,7 +299,7 @@ def cast_dtype():
     )
 
 
-def get_label_list():
+def cast_segmentation():
 
     # ----------------------------------------------------
     import argparse
@@ -317,7 +317,7 @@ def get_label_list():
                              'location; default=None which will be interpreted as "s0" for ome.zarr, "data" for h5 and "setup0/timepoint0/s0" for n5')
     parser.add_argument('--pattern', type=str, default=None,
                         help='File pattern to search for within the input folder; default=None (which is interpreted as "*.tif")')
-    parser.add_argument('--target_key', type=str, defult=None,
+    parser.add_argument('--target_key', type=str, default=None,
                         help='Key of the output dataset; defaults to --key')
     parser.add_argument('--target_dtype', type=str, default=None,
                         help='Dtype to which the data will be casted. \n'

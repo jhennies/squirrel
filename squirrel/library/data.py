@@ -94,3 +94,18 @@ def norm_z_range(z_range, len_stack):
         z_range[0] = 0
 
     return z_range
+
+
+def get_optimal_dtype(inp):
+    if type(inp) == np.array:
+        max_value = inp.max()
+    else:
+        max_value = inp
+    if max_value <= np.iinfo(np.uint8).max:
+        return np.uint8
+    elif max_value <= np.iinfo(np.uint16).max:
+        return np.uint16
+    elif max_value <= np.iinfo(np.uint32).max:
+        return np.uint32
+    else:
+        return np.uint64  # Fallback to original dtype
