@@ -216,7 +216,7 @@ def _get_label_list(data_h, z_range):
 def get_label_list_workflow(
         input_path,
         key=None,
-        pattern='*.tif',
+        pattern=None,
         out_json=None,
         z_batch_size=1,
         n_workers=1,
@@ -250,15 +250,16 @@ def get_label_list_workflow(
             ]
             label_lists = [task.result() for task in tasks]
 
-    label_list = np.unique(label_lists)
+    label_list = np.unique(np.concatenate(label_lists))
 
     if out_json is not None:
         # Write label-list to file
         import json
         with open(out_json, mode='w') as f:
-            json.dump(label_list, indent=2)
+            json.dump(label_list.tolist(), f, indent=2)
 
-    print(f'label_list = {label_list}')
+    if out_json is None or verbose:
+        print(f'label_list = {[x for x in label_list]}')
 
     return label_list
 

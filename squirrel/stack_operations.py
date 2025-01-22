@@ -323,11 +323,11 @@ def get_label_list():
     )
     parser.add_argument('input_path', type=str,
                         help='Path of the input stack')
-    parser.add_argument('--key', type=str, default='data',
+    parser.add_argument('--key', type=str, default=None,
                         help='For h5 or ome.zarr input stacks this key is used to locate the dataset inside the stack '
-                             'location; default="data"')
-    parser.add_argument('--pattern', type=str, default='*.tif',
-                        help='File pattern to search for within the input folder; default = "*.tif"')
+                             'location; default=None which will be interpreted as "s0" for ome.zarr, "data" for h5 and "setup0/timepoint0/s0" for n5')
+    parser.add_argument('--pattern', type=str, default=None,
+                        help='File pattern to search for within the input folder; default=None (which is interpreted as "*.tif")')
     parser.add_argument('--out_json', type=str, default=None,
                         help='This will trigger writing an output file in json format containing the unique labels; '
                              'default=None will only write it to console')

@@ -183,21 +183,21 @@ def get_reshaped_data(h, idx, shape):
     return image_to_shape(h[idx], shape)
 
 
-def load_data_handle(path, key='data', pattern='*.tif'):
+def load_data_handle(path, key=None, pattern=None):
 
     filetype = get_filetype(path)
 
     if filetype == 'h5':
-        h = h5py.File(path, mode='r')[key]
+        h = h5py.File(path, mode='r')[key if key is not None else 'data']
         return h, h.shape
 
     if filetype == 'n5':
         from z5py import File
-        h = File(path, mode='r')[key]
+        h = File(path, mode='r')[key if key is not None else 'setup0/timepoint0/s0']
         return h, h.shape
 
     if filetype == 'dir':
-        h = TiffStack(path, pattern=pattern)
+        h = TiffStack(path, pattern=pattern if pattern is not None else '*.tif')
         return h, h.get_shape()
 
     if filetype == 'nii':
@@ -206,7 +206,7 @@ def load_data_handle(path, key='data', pattern='*.tif'):
 
     if filetype == 'ome_zarr':
         from squirrel.library.ome_zarr import get_ome_zarr_handle
-        h = get_ome_zarr_handle(path, key, 'r')
+        h = get_ome_zarr_handle(path, key if key is not None else 's0', 'r')
         return h, h.shape
 
     raise RuntimeError(f'No valid filetype: {filetype}')

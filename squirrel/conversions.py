@@ -299,5 +299,63 @@ def cast_dtype():
     )
 
 
+def get_label_list():
+
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Casts the dtype of a large dataset and optimizes the labels of segmentations',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('input_path', type=str,
+                        help='Path of the input stack')
+    parser.add_argument('target_path', type=str,
+                        help='Path of the output stack')
+    parser.add_argument('--key', type=str, default=None,
+                        help='For h5 or ome.zarr input stacks this key is used to locate the dataset inside the stack '
+                             'location; default=None which will be interpreted as "s0" for ome.zarr, "data" for h5 and "setup0/timepoint0/s0" for n5')
+    parser.add_argument('--pattern', type=str, default=None,
+                        help='File pattern to search for within the input folder; default=None (which is interpreted as "*.tif")')
+    parser.add_argument('--target_key', type=str, defult=None,
+                        help='Key of the output dataset; defaults to --key')
+    parser.add_argument('--target_dtype', type=str, default=None,
+                        help='Dtype to which the data will be casted. \n'
+                             'Note, that if specified, the type casting will be performed without checking the data '
+                             'values! \n'
+                             'If not specified, the data values will be optimally mapped to consecutive labels and the '
+                             'resulting optimal data type will be determined.')
+    parser.add_argument('--z_batch_size', type=int, default=1,
+                        help='Defines the number of slices per batch (decreases memory requirement); default=1')
+    parser.add_argument('--n_workers', type=int, default=1,
+                        help='Number of CPUs to use; Parallelization is implemented over the batches')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    input_path = args.input_path
+    target_path = args.target_path
+    key = args.key
+    pattern = args.pattern
+    target_key = args.target_key
+    target_dtype = args.target_dtype
+    z_batch_size = args.z_batch_size
+    n_workers = args.n_workers
+    verbose = args.verbose
+
+    from squirrel.workflows.convert import cast_segmentation_workflow
+
+    cast_segmentation_workflow(
+        input_path,
+        target_path,
+        key=key,
+        pattern=pattern,
+        target_key=target_key,
+        target_dtype=target_dtype,
+        z_batch_size=z_batch_size,
+        n_workers=n_workers,
+        verbose=verbose,
+    )
+
+
 if __name__ == '__main__':
     stack_to_ome_zarr()

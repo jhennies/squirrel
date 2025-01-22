@@ -57,7 +57,8 @@ setup(
             'sq-conversion-n5-to-stack = squirrel.conversions:n5_to_stack',
             'sq-conversion-cast-dtype = squirrel.conversions:cast_dtype',
             'sq-stack-axis-median-filter = squirrel.stack_operations:axis_median_filter',
-            'sq-stack-get-label-list = squirrel.stack_operations:get_label_list'
+            'sq-stack-get-label-list = squirrel.stack_operations:get_label_list',
+            'sq-conversion-cast-segmentation = squirrel.conversions:cast_segmentation'
         ]
     },
     install_requires=[
