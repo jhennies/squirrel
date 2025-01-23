@@ -235,6 +235,8 @@ def n5_to_stack():
                         help='Path within input n5 dataset; default="setup0/timepoint0/s0"')
     parser.add_argument('--z_range', type=int, nargs=2, default=None,
                         help='Use certain slices of the stack only; Defaults to the entire stack')
+    parser.add_argument('--z_batch_size', type=int, default=None,
+                        help='Processes data in batches to reduce memory consumption')
     parser.add_argument('--n_threads', type=int, default=1,
                         help='Number of CPUs to use')
     parser.add_argument('-v', '--verbose', action='store_true')
@@ -244,6 +246,7 @@ def n5_to_stack():
     target_dirpath = args.target_dirpath
     n5_key = args.n5_key
     z_range = args.z_range
+    z_batch_size = args.z_batch_size
     n_threads = args.n_threads
     verbose = args.verbose
 
@@ -254,6 +257,7 @@ def n5_to_stack():
         target_dirpath,
         n5_key=n5_key,
         z_range=z_range,
+        z_batch_size=z_batch_size,
         n_threads=n_threads,
         verbose=verbose,
     )
