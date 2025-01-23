@@ -325,6 +325,9 @@ def cast_segmentation():
                              'values! \n'
                              'If not specified, the data values will be optimally mapped to consecutive labels and the '
                              'resulting optimal data type will be determined.')
+    parser.add_argument('--out_json', type=str, default=None,
+                        help='Json file in which the label mapping will be saved;'
+                             'If this file exists it will not be re-computed and instead used for the mapping')
     parser.add_argument('--z_batch_size', type=int, default=1,
                         help='Defines the number of slices per batch (decreases memory requirement); default=1')
     parser.add_argument('--n_workers', type=int, default=1,
@@ -338,6 +341,7 @@ def cast_segmentation():
     pattern = args.pattern
     target_key = args.target_key
     target_dtype = args.target_dtype
+    out_json = args.out_json
     z_batch_size = args.z_batch_size
     n_workers = args.n_workers
     verbose = args.verbose
@@ -351,6 +355,7 @@ def cast_segmentation():
         pattern=pattern,
         target_key=target_key,
         target_dtype=target_dtype,
+        out_json=out_json,
         z_batch_size=z_batch_size,
         n_workers=n_workers,
         verbose=verbose,

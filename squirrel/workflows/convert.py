@@ -392,6 +392,7 @@ def cast_segmentation_workflow(
         pattern=None,
         target_key=None,  # Defaults to input_key
         target_dtype=None,  # None: Tries to find the best-suitable data type. Only for integer types and only use for segmentations!
+        out_json=None,
         z_batch_size=1,
         n_workers=1,
         verbose=False
@@ -410,6 +411,7 @@ def cast_segmentation_workflow(
             label_list = get_label_list_workflow(
                 input_path, key, pattern,
                 z_batch_size=z_batch_size, n_workers=n_workers,
+                out_json=out_json,
                 quiet=True, verbose=verbose
             )
 
