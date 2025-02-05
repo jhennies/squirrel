@@ -316,7 +316,18 @@ def n5_to_stack_workflow(
     write_tif_stack(chunk_data, target_dirpath, id_offset=z_range[0], slice_name='slice_{:05d}.tif')
 
 
-def _relabel_and_write_subvolume(data_h, z_range, mapping, target_dtype, target_path, start_idx):
+def _relabel_and_write_subvolume(data_h, z_range, mapping, target_dtype, target_path, check_for_existing=True):
+
+    if check_for_existing:
+        exist_all = True
+        for idx in range(*z_range):
+            if not os.path.exists(os.path.join(target_path, 'slice{:05d}.tif')):
+                exist_all = False
+                break
+        if exist_all:
+            return
+
+    start_idx = z_range[0]
 
     data = data_h[z_range[0]: z_range[1]]
     map_func = np.vectorize(mapping.get)
@@ -368,14 +379,14 @@ def cast_dtype_workflow(
     if n_workers == 1:
         for idx in range(0, shape[0], z_batch_size):
             z_range = [idx, min(idx + z_batch_size, shape[0])]
-            _relabel_and_write_subvolume(h, z_range, label_mapping, target_dtype, target_path, idx)
+            _relabel_and_write_subvolume(h, z_range, label_mapping, target_dtype, target_path)
     else:
         from concurrent.futures import ThreadPoolExecutor
         with ThreadPoolExecutor(max_workers=n_workers) as tpe:
             tasks = [
                 tpe.submit(
                     _relabel_and_write_subvolume,
-                    h, [idx, min(idx + z_batch_size, shape[0])], label_mapping, target_dtype, target_path, idx
+                    h, [idx, min(idx + z_batch_size, shape[0])], label_mapping, target_dtype, target_path
                 )
                 for idx in range(0, shape[0], z_batch_size)
             ]
