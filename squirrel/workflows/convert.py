@@ -416,12 +416,19 @@ def cast_segmentation_workflow(
 
     if out_json is not None:
         assert target_dtype is None
-        import json
-        label_list = json.load(open(out_json, mode='r'))
-        label_mapping = dict(zip(label_list, range(len(label_list))))
-        target_dtype = get_optimal_dtype(len(label_list))
+        if os.path.exists(out_json):
+            if verbose:
+                print(f'Reading out json: {out_json} ...')
+            import json
+            label_list = json.load(open(out_json, mode='r'))
+            label_mapping = dict(zip(label_list, range(len(label_list))))
+            target_dtype = get_optimal_dtype(len(label_list))
 
     if target_dtype is None and label_mapping is None:
+
+        if verbose:
+            print(f'Computing label list and mapping ...')
+
         h, shape = load_data_handle(input_path, key, pattern)
 
         if h.dtype in ['uint8', 'uint16', 'uint32', 'uint64']:
