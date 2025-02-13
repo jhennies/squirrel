@@ -316,7 +316,10 @@ def n5_to_stack_workflow(
     write_tif_stack(chunk_data, target_dirpath, id_offset=z_range[0], slice_name='slice_{:05d}.tif')
 
 
-def _relabel_and_write_subvolume(data_h, z_range, mapping, target_dtype, target_path, check_for_existing=True):
+def _relabel_and_write_subvolume(
+        data_h, z_range, mapping, target_dtype, target_path,
+        check_for_existing=True, n_workers=1
+):
 
     if check_for_existing:
         exist_all = True
@@ -342,7 +345,7 @@ def _relabel_and_write_subvolume(data_h, z_range, mapping, target_dtype, target_
 
             # data = data_h[z_range[0]: z_range[1]]
             this_relabeled = map_func(data).astype(target_dtype)
-            print(np.unique(this_relabeled))
+            # print(np.unique(this_relabeled))
             relabeled[:, idy: idy + data_h.chunks[1], idx: idx + data_h.chunks[2]] = this_relabeled
 
     from squirrel.library.io import write_tif_stack
@@ -393,16 +396,30 @@ def cast_dtype_workflow(
             z_range = [idx, min(idx + z_batch_size, shape[0])]
             _relabel_and_write_subvolume(h, z_range, label_mapping, target_dtype, target_path)
     else:
-        from concurrent.futures import ThreadPoolExecutor
-        with ThreadPoolExecutor(max_workers=n_workers) as tpe:
+        # from concurrent.futures import ThreadPoolExecutor
+        # with ThreadPoolExecutor(max_workers=n_workers) as tpe:
+        #     tasks = [
+        #         tpe.submit(
+        #             _relabel_and_write_subvolume,
+        #             h, [idx, min(idx + z_batch_size, shape[0])], label_mapping, target_dtype, target_path
+        #         )
+        #         for idx in range(0, shape[0], z_batch_size)
+        #     ]
+        #     [task.result() for task in tasks]
+
+        from multiprocessing import Pool
+        with Pool(processes=n_workers) as p:
             tasks = [
-                tpe.submit(
+                p.apply_async(
                     _relabel_and_write_subvolume,
-                    h, [idx, min(idx + z_batch_size, shape[0])], label_mapping, target_dtype, target_path
-                )
+                    (h, [idx, min(idx + z_batch_size, shape[0])], label_mapping, target_dtype, target_path))
                 for idx in range(0, shape[0], z_batch_size)
             ]
-            [task.result() for task in tasks]
+            [task.get() for task in tasks]
+
+    # for idx in range(0, shape[0], z_batch_size):
+    #     z_range = [idx, min(idx + z_batch_size, shape[0])]
+    #     _relabel_and_write_subvolume(h, z_range, label_mapping, target_dtype, target_path, n_workers=n_workers)
 
 
 def cast_segmentation_workflow(
