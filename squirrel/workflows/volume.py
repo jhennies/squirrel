@@ -261,19 +261,6 @@ def get_label_list_workflow(
             label_lists.append(_get_label_list(h, z_range))
 
     else:
-        # from multiprocessing import Pool
-        #
-        # with Pool(processes=n_workers) as p:
-        #     # print(f'h.shape = {h.shape}')
-        #     # print(f'shape = {shape}')
-        #     # print(f'h[0].shape = {h[0, :10, :10].shape}')
-        #     tasks = [
-        #         p.apply_async(
-        #             _get_label_list, (h[idx: min(idx + z_batch_size, shape[0])],)
-        #         )
-        #         for idx in range(0, shape[0], z_batch_size)
-        #     ]
-        #     label_lists = [task.get() for task in tasks]
 
         from concurrent.futures import ThreadPoolExecutor
         with ThreadPoolExecutor(max_workers=n_workers) as tpe:

@@ -328,10 +328,22 @@ def _relabel_and_write_subvolume(data_h, z_range, mapping, target_dtype, target_
             return
 
     start_idx = z_range[0]
-
-    data = data_h[z_range[0]: z_range[1]]
     map_func = np.vectorize(mapping.get)
-    relabeled = map_func(data).astype(target_dtype)
+
+    relabeled = np.zeros((z_range[1] - z_range[0], data_h.shape[1], data_h.shape[2]), dtype=target_dtype)
+    for idy in range(0, data_h.shape[1], data_h.chunks[1]):
+        for idx in range(0, data_h.shape[2], data_h.chunks[2]):
+            print(f'writing chunk idx, idy, idz: {idx}, {idy}, {z_range[0]}')
+            data = data_h[
+                   z_range[0]: z_range[1],
+                   idy: idy + data_h.chunks[1],
+                   idx: idx + data_h.chunks[2],
+            ]
+
+            # data = data_h[z_range[0]: z_range[1]]
+            this_relabeled = map_func(data).astype(target_dtype)
+            print(np.unique(this_relabeled))
+            relabeled[:, idy: idy + data_h.chunks[1], idx: idx + data_h.chunks[2]] = this_relabeled
 
     from squirrel.library.io import write_tif_stack
     write_tif_stack(relabeled, target_path, id_offset=start_idx, slice_name='slice{:05d}.tif')
