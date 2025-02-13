@@ -207,16 +207,16 @@ def axis_median_filter_workflow(
     write_stack(out_path, result, key)
 
 
-# def _get_label_list(data_h, z_range):
-#
-#     data = data_h[z_range[0]: z_range[1]]
-#     print(f'data.shape = {data.shape}')
-#     return np.unique(data)
+def _get_label_list(data_h, z_range):
 
-
-def _get_label_list(data):
+    data = data_h[z_range[0]: z_range[1]]
     print(f'data.shape = {data.shape}')
     return np.unique(data)
+
+
+# def _get_label_list(data):
+#     print(f'data.shape = {data.shape}')
+#     return np.unique(data)
 
 
 def get_label_list_workflow(
@@ -249,27 +249,27 @@ def get_label_list_workflow(
             label_lists.append(_get_label_list(h, z_range))
 
     else:
-        from multiprocessing import Pool
-
-        with Pool(processes=n_workers) as p:
-            print(f'h.shape = {h.shape}')
-            print(f'shape = {shape}')
-            print(f'h[0].shape = {h[0, :10, :10].shape}')
-            tasks = [
-                p.apply_async(
-                    _get_label_list, (h[idx: min(idx + z_batch_size, shape[0])],)
-                )
-                for idx in range(0, shape[0], z_batch_size)
-            ]
-            label_lists = [task.get() for task in tasks]
-
-        # from concurrent.futures import ThreadPoolExecutor
-        # with ThreadPoolExecutor(max_workers=n_workers) as tpe:
+        # from multiprocessing import Pool
+        #
+        # with Pool(processes=n_workers) as p:
+        #     # print(f'h.shape = {h.shape}')
+        #     # print(f'shape = {shape}')
+        #     # print(f'h[0].shape = {h[0, :10, :10].shape}')
         #     tasks = [
-        #         tpe.submit(_get_label_list, h, [idx, min(idx + z_batch_size, shape[0])])
+        #         p.apply_async(
+        #             _get_label_list, (h[idx: min(idx + z_batch_size, shape[0])],)
+        #         )
         #         for idx in range(0, shape[0], z_batch_size)
         #     ]
-        #     label_lists = [task.result() for task in tasks]
+        #     label_lists = [task.get() for task in tasks]
+
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=n_workers) as tpe:
+            tasks = [
+                tpe.submit(_get_label_list, h, [idx, min(idx + z_batch_size, shape[0])])
+                for idx in range(0, shape[0], z_batch_size)
+            ]
+            label_lists = [task.result() for task in tasks]
 
     label_list = np.unique(np.concatenate(label_lists))
 
