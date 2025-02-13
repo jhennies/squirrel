@@ -1,3 +1,4 @@
+import os.path
 
 import numpy as np
 
@@ -220,14 +221,7 @@ def _get_label_list(data_h, z_range):
             ]
             ids.append(np.unique(data))
 
-    # data = data_h[z_range[0]: z_range[1]]
-    # print(f'data.shape = {data.shape}')
     return np.unique(np.concatenate(ids))
-
-
-# def _get_label_list(data):
-#     print(f'data.shape = {data.shape}')
-#     return np.unique(data)
 
 
 def get_label_list_workflow(
@@ -282,6 +276,59 @@ def get_label_list_workflow(
         print(f'label_list = {[x for x in label_list]}')
 
     return label_list
+
+
+def tif_nearest_scaling_workflow(
+        input_dirpath,
+        output_dirpath,
+        pattern='*.tif',
+        scale_factors=[1., 1., 1.],
+        n_workers=1,
+        verbose=False
+):
+
+    if not os.path.exists(output_dirpath):
+        os.mkdir(output_dirpath)
+
+    # Load the input tif stack (just as a handle, not the data)
+    from squirrel.library.io import TiffStack
+    ts = TiffStack(input_dirpath, pattern=pattern)
+    input_shape = ts.shape
+
+    if verbose:
+        print(f'input_shape = {input_shape}')
+        print(f'scale_factors = {scale_factors}')
+
+    # Determine mapping of input to output z-slices
+    from squirrel.library.scaling import create_nearest_position_mapping
+    nearest_z_position_mapping = create_nearest_position_mapping(input_shape[0], scale_factors[0])
+    if verbose:
+        print(f'nearest_z_position_mapping = {nearest_z_position_mapping}')
+
+    from shutil import copy2
+    from squirrel.library.io import write_tif_slice
+    from squirrel.library.scaling import scale_image_nearest
+    # Now iterate the relevant z-slices, scale them and write them to the target dataset
+    for out_idz, in_idz in nearest_z_position_mapping.items():
+        if verbose:
+            print(f'out_idz = {out_idz}; in_idz = {in_idz}')
+
+        if scale_factors[1] == 1. and scale_factors[2] == 1.:
+            # Just copy the slices
+            src_filepath = ts.get_filepaths()[in_idz]
+            tgt_filepath = os.path.join(
+                output_dirpath, 'slice_{:05d}.tif'.format(out_idz)
+            )
+            copy2(src_filepath, tgt_filepath)
+
+        else:
+            # Do the respective x- and y-scaling for the slices
+            in_img = ts[in_idz]
+            # out_shape = np.array(input_shape)[1:] * np.array(scale_factors)[1:]
+            out_img = scale_image_nearest(in_img, scale_factors[1:])
+            if verbose:
+                print(f'out_img.shape = {out_img.shape}')
+            write_tif_slice(out_img, output_dirpath, 'slice_{:05d}.tif'.format(out_idz))
 
 
 if __name__ == '__main__':

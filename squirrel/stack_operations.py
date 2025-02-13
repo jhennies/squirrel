@@ -357,3 +357,44 @@ def get_label_list():
         n_workers=n_workers,
         verbose=verbose,
     )
+
+
+def tif_nearest_scaling():
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Scales a tif stack using nearest interpolation',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('input_dirpath', type=str,
+                        help='Path of the input tif stack')
+    parser.add_argument('output_dirpath', type=str,
+                        help='Path of the output tif stack')
+    parser.add_argument('--pattern', type=str, default='*.tif',
+                        help='File pattern to search for within the input folder; default="*.tif"')
+    parser.add_argument('--scale_factors', type=float, nargs=3, default=[1., 1., 1.],
+                        help='Scale factors in z, y, and x; default=[1., 1., 1.], i.e. no scaling')
+    parser.add_argument('--n_workers', type=int, default=1,
+                        help='Number of CPUs to use; Parallelization is implemented over the batches')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    input_dirpath = args.input_dirpath
+    output_dirpath = args.output_dirpath
+    pattern = args.pattern
+    scale_factors = args.scale_factors
+    n_workers = args.n_workers
+    verbose = args.verbose
+
+    from squirrel.workflows.volume import tif_nearest_scaling_workflow
+
+    tif_nearest_scaling_workflow(
+        input_dirpath,
+        output_dirpath,
+        pattern=pattern,
+        scale_factors=scale_factors,
+        n_workers=n_workers,
+        verbose=verbose,
+    )
+

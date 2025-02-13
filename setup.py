@@ -58,7 +58,8 @@ setup(
             'sq-conversion-cast-dtype = squirrel.conversions:cast_dtype',
             'sq-stack-axis-median-filter = squirrel.stack_operations:axis_median_filter',
             'sq-stack-get-label-list = squirrel.stack_operations:get_label_list',
-            'sq-conversion-cast-segmentation = squirrel.conversions:cast_segmentation'
+            'sq-conversion-cast-segmentation = squirrel.conversions:cast_segmentation',
+            'sq-stack-tif-nearest-scaling = squirrel.stack_operations:tif_nearest_scaling'
         ]
     },
     install_requires=[
