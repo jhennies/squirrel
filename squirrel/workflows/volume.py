@@ -240,6 +240,7 @@ def get_label_list_workflow(
 
     from squirrel.library.io import load_data_handle
     h, shape = load_data_handle(input_path, key, pattern)
+    print(f'h.chunks = {h.chunks}')
 
     label_lists = []
 
