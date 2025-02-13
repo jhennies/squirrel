@@ -254,7 +254,7 @@ def get_label_list_workflow(
         with Pool(processes=n_workers) as p:
             print(f'h.shape = {h.shape}')
             print(f'shape = {shape}')
-            print(f'h[0].shape = {h[0].shape}')
+            print(f'h[0].shape = {h[0, :].shape}')
             tasks = [
                 p.apply_async(
                     _get_label_list, (h[idx: min(idx + z_batch_size, shape[0])],)
