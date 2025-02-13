@@ -209,9 +209,20 @@ def axis_median_filter_workflow(
 
 def _get_label_list(data_h, z_range):
 
-    data = data_h[z_range[0]: z_range[1]]
-    print(f'data.shape = {data.shape}')
-    return np.unique(data)
+    ids = []
+    for idy in range(0, data_h.shape[1], data_h.chunks[1]):
+        for idx in range(0, data_h.shape[2], data_h.chunks[2]):
+            print(f'loading chunk idx, idy: {idx}, {idy}')
+            data = data_h[
+                   z_range[0]: z_range[1],
+                   idy: idy + data_h.chunks[1],
+                   idx: idx + data_h.chunks[2],
+            ]
+            ids.append(np.unique(data))
+
+    # data = data_h[z_range[0]: z_range[1]]
+    # print(f'data.shape = {data.shape}')
+    return np.unique(np.concatenate(ids))
 
 
 # def _get_label_list(data):
