@@ -210,6 +210,7 @@ def axis_median_filter_workflow(
 def _get_label_list(data_h, z_range):
 
     data = data_h[z_range[0]: z_range[1]]
+    print(f'data.shape = {data.shape}')
     return np.unique(data)
 
 
