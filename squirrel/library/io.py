@@ -193,7 +193,7 @@ def load_data_handle(path, key=None, pattern=None):
 
     if filetype == 'n5':
         from z5py import File
-        h = File(path, mode='r', use_zarr_cache=False)[key if key is not None else 'setup0/timepoint0/s0']
+        h = File(path, mode='r')[key if key is not None else 'setup0/timepoint0/s0']
         return h, h.shape
 
     if filetype == 'dir':
