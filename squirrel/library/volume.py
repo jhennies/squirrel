@@ -223,3 +223,40 @@ def axis_median_filter(
     raise ValueError(
         f'Invalid value for operation: {operation}; possible values = [None, "difference", "difference-clip"'
     )
+
+
+def invert_image(img):
+
+    return np.iinfo(img.dtype).max - img
+
+
+def invert_slices(
+        stack,
+        z_range=None,
+        n_workers=1
+
+):
+
+    from squirrel.library.data import norm_z_range
+    stack_shape = stack.shape
+    z_range = norm_z_range(z_range, stack_shape[0])
+
+    if n_workers == 1:
+
+        result_stack = []
+        for idx in range(*z_range):
+            img = stack[idx]
+            result_stack.append(invert_image(img))
+
+    else:
+        print(f'Running with {n_workers} CPUs')
+        from multiprocessing import Pool
+
+        with Pool(processes=n_workers) as p:
+            tasks = []
+            for idx in range(*z_range):
+                img = stack[idx]
+                tasks.append(p.apply_async(invert_image, (img, )))
+            result_stack = [task.get() for task in tasks]
+
+    return np.array(result_stack)

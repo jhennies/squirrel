@@ -3,6 +3,38 @@ import os.path
 import numpy as np
 
 
+def invert_slices_workflow(
+        in_path,
+        out_path,
+        in_pattern='*.tif',
+        in_key='data',
+        out_key='data',
+        z_range=None,
+        n_workers=1,
+        verbose=False
+):
+
+    if verbose:
+        print(f'in_path = {in_path}')
+        print(f'out_path = {out_path}')
+        print(f'pattern = {in_pattern}')
+        print(f'in_h5_key = {in_key}')
+        print(f'out_h5_key = {out_key}')
+
+    from squirrel.library.io import load_data_handle, write_stack
+    # from ..library.data import norm_z_range
+    stack_handle, stack_shape = load_data_handle(in_path, in_key, in_pattern)
+
+    from squirrel.library.volume import invert_slices
+
+    normalized_stack = invert_slices(
+        stack_handle,
+        z_range=z_range,
+        n_workers=n_workers
+    )
+    write_stack(out_path, normalized_stack, key=out_key)
+
+
 def crop_from_stack_workflow(
         stack_path,
         out_path,

@@ -1,4 +1,51 @@
 
+def invert_slices():
+
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Invert slices within a tif stack or h5 dataset',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('in_path', type=str,
+                        help='Input folder containing a tif stack or filepath of h5 container')
+    parser.add_argument('out_path', type=str,
+                        help='Output folder for tif stack or filepath for h5 container where the results will '
+                             'be written to')
+    parser.add_argument('--in_pattern', type=str, default='*.tif',
+                        help='File patter to search for within the input folder; default = "*.tif"; used if in_path is '
+                             'tif stack')
+    parser.add_argument('--in_key', type=str, default='data',
+                        help='Internal path of the input dataset; default="data"; used if in_path is h5 filepath')
+    parser.add_argument('--out_key', type=str, default='data',
+                        help='Internal path of the output dataset; default="data"; used if out_path is h5 filepath')
+    parser.add_argument('--n_workers', type=int, default=1,
+                        help='The number of cores to use for processing')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    in_path = args.in_path
+    out_path = args.out_path
+    in_pattern = args.in_pattern
+    in_key = args.in_key
+    out_key = args.out_key
+    n_workers = args.n_workers
+    verbose = args.verbose
+
+    from squirrel.workflows.volume import invert_slices_workflow
+
+    invert_slices_workflow(
+        in_path,
+        out_path,
+        in_pattern=in_pattern,
+        in_key=in_key,
+        out_key=out_key,
+        n_workers=n_workers,
+        verbose=verbose
+    )
+
+
 def normalize_slices():
 
     # ----------------------------------------------------
