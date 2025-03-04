@@ -44,7 +44,7 @@ def export_rois_with_mobie_table_workflow(
 
         def _write_tif_stack(data, idx, x, y, z):
             write_tif_stack(data, os.path.join(target_dirpath, 'label_{:05d}_x{}_y{}_z{}'.format(idx, x, y, z)),
-                            'slice_{:04d}.tif')
+                            slice_name='slice_{:04d}.tif')
 
         write_func = _write_tif_stack
 
