@@ -50,6 +50,7 @@ setup(
             'apply_auto_pad = squirrel.apply_transformation:apply_auto_pad',
             'fiji_sift_log_to_affine_stack = squirrel.fiji:sift_log_to_affine_stack',
             'sq-mobie-init-project = squirrel.mobie:init_mobie_project',
+            'sq-mobie-export-rois-with-mobie-table = squirrel.mobie:export_rois_with_mobie_table',
             'sq-conversion-n5-to-stack = squirrel.conversions:n5_to_stack',
             'sq-conversion-cast-dtype = squirrel.conversions:cast_dtype',
             'sq-conversion-cast-segmentation = squirrel.conversions:cast_segmentation',
