@@ -53,8 +53,8 @@ def export_rois_with_mobie_table_workflow(
 
     table = _load_table(table_filepath)
 
-    # from squirrel.library.io import load_data_handle
-    # h, shape = load_data_handle(map_dirpath, key=None, pattern=None)
+    from squirrel.library.io import load_data_handle
+    map_h, shape = load_data_handle(map_dirpath, key=None, pattern=None)
 
     for idx in label_ids:
 
@@ -62,7 +62,7 @@ def export_rois_with_mobie_table_workflow(
         z, y, x = np.array(zyx).astype(int)
         w, h, d = np.array(whd).astype(int)
 
-        data = h[z:z+d, y:y+h, x:x+w]
+        data = map_h[z:z+d, y:y+h, x:x+w]
 
         write_func(data, idx, x, y, z)
 
