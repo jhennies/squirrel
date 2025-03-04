@@ -38,3 +38,54 @@ def init_mobie_project():
         groups=groups,
         verbose=verbose
     )
+
+
+def export_rois_with_mobie_table():
+
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Uses information from a MoBIE table to export objects in by their bounding box ROI.',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('table_filepath', type=str,
+                        help='MoBIE table containing information on labels and their ROIs')
+    parser.add_argument('map_dirpath', type=str,
+                        help='n5 dirpath of the map from which the data will be extracted')
+    parser.add_argument('target_dirpath', type=str,
+                        help='n5 dirpath of the map from which the data will be extracted')
+    parser.add_argument('-map-res', '--map_resolution', type=float, nargs=3, default=None,
+                        help='Resolution of the input map. Mandatory!')
+    parser.add_argument('-out-type', '--output_filetype', type=str, default='tif',
+                        help='The output data type; default="tif"')
+    parser.add_argument('--label_ids', nargs='+', type=int, default=None,
+                        help='Which objects defined by their label ID in the table will be extracted; '
+                             'default=None denotes all entries')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    table_filepath = args.table_filepath
+    map_dirpath = args.map_dirpath
+    target_dirpath = args.target_dirpath
+    map_resolution = args.map_resolution
+    output_filetype = args.output_filetype
+    label_ids = args.label_ids
+    verbose = args.verbose
+
+    from squirrel.workflows.mobie import export_rois_with_mobie_table_workflow
+
+    export_rois_with_mobie_table_workflow(
+        table_filepath,
+        map_dirpath,
+        target_dirpath,
+        map_resolution=map_resolution,
+        output_filetype=output_filetype,
+        label_ids=label_ids,
+        verbose=verbose,
+    )
+
+
+if __name__ == '__main__':
+
+    export_rois_with_mobie_table()
