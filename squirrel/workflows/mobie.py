@@ -59,8 +59,8 @@ def export_rois_with_mobie_table_workflow(
     for idx in label_ids:
 
         zyx, whd = _get_position_px(table, idx, map_resolution)
-        z, y, x = zyx
-        w, h, d = whd
+        z, y, x = np.array(zyx).astype(int)
+        w, h, d = np.array(whd).astype(int)
 
         data = h[z:z+d, y:y+h, x:x+w]
 
