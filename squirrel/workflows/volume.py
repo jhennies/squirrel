@@ -257,8 +257,8 @@ def _get_label_list(data_h, z_range):
                 data = data_h[
                     z_range[0]: z_range[1]
                 ][
-                       idy: idy + data_h.chunks[1],
-                       idx: idx + data_h.chunks[2],
+                    idy: idy + data_h.chunks[1],
+                    idx: idx + data_h.chunks[2],
                 ]
             ids.append(np.unique(data))
 

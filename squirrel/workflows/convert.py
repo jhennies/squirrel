@@ -338,11 +338,20 @@ def _relabel_and_write_subvolume(
     for idy in range(0, data_h.shape[1], data_h.chunks[1]):
         for idx in range(0, data_h.shape[2], data_h.chunks[2]):
             print(f'writing chunk idx, idy, idz: {idx}, {idy}, {z_range[0]}')
-            data = data_h[
-                   z_range[0]: z_range[1],
-                   idy: idy + data_h.chunks[1],
-                   idx: idx + data_h.chunks[2],
-            ]
+            try:
+                data = data_h[
+                       z_range[0]: z_range[1],
+                       idy: idy + data_h.chunks[1],
+                       idx: idx + data_h.chunks[2],
+                ]
+            except TypeError:
+                # For tiff slices it has to be done like this
+                data = data_h[
+                    z_range[0]: z_range[1]
+                ][
+                    idy: idy + data_h.chunks[1],
+                    idx: idx + data_h.chunks[2],
+                ]
 
             # data = data_h[z_range[0]: z_range[1]]
             this_relabeled = map_func(data).astype(target_dtype)
