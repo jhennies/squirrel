@@ -246,11 +246,20 @@ def _get_label_list(data_h, z_range):
     for idy in range(0, data_h.shape[1], data_h.chunks[1]):
         for idx in range(0, data_h.shape[2], data_h.chunks[2]):
             print(f'loading chunk idx, idy, idz: {idx}, {idy}, {z_range[0]}')
-            data = data_h[
-                   z_range[0]: z_range[1],
-                   idy: idy + data_h.chunks[1],
-                   idx: idx + data_h.chunks[2],
-            ]
+            try:
+                data = data_h[
+                       z_range[0]: z_range[1],
+                       idy: idy + data_h.chunks[1],
+                       idx: idx + data_h.chunks[2],
+                ]
+            except TypeError:
+                # For tiff slices it has to be done like this
+                data = data_h[
+                    z_range[0]: z_range[1]
+                ][
+                       idy: idy + data_h.chunks[1],
+                       idx: idx + data_h.chunks[2],
+                ]
             ids.append(np.unique(data))
 
     return np.unique(np.concatenate(ids))
