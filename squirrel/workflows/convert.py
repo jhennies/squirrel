@@ -334,6 +334,7 @@ def _relabel_and_write_subvolume(
     map_func = np.vectorize(mapping.get)
 
     relabeled = np.zeros((z_range[1] - z_range[0], data_h.shape[1], data_h.shape[2]), dtype=target_dtype)
+
     for idy in range(0, data_h.shape[1], data_h.chunks[1]):
         for idx in range(0, data_h.shape[2], data_h.chunks[2]):
             print(f'writing chunk idx, idy, idz: {idx}, {idy}, {z_range[0]}')
