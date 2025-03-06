@@ -7,6 +7,7 @@ def export_rois_with_mobie_table_workflow(
         table_filepath,
         map_dirpath,
         target_dirpath,
+        map_key=None,
         map_resolution=None,
         output_filetype='tif',
         label_ids=None,

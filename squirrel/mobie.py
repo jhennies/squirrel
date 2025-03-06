@@ -55,6 +55,8 @@ def export_rois_with_mobie_table():
                         help='n5 dirpath of the map from which the data will be extracted')
     parser.add_argument('target_dirpath', type=str,
                         help='n5 dirpath of the map from which the data will be extracted')
+    parser.add_argument('-map-key', '--map_key', type=str, default=None,
+                        help='Key of the input data map; default=None')
     parser.add_argument('-map-res', '--map_resolution', type=float, nargs=3, default=None,
                         help='Resolution of the input map. Mandatory!')
     parser.add_argument('-out-type', '--output_filetype', type=str, default='tif',
@@ -68,6 +70,7 @@ def export_rois_with_mobie_table():
     table_filepath = args.table_filepath
     map_dirpath = args.map_dirpath
     target_dirpath = args.target_dirpath
+    map_key = args.map_key
     map_resolution = args.map_resolution
     output_filetype = args.output_filetype
     label_ids = args.label_ids
@@ -79,6 +82,7 @@ def export_rois_with_mobie_table():
         table_filepath,
         map_dirpath,
         target_dirpath,
+        map_key=map_key,
         map_resolution=map_resolution,
         output_filetype=output_filetype,
         label_ids=label_ids,
