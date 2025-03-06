@@ -55,7 +55,7 @@ def export_rois_with_mobie_table_workflow(
     table = _load_table(table_filepath)
 
     from squirrel.library.io import load_data_handle
-    map_h, shape = load_data_handle(map_dirpath, key=None, pattern=None)
+    map_h, shape = load_data_handle(map_dirpath, key=map_key, pattern=None)
 
     for idx in label_ids:
 
