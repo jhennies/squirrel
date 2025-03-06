@@ -63,7 +63,14 @@ def export_rois_with_mobie_table_workflow(
         z, y, x = np.array(zyx).astype(int)
         w, h, d = np.array(whd).astype(int)
 
+        if verbose:
+            print(f'zyx = {zyx}')
+            print(f'whd = {whd}')
+
         data = map_h[z:z+d, y:y+h, x:x+w]
+
+        if verbose:
+            print(f'data.shape = {data.shape}')
 
         write_func(data, idx, x, y, z)
 
