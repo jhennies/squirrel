@@ -330,6 +330,8 @@ def _relabel_and_write_subvolume(
         if exist_all:
             return
 
+    print(f'mapping = {mapping}')
+
     start_idx = z_range[0]
     map_func = np.vectorize(mapping.get)
 
