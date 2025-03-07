@@ -130,6 +130,9 @@ def export_rois_with_mobie_table_workflow(
 
     table = _load_table(table_filepath)
 
+    if label_ids is None:
+        label_ids = table.loc[:].index.tolist()
+
     mask_h = None
     mask_shape = None
     from squirrel.library.io import load_data_handle
