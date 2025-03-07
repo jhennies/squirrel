@@ -95,8 +95,15 @@ def export_rois_with_mobie_table_workflow(
         map_data[mask_data_pad != idx] = 0
         return map_data
 
-    def _cast_dtype(map_data, dtype='uint16'):
-        return map_data.astype(dtype)
+    def _cast_dtype(map_data):
+        from squirrel.workflows.volume import get_label_list_workflow
+        from squirrel.library.data import get_optimal_dtype
+        label_list = get_label_list_workflow(map_dirpath, key=map_key, n_workers=1, quiet=True, verbose=verbose)
+        label_mapping = dict(zip(label_list, range(len(label_list))))
+        dtype = get_optimal_dtype(len(label_list))
+        map_func = np.vectorize(label_mapping.get)
+        map_data = map_func(map_data).astype(dtype)
+        return map_data
 
     for idx in label_ids:
 
