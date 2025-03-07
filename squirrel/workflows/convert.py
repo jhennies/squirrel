@@ -354,6 +354,7 @@ def _relabel_and_write_subvolume(
                 ]
 
             print(f'data.shape = {data.shape}')
+            print(f'np.unique(data) = {np.unique(data)}')
 
             # data = data_h[z_range[0]: z_range[1]]
             this_relabeled = map_func(data).astype(target_dtype)
