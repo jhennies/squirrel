@@ -62,7 +62,11 @@ def _cast_dtype(map_data):
     return map_data.astype(dtype)
 
 
-def _run_for_label_id(idx, map_h, mask_h, map_resolution, mask_resolution, write_func, table, verbose=False):
+def _run_for_label_id(
+        idx, map_h, mask_h, map_resolution, mask_resolution, write_func, table,
+        target_dirpath,
+        verbose=False
+):
     map_data, x, y, z = _get_data(map_h, idx, map_resolution)
 
     if verbose:
@@ -73,7 +77,13 @@ def _run_for_label_id(idx, map_h, mask_h, map_resolution, mask_resolution, write
 
     map_data = _cast_dtype(map_data)
 
-    write_func(map_data, idx, x, y, z)
+    write_func(map_data, idx, x, y, z, target_dirpath)
+
+
+def _write_tif_stack(data, idx, x, y, z, target_dirpath):
+    from squirrel.library.io import write_tif_stack
+    write_tif_stack(data, os.path.join(target_dirpath, 'label_{:05d}_x{}_y{}_z{}'.format(idx, x, y, z)),
+                    slice_name='slice_{:04d}.tif')
 
 
 def export_rois_with_mobie_table_workflow(
@@ -112,11 +122,6 @@ def export_rois_with_mobie_table_workflow(
 
     write_func = None
     if output_filetype == 'tif':
-        from squirrel.library.io import write_tif_stack
-
-        def _write_tif_stack(data, idx, x, y, z):
-            write_tif_stack(data, os.path.join(target_dirpath, 'label_{:05d}_x{}_y{}_z{}'.format(idx, x, y, z)),
-                            slice_name='slice_{:04d}.tif')
 
         write_func = _write_tif_stack
 
@@ -136,7 +141,11 @@ def export_rois_with_mobie_table_workflow(
 
     if n_workers == 1:
         for idx in label_ids:
-            _run_for_label_id(idx, map_h, mask_h, map_resolution, mask_resolution, write_func, table, verbose=verbose)
+            _run_for_label_id(
+                idx, map_h, mask_h, map_resolution, mask_resolution, write_func, table,
+                target_dirpath,
+                verbose=verbose
+            )
 
     else:
 
@@ -145,7 +154,7 @@ def export_rois_with_mobie_table_workflow(
             tasks = [
                 p.apply_async(
                     _run_for_label_id,
-                    (idx, map_h, mask_h, map_resolution, mask_resolution, write_func, table, verbose)
+                    (idx, map_h, mask_h, map_resolution, mask_resolution, write_func, table, target_dirpath, verbose)
                 )
                 for idx in label_ids
             ]
