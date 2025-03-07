@@ -234,7 +234,7 @@ class TiffStack(list):
         list.__init__(self, stack)
         self.dtype = self[0].dtype
         self.shape = self.get_shape()
-        self.chunks = [1] + self.shape
+        self.chunks = [1] + self.shape[2:]
 
     def __getitem__(self, item):
 
