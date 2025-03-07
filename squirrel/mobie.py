@@ -70,6 +70,8 @@ def export_rois_with_mobie_table():
     parser.add_argument('--label_ids', nargs='+', type=int, default=None,
                         help='Which objects defined by their label ID in the table will be extracted; '
                              'default=None denotes all entries')
+    parser.add_argument('--n_workers', type=int, default=1,
+                        help='Number of CPUs to use')
     parser.add_argument('-v', '--verbose', action='store_true')
 
     args = parser.parse_args()
@@ -83,6 +85,7 @@ def export_rois_with_mobie_table():
     mask_resolution = args.mask_resolution
     output_filetype = args.output_filetype
     label_ids = args.label_ids
+    n_workers = args.n_workers
     verbose = args.verbose
 
     from squirrel.workflows.mobie import export_rois_with_mobie_table_workflow
@@ -98,6 +101,7 @@ def export_rois_with_mobie_table():
         mask_resolution=mask_resolution,
         output_filetype=output_filetype,
         label_ids=label_ids,
+        n_workers=n_workers,
         verbose=verbose,
     )
 

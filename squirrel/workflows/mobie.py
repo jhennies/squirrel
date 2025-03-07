@@ -97,6 +97,7 @@ def export_rois_with_mobie_table_workflow(
         mask_resolution=None,
         output_filetype='tif',
         label_ids=None,
+        n_workers=1,
         verbose=False,
 ):
     if verbose:
@@ -108,6 +109,7 @@ def export_rois_with_mobie_table_workflow(
         print(f'mask_key = {mask_key}')
         print(f'mask_resolution = {mask_resolution}')
         print(f'output_filetype = {output_filetype}')
+        print(f'n_workers = {n_workers}')
         print(f'label_ids = {label_ids}')
 
     assert map_resolution is not None, 'Resolution of the map must be specified!'
@@ -139,8 +141,6 @@ def export_rois_with_mobie_table_workflow(
     map_h, shape = load_data_handle(map_dirpath, key=map_key, pattern=None)
     if mask_dirpath is not None:
         mask_h, mask_shape = load_data_handle(mask_dirpath, key=mask_key, pattern=None)
-
-    n_workers = 2
 
     if n_workers == 1:
         for idx in label_ids:
