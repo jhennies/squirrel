@@ -353,6 +353,8 @@ def _relabel_and_write_subvolume(
                     idx: idx + data_h.chunks[2],
                 ]
 
+            print(f'data.shape = {data.shape}')
+
             # data = data_h[z_range[0]: z_range[1]]
             this_relabeled = map_func(data).astype(target_dtype)
             # print(np.unique(this_relabeled))
