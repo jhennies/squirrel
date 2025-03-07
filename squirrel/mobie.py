@@ -59,6 +59,12 @@ def export_rois_with_mobie_table():
                         help='Key of the input data map; default=None')
     parser.add_argument('-map-res', '--map_resolution', type=float, nargs=3, default=None,
                         help='Resolution of the input map. Mandatory!')
+    parser.add_argument('-mask', '--mask_dirpath', type=str,
+                        help='This mask need to have the respective objects as the same ids as specified in the table')
+    parser.add_argument('-mask-key', '--mask_key', type=str, default=None,
+                        help='Key of the mask map; default=None')
+    parser.add_argument('-mask-res', '--mask_resolution', type=float, nargs=3, default=None,
+                        help='Resolution of the mask map. Mandatory if mask is given!')
     parser.add_argument('-out-type', '--output_filetype', type=str, default='tif',
                         help='The output data type; default="tif"')
     parser.add_argument('--label_ids', nargs='+', type=int, default=None,
@@ -72,6 +78,9 @@ def export_rois_with_mobie_table():
     target_dirpath = args.target_dirpath
     map_key = args.map_key
     map_resolution = args.map_resolution
+    mask_dirpath = args.mask_dirpath
+    mask_key = args.mask_key
+    mask_resolution = args.mask_resolution
     output_filetype = args.output_filetype
     label_ids = args.label_ids
     verbose = args.verbose
@@ -84,6 +93,9 @@ def export_rois_with_mobie_table():
         target_dirpath,
         map_key=map_key,
         map_resolution=map_resolution,
+        mask_dirpath=mask_dirpath,
+        mask_key=mask_key,
+        mask_resolution=mask_resolution,
         output_filetype=output_filetype,
         label_ids=label_ids,
         verbose=verbose,

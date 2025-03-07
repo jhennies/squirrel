@@ -9,6 +9,9 @@ def export_rois_with_mobie_table_workflow(
         target_dirpath,
         map_key=None,
         map_resolution=None,
+        mask_dirpath=None,
+        mask_key=None,
+        mask_resolution=None,
         output_filetype='tif',
         label_ids=None,
         verbose=False,
@@ -18,10 +21,15 @@ def export_rois_with_mobie_table_workflow(
         print(f'map_dirpath = {map_dirpath}')
         print(f'target_dirpath = {target_dirpath}')
         print(f'map_resolution = {map_resolution}')
+        print(f'mask_dirpath = {mask_dirpath}')
+        print(f'mask_key = {mask_key}')
+        print(f'mask_resolution = {mask_resolution}')
         print(f'output_filetype = {output_filetype}')
         print(f'label_ids = {label_ids}')
 
     assert map_resolution is not None, 'Resolution of the map must be specified!'
+    if mask_dirpath is not None:
+        assert mask_resolution is not None, 'Resolution of the mask must be specified!'
 
     def _load_table(table_fp):
         import pandas as pd
@@ -54,12 +62,15 @@ def export_rois_with_mobie_table_workflow(
 
     table = _load_table(table_filepath)
 
+    mask_h = None
+    mask_shape = None
     from squirrel.library.io import load_data_handle
     map_h, shape = load_data_handle(map_dirpath, key=map_key, pattern=None)
+    if mask_dirpath is not None:
+        mask_h, mask_shape = load_data_handle(mask_dirpath, key=mask_key, pattern=None)
 
-    for idx in label_ids:
-
-        zyx, dhw = _get_position_px(table, idx, map_resolution)
+    def _get_data(data_h, idx, resolution):
+        zyx, dhw = _get_position_px(table, idx, resolution)
         z, y, x = np.array(zyx).astype(int)
         d, h, w = np.array(dhw).astype(int)
 
@@ -67,10 +78,33 @@ def export_rois_with_mobie_table_workflow(
             print(f'zyx = {zyx}')
             print(f'dhw = {dhw}')
 
-        data = map_h[z:z+d, y:y+h, x:x+w]
+        return data_h[z:z+d, y:y+h, x:x+w], x, y, z
+
+    def _apply_mask(map_data, mask_h, idx, mask_resolution):
+
+        mask_data, mx, my, mz = _get_data(mask_h, idx, mask_resolution)
+
+        if mask_resolution != map_resolution:
+            from squirrel.library.scaling import scale_image_nearest
+            mask_data = scale_image_nearest(mask_data, np.array(mask_resolution) / np.array(map_resolution))
+
+        map_data[mask_data == idx] = 0
+        return map_data
+
+    def _cast_dtype(map_data, dtype='uint16'):
+        return map_data.astype(dtype)
+
+    for idx in label_ids:
+
+        map_data, x, y, z = _get_data(map_h, idx, map_resolution)
 
         if verbose:
-            print(f'data.shape = {data.shape}')
+            print(f'data.shape = {map_data.shape}')
 
-        write_func(data, idx, x, y, z)
+        if mask_h is not None:
+            map_data = _apply_mask(map_data, mask_h, idx, mask_resolution)
+
+        map_data = _cast_dtype(map_data)
+
+        write_func(map_data, idx, x, y, z)
 
