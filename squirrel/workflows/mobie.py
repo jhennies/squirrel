@@ -96,7 +96,6 @@ def export_rois_with_mobie_table_workflow(
         return map_data
 
     def _cast_dtype(map_data):
-        from squirrel.workflows.volume import get_label_list_workflow
         from squirrel.library.data import get_optimal_dtype
         print(f'Casting dtype:')
         print(f'Getting label mapping ...')
@@ -105,9 +104,15 @@ def export_rois_with_mobie_table_workflow(
         print(f'Finding optimal dtype ...')
         dtype = get_optimal_dtype(len(label_list))
         print(f'Mapping the data ...')
-        map_func = np.vectorize(label_mapping.get)
-        map_data = map_func(map_data).astype(dtype)
-        return map_data
+        # map_func = np.vectorize(label_mapping.get)
+        # map_data = map_func(map_data).astype(dtype)
+        for sl_idx, sl in enumerate(map_data):
+            u = np.unique(sl)
+            if len(u) > 1 or u[0] != 0:
+                lm = {key: label_mapping[key] for key in list(u) if key in label_mapping}
+                map_func = np.vectorize(lm)
+                map_data[sl_idx, :] = map_func(sl)
+        return map_data.astype(dtype)
 
     for idx in label_ids:
 
