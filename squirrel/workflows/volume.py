@@ -294,7 +294,6 @@ def get_label_list_workflow(
         for idx in range(0, shape[0], z_batch_size):
             z_range = [idx, min(idx + z_batch_size, shape[0])]
             label_lists.append(_get_label_list(h, z_range))
-            print(f'label_lists[-1] = {label_lists[-1]}')
 
     else:
 
