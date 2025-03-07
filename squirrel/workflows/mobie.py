@@ -111,7 +111,7 @@ def export_rois_with_mobie_table_workflow(
             u = np.unique(sl)
             if len(u) > 1 or u[0] != 0:
                 lm = {key: label_mapping[key] for key in list(u) if key in label_mapping}
-                map_func = np.vectorize(lm.get())
+                map_func = np.vectorize(lm.get)
                 map_data[sl_idx, :] = map_func(sl)
         return map_data.astype(dtype)
 
