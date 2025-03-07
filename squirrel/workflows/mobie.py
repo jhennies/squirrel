@@ -92,7 +92,7 @@ def export_rois_with_mobie_table_workflow(
         print(f'mask_data.shape = {mask_data.shape}')
         mask_data_pad = np.zeros(map_data.shape)
         mask_data_pad[:mask_data.shape[0], :mask_data.shape[1], :mask_data.shape[2]] = mask_data
-        map_data[mask_data_pad == idx] = 0
+        map_data[mask_data_pad != idx] = 0
         return map_data
 
     def _cast_dtype(map_data, dtype='uint16'):
