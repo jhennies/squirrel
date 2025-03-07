@@ -100,7 +100,7 @@ def export_rois_with_mobie_table_workflow(
         from squirrel.library.data import get_optimal_dtype
         print(f'Casting dtype:')
         print(f'Getting label mapping ...')
-        label_list = get_label_list_workflow(map_dirpath, key=map_key, n_workers=1, quiet=True, verbose=verbose)
+        label_list = np.unique(map_data)
         label_mapping = dict(zip(label_list, range(len(label_list))))
         print(f'Finding optimal dtype ...')
         dtype = get_optimal_dtype(len(label_list))
