@@ -67,7 +67,7 @@ def _run_for_label_id(
         target_dirpath,
         verbose=False
 ):
-    map_data, x, y, z = _get_data(map_h, idx, map_resolution)
+    map_data, x, y, z = _get_data(map_h, idx, map_resolution, table, verbose=verbose)
 
     if verbose:
         print(f'data.shape = {map_data.shape}')
