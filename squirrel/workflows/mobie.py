@@ -88,6 +88,8 @@ def export_rois_with_mobie_table_workflow(
             from squirrel.library.scaling import scale_image_nearest
             mask_data = scale_image_nearest(mask_data, np.array(mask_resolution) / np.array(map_resolution))
 
+        print(f'map_data.shape = {map_data.shape}')
+        print(f'mask_data.shape = {mask_data.shape}')
         map_data[mask_data == idx] = 0
         return map_data
 
