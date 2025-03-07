@@ -115,7 +115,7 @@ def export_rois_with_mobie_table_workflow(
                 map_data[sl_idx, :] = map_func(sl)
         return map_data.astype(dtype)
 
-    for idx in label_ids:
+    def _run_for_label_id(idx, map_h, mask_h, map_resolution, mask_resolution):
 
         map_data, x, y, z = _get_data(map_h, idx, map_resolution)
 
@@ -128,4 +128,36 @@ def export_rois_with_mobie_table_workflow(
         map_data = _cast_dtype(map_data)
 
         write_func(map_data, idx, x, y, z)
+
+    n_workers = 2
+
+    if n_workers == 1:
+        for idx in label_ids:
+            _run_for_label_id(idx, map_h, mask_h, map_resolution, mask_resolution)
+
+    else:
+
+        from multiprocessing import Pool
+        with Pool(processes=n_workers) as p:
+            tasks = [
+                p.apply_async(
+                    _run_for_label_id,
+                    (idx, map_h, mask_h, map_resolution, mask_resolution)
+                )
+                for idx in label_ids
+            ]
+            [task.get() for task in tasks]
+
+
+        # map_data, x, y, z = _get_data(map_h, idx, map_resolution)
+        #
+        # if verbose:
+        #     print(f'data.shape = {map_data.shape}')
+        #
+        # if mask_h is not None:
+        #     map_data = _apply_mask(map_data, mask_h, idx, mask_resolution)
+        #
+        # map_data = _cast_dtype(map_data)
+        #
+        # write_func(map_data, idx, x, y, z)
 
