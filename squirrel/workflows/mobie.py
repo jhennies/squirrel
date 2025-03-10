@@ -11,11 +11,11 @@ def _get_position_px(table, idx, res):
     w = row['bb_max_x'] - x
     h = row['bb_max_y'] - y
     d = row['bb_max_z'] - z
-    return np.array((z, y, x)) / np.array(res), np.array((d, h, w)) / np.array(res)
+    return np.array((z, y, x)) / np.array(res), np.array((d, h, w)) / np.array(res), [z, y, x]
 
 
 def _get_data(data_h, idx, resolution, table, verbose=False):
-    zyx, dhw = _get_position_px(table, idx, resolution)
+    zyx, dhw, zyx_res = _get_position_px(table, idx, resolution)
     z, y, x = np.array(zyx).astype(int)
     d, h, w = np.array(dhw).astype(int)
 
@@ -23,11 +23,11 @@ def _get_data(data_h, idx, resolution, table, verbose=False):
         print(f'zyx = {zyx}')
         print(f'dhw = {dhw}')
 
-    return data_h[z:z + d, y:y + h, x:x + w], x, y, z
+    return data_h[z:z + d, y:y + h, x:x + w], zyx_res
 
 
 def _apply_mask(map_data, mask_h, idx, map_resolution, mask_resolution, table, verbose=False):
-    mask_data, mx, my, mz = _get_data(mask_h, idx, mask_resolution, table, verbose=verbose)
+    mask_data, _ = _get_data(mask_h, idx, mask_resolution, table, verbose=verbose)
 
     if mask_resolution != map_resolution:
         from squirrel.library.scaling import scale_image_nearest
@@ -95,7 +95,7 @@ def _run_for_label_id(
 ):
     if verbose:
         print(f'Loading data ...')
-    map_data, x, y, z = _get_data(map_h, idx, map_resolution, table, verbose=verbose)
+    map_data, zyx = _get_data(map_h, idx, map_resolution, table, verbose=verbose)
 
     if verbose:
         print(f'data.shape = {map_data.shape}')
@@ -111,7 +111,7 @@ def _run_for_label_id(
 
     if verbose:
         print(f'Writing result ...')
-    write_func(map_data, idx, x, y, z, target_dirpath)
+    write_func(map_data, idx, zyx[2], zyx[1], zyx[0], target_dirpath)
     if verbose:
         print(f'Done!')
 
@@ -151,6 +151,9 @@ def export_rois_with_mobie_table_workflow(
     assert map_resolution is not None, 'Resolution of the map must be specified!'
     if mask_dirpath is not None:
         assert mask_resolution is not None, 'Resolution of the mask must be specified!'
+
+    if not os.path.exists(target_dirpath):
+        os.mkdir(target_dirpath)
 
     def _load_table(table_fp):
         import pandas as pd
