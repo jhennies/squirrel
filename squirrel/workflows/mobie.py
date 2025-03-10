@@ -41,7 +41,17 @@ def _apply_mask(map_data, mask_h, idx, map_resolution, mask_resolution, table, v
     return map_data
 
 
-def _cast_dtype(map_data):
+def _cast_func(sl, sl_idx, label_mapping):
+    print(f'sl_idx = {sl_idx}')
+    u = np.unique(sl)
+    if len(u) > 1 or u[0] != 0:
+        lm = {key: label_mapping[key] for key in list(u) if key in label_mapping}
+        map_func = np.vectorize(lm.get)
+        return map_func(sl)
+    return sl
+
+
+def _cast_dtype(map_data, n_workers=1):
     from squirrel.library.data import get_optimal_dtype
     print(f'Casting dtype:')
     print(f'Getting label mapping ...')
@@ -50,34 +60,56 @@ def _cast_dtype(map_data):
     print(f'Finding optimal dtype ...')
     dtype = get_optimal_dtype(len(label_list))
     print(f'Mapping the data ...')
-    # map_func = np.vectorize(label_mapping.get)
-    # map_data = map_func(map_data).astype(dtype)
-    for sl_idx, sl in enumerate(map_data):
-        print(f'sl_idx = {sl_idx}')
-        u = np.unique(sl)
-        if len(u) > 1 or u[0] != 0:
-            lm = {key: label_mapping[key] for key in list(u) if key in label_mapping}
-            map_func = np.vectorize(lm.get)
-            map_data[sl_idx, :] = map_func(sl)
+    if n_workers == 1:
+        for sl_idx, sl in enumerate(map_data):
+            print(f'sl_idx = {sl_idx}')
+            u = np.unique(sl)
+            if len(u) > 1 or u[0] != 0:
+                lm = {key: label_mapping[key] for key in list(u) if key in label_mapping}
+                map_func = np.vectorize(lm.get)
+                map_data[sl_idx, :] = map_func(sl)
+    else:
+        from multiprocessing import Pool
+        with Pool(processes=n_workers) as p:
+            tasks = [
+                p.apply_async(
+                    _cast_func,
+                    (sl, sl_idx, label_mapping)
+                )
+                for sl_idx, sl in enumerate(map_data)
+            ]
+            map_data = np.array([task.get() for task in tasks])
+
     return map_data.astype(dtype)
 
 
 def _run_for_label_id(
         idx, map_h, mask_h, map_resolution, mask_resolution, write_func, table,
         target_dirpath,
+        n_workers=1,
         verbose=False
 ):
+    if verbose:
+        print(f'Loading data ...')
     map_data, x, y, z = _get_data(map_h, idx, map_resolution, table, verbose=verbose)
 
     if verbose:
         print(f'data.shape = {map_data.shape}')
 
     if mask_h is not None:
+        if verbose:
+            print(f'Applying mask ...')
         map_data = _apply_mask(map_data, mask_h, idx, map_resolution, mask_resolution, table, verbose=verbose)
 
+    if verbose:
+        print(f'Casting dtype ...')
     map_data = _cast_dtype(map_data)
 
+    if verbose:
+        print(f'Writing result ...')
     write_func(map_data, idx, x, y, z, target_dirpath)
+    if verbose:
+        print(f'Done!')
 
 
 def _write_tif_stack(data, idx, x, y, z, target_dirpath):
@@ -142,11 +174,12 @@ def export_rois_with_mobie_table_workflow(
     if mask_dirpath is not None:
         mask_h, mask_shape = load_data_handle(mask_dirpath, key=mask_key, pattern=None)
 
-    if n_workers == 1:
+    if True:  # n_workers == 1:
         for idx in label_ids:
             _run_for_label_id(
                 idx, map_h, mask_h, map_resolution, mask_resolution, write_func, table,
                 target_dirpath,
+                n_workers=n_workers,
                 verbose=verbose
             )
 
