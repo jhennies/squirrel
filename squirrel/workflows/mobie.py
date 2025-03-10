@@ -107,7 +107,7 @@ def _run_for_label_id(
 
     if verbose:
         print(f'Casting dtype ...')
-    map_data = _cast_dtype(map_data)
+    map_data = _cast_dtype(map_data, n_workers=n_workers)
 
     if verbose:
         print(f'Writing result ...')
