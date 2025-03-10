@@ -94,6 +94,7 @@ def _run_for_label_id(
         verbose=False
 ):
     if verbose:
+        print(f'------------- Executing LabelID: {idx} --------------')
         print(f'Loading data ...')
     map_data, zyx = _get_data(map_h, idx, map_resolution, table, verbose=verbose)
 
@@ -149,6 +150,8 @@ def export_rois_with_mobie_table_workflow(
         print(f'output_filetype = {output_filetype}')
         print(f'n_workers = {n_workers}')
         print(f'label_ids = {label_ids}')
+        print(f'exclude_ids = {exclude_ids}')
+        print(f'n_workers = {n_workers}')
 
     assert map_resolution is not None, 'Resolution of the map must be specified!'
     if mask_dirpath is not None:
