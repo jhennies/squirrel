@@ -35,9 +35,13 @@ def _apply_mask(map_data, mask_h, idx, map_resolution, mask_resolution, table, v
 
     print(f'map_data.shape = {map_data.shape}')
     print(f'mask_data.shape = {mask_data.shape}')
-    mask_data_pad = np.zeros(map_data.shape)
-    mask_data_pad[:mask_data.shape[0], :mask_data.shape[1], :mask_data.shape[2]] = mask_data
-    map_data[mask_data_pad != idx] = 0
+    # mask_data_pad = np.zeros(map_data.shape)
+    # mask_data_pad[:mask_data.shape[0], :mask_data.shape[1], :mask_data.shape[2]] = mask_data
+    # map_data[mask_data_pad != idx] = 0
+
+    map_data = map_data[:mask_data.shape[0], :mask_data.shape[1], :mask_data.shape[2]]
+    print(f'map_data.shape = {map_data.shape}')
+    map_data[map_data != idx] = 0
     return map_data
 
 
