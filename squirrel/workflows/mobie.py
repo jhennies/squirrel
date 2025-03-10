@@ -41,7 +41,7 @@ def _apply_mask(map_data, mask_h, idx, map_resolution, mask_resolution, table, v
 
     map_data = map_data[:mask_data.shape[0], :mask_data.shape[1], :mask_data.shape[2]]
     print(f'map_data.shape = {map_data.shape}')
-    map_data[map_data != idx] = 0
+    map_data[mask_data != idx] = 0
     return map_data
 
 
@@ -106,6 +106,7 @@ def _run_for_label_id(
         map_data = _apply_mask(map_data, mask_h, idx, map_resolution, mask_resolution, table, verbose=verbose)
 
     if verbose:
+        print(f'np.unique(map_data[s/2, :]) = {np.unique(map_data[int(map_data.shape[0] / 2), :])}')
         print(f'Casting dtype ...')
     map_data = _cast_dtype(map_data, n_workers=n_workers)
 
