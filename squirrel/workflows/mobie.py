@@ -134,6 +134,7 @@ def export_rois_with_mobie_table_workflow(
         mask_resolution=None,
         output_filetype='tif',
         label_ids=None,
+        exclude_ids=None,
         n_workers=1,
         verbose=False,
 ):
@@ -174,6 +175,11 @@ def export_rois_with_mobie_table_workflow(
 
     if label_ids is None:
         label_ids = np.array(table.loc[:].index.tolist()).astype(int)
+    if exclude_ids is not None:
+        label_ids = np.array([x for x in label_ids if x not in exclude_ids])
+
+    if verbose:
+        print(f'label_ids = {label_ids}')
 
     mask_h = None
     mask_shape = None
