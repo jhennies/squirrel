@@ -111,7 +111,7 @@ def _run_for_label_id(
     map_data = _cast_dtype(map_data, n_workers=n_workers)
 
     if verbose:
-        print(f'Writing result ...')
+        print(f'Writing result for label {idx} to {target_dirpath}...')
     write_func(map_data, idx, zyx[2], zyx[1], zyx[0], target_dirpath)
     if verbose:
         print(f'Done!')
@@ -173,7 +173,7 @@ def export_rois_with_mobie_table_workflow(
     table = _load_table(table_filepath)
 
     if label_ids is None:
-        label_ids = table.loc[:].index.tolist()
+        label_ids = np.array(table.loc[:].index.tolist()).astype(int)
 
     mask_h = None
     mask_shape = None
