@@ -33,14 +33,22 @@ def _apply_mask(map_data, mask_h, idx, map_resolution, mask_resolution, table, v
         from squirrel.library.scaling import scale_image_nearest
         mask_data = scale_image_nearest(mask_data, np.array(mask_resolution) / np.array(map_resolution))
 
-    print(f'map_data.shape = {map_data.shape}')
-    print(f'mask_data.shape = {mask_data.shape}')
+    if verbose:
+        print(f'map_data.shape = {map_data.shape}')
+        print(f'mask_data.shape = {mask_data.shape}')
     # mask_data_pad = np.zeros(map_data.shape)
     # mask_data_pad[:mask_data.shape[0], :mask_data.shape[1], :mask_data.shape[2]] = mask_data
     # map_data[mask_data_pad != idx] = 0
 
-    map_data = map_data[:mask_data.shape[0], :mask_data.shape[1], :mask_data.shape[2]]
-    print(f'map_data.shape = {map_data.shape}')
+    min_shape = np.min([mask_data.shape, map_data.shape], axis=0)
+    if verbose:
+        print(f'min_shape = {min_shape}')
+
+    map_data = map_data[:min_shape[0], :min_shape[1], :min_shape[2]]
+    mask_data = mask_data[:min_shape[0], :min_shape[1], :min_shape[2]]
+    if verbose:
+        print(f'map_data.shape = {map_data.shape}')
+        print(f'mask_data.shape = {mask_data.shape}')
     map_data[mask_data != idx] = 0
     return map_data
 
@@ -105,6 +113,7 @@ def _run_for_label_id(
         if verbose:
             print(f'Applying mask ...')
         map_data = _apply_mask(map_data, mask_h, idx, map_resolution, mask_resolution, table, verbose=verbose)
+    mask_h = None
 
     if verbose:
         print(f'np.unique(map_data[s/2, :]) = {np.unique(map_data[int(map_data.shape[0] / 2), :])}')
