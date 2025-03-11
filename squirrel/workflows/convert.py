@@ -199,6 +199,7 @@ def stack_to_ome_zarr_workflow(
         print(f'stack_key = {stack_key}')
         print(f'chunk_size = {chunk_size}')
         print(f'z_range = {z_range}')
+        print(f'xy_range = {xy_range}')
         print(f'n_threads = {n_threads}')
 
     from squirrel.library.data import norm_z_range
@@ -212,6 +213,7 @@ def stack_to_ome_zarr_workflow(
         chunk_data = input_stack_handle[z_range[0]: z_range[1]]
     else:
         chunk_data = input_stack_handle[z_range[0]: z_range[1]][
+            :,
             xy_range[1]: xy_range[1] + xy_range[3],
             xy_range[0]: xy_range[0] + xy_range[2]
         ]
