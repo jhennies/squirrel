@@ -92,7 +92,7 @@ def _cast_dtype(map_data, n_workers=1):
                 )
                 for sl_idx, sl in enumerate(map_data)
             ]
-            map_data = np.array([task.get() for task in tasks])
+            map_data = np.array([task.get() for task in tasks], dtype='uint32')
 
     return map_data.astype(dtype)
 
