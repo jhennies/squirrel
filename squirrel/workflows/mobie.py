@@ -106,7 +106,7 @@ def _run_for_label_id(
     if verbose:
         print(f'------------- Executing LabelID: {idx} --------------')
         print(f'Loading data ...')
-    map_data, zyx = _get_data(map_h, idx, map_resolution, table, verbose=verbose)
+    map_data, zyx = _get_data(map_h, idx, map_resolution, table, dtype='uint32', verbose=verbose)
 
     if verbose:
         print(f'data.shape = {map_data.shape}')
