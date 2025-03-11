@@ -185,6 +185,7 @@ def stack_to_ome_zarr_workflow(
         name=None,
         chunk_size=(64, 64, 64),
         z_range=None,
+        xy_range=None,  # [x, y, w, h]
         save_bounds=False,
         append=False,
         n_threads=1,
@@ -207,10 +208,18 @@ def stack_to_ome_zarr_workflow(
     input_stack_handle, input_stack_shape = load_data_handle(stack_path, key=stack_key, pattern=stack_pattern)
 
     z_range = norm_z_range(z_range, input_stack_shape[0])
-    chunk_data = input_stack_handle[z_range[0]: z_range[1]]
+    if xy_range is None:
+        chunk_data = input_stack_handle[z_range[0]: z_range[1]]
+    else:
+        chunk_data = input_stack_handle[
+            z_range[0]: z_range[1],
+            xy_range[1]: xy_range[1] + xy_range[3],
+            xy_range[0]: xy_range[0] + xy_range[2]
+        ]
 
     # Create ome zarr if necessary
     if not append:
+        assert xy_range is None, 'ome-zarr creation not implemented for cropping in xy!'
         from ..library.ome_zarr import create_ome_zarr
         create_ome_zarr(
             ome_zarr_filepath,

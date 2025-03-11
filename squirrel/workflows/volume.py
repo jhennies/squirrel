@@ -41,6 +41,7 @@ def crop_from_stack_workflow(
         roi,
         key='data',
         pattern='*.tif',
+        out_slice_offset=None,
         verbose=False
 ):
 
@@ -66,7 +67,7 @@ def crop_from_stack_workflow(
 
     if ft_out == 'dir':
         from squirrel.library.io import write_tif_stack
-        write_tif_stack(data, out_path)
+        write_tif_stack(data, out_path, id_offset=out_slice_offset)
         return
     if ft_out == 'h5':
         from squirrel.library.io import write_h5_container
