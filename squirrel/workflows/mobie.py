@@ -28,6 +28,7 @@ def _get_data(data_h, idx, resolution, table, verbose=False):
 
 def _apply_mask(map_data, mask_h, idx, map_resolution, mask_resolution, table, verbose=False):
     mask_data, _ = _get_data(mask_h, idx, mask_resolution, table, verbose=verbose)
+    mask_data = mask_data.astype('uint16')
 
     if mask_resolution != map_resolution:
         from squirrel.library.scaling import scale_image_nearest
