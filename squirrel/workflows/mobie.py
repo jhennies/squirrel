@@ -75,13 +75,7 @@ def _cast_dtype(map_data, n_workers=1):
     dtype = get_optimal_dtype(len(label_list))
     print(f'Mapping the data ...')
     if n_workers == 1:
-        for sl_idx, sl in enumerate(map_data):
-            print(f'sl_idx = {sl_idx}')
-            u = np.unique(sl)
-            if len(u) > 1 or u[0] != 0:
-                lm = {key: label_mapping[key] for key in list(u) if key in label_mapping}
-                map_func = np.vectorize(lm.get)
-                map_data[sl_idx, :] = map_func(sl)
+        map_data = np.array([_cast_func(sl, sl_idx, label_mapping) for sl_idx, sl in enumerate(map_data)], dtype=dtype)
     else:
         from multiprocessing import Pool
         with Pool(processes=n_workers) as p:
@@ -92,9 +86,9 @@ def _cast_dtype(map_data, n_workers=1):
                 )
                 for sl_idx, sl in enumerate(map_data)
             ]
-            map_data = np.array([task.get() for task in tasks], dtype='uint32')
+            map_data = np.array([task.get() for task in tasks], dtype=dtype)
 
-    return map_data.astype(dtype)
+    return map_data
 
 
 def _run_for_label_id(
