@@ -14,7 +14,7 @@ def _get_position_px(table, idx, res):
     return np.array((z, y, x)) / np.array(res), np.array((d, h, w)) / np.array(res), [z, y, x]
 
 
-def _get_data(data_h, idx, resolution, table, verbose=False):
+def _get_data(data_h, idx, resolution, table, dtype=None, verbose=False):
     zyx, dhw, zyx_res = _get_position_px(table, idx, resolution)
     z, y, x = np.array(zyx).astype(int)
     d, h, w = np.array(dhw).astype(int)
@@ -23,12 +23,13 @@ def _get_data(data_h, idx, resolution, table, verbose=False):
         print(f'zyx = {zyx}')
         print(f'dhw = {dhw}')
 
-    return data_h[z:z + d, y:y + h, x:x + w], zyx_res
+    if dtype is None:
+        dtype = data_h.dtype
+    return data_h[z:z + d, y:y + h, x:x + w].astype(dtype), zyx_res
 
 
 def _apply_mask(map_data, mask_h, idx, map_resolution, mask_resolution, table, verbose=False):
-    mask_data, _ = _get_data(mask_h, idx, mask_resolution, table, verbose=verbose)
-    mask_data = mask_data.astype('uint16')
+    mask_data, _ = _get_data(mask_h, idx, mask_resolution, table, dtype='uint16', verbose=verbose)
 
     if mask_resolution != map_resolution:
         from squirrel.library.scaling import scale_image_nearest
