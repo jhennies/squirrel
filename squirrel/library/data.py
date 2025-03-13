@@ -33,7 +33,7 @@ def norm_8bit(im, quantiles, ignore_zeros=False):
     return im.astype('uint8')
 
 
-def norm_full_range(im, quantiles, anchors=None, ignore_zeros=False, mask=None):
+def norm_full_range(im, quantiles, anchors=None, ignore_zeros=False, mask=None, cast_8bit=False):
 
     # mask = im > 0
 
@@ -67,8 +67,17 @@ def norm_full_range(im, quantiles, anchors=None, ignore_zeros=False, mask=None):
 
     im -= lower
     im /= upper - lower
-    im *= anchors[1] - anchors[0]
-    im += anchors[0]
+    if dtype == 'uint8' or not cast_8bit:
+        im *= anchors[1] - anchors[0]
+        im += anchors[0]
+    else:
+        im *= (anchors[1] - anchors[0]) / (2 ** 16 - 1) * (2 ** 8 - 1)
+        print(f'(anchors[1] - anchors[0]) / 16 ** 2 * 8 ** 2 = {(anchors[1] - anchors[0]) / (2 ** 16 - 1) * (2 ** 8 - 1)}')
+        im += anchors[0] / (2 ** 16 - 1) * (2 ** 8 - 1)
+        print(f'max_val = {max_val}')
+        max_val = max_val / (2 ** 16 - 1) * (2 ** 8 - 1)
+        print(f'max_val = {max_val}')
+        dtype = 'uint8'
 
     im[im > max_val] = max_val
     im[im < 0] = 0
