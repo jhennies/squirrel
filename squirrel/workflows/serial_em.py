@@ -88,6 +88,8 @@ def _create_link_map_for_search_map(
         search_map_img_bin=4
 ):
 
+    print(f'search_map_id = {search_map_id}')
+
     # Compute the perspective transform
     from squirrel.library.serial_em import (
         apply_perspective_transform, get_perspective_from_pts, get_value_list_from_item
