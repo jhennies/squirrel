@@ -174,6 +174,9 @@ def create_link_maps_workflow(
         print(f'nav_filepath = {nav_filepath}')
         print(f'out_dirpath = {out_dirpath}')
 
+    if not os.path.exists(out_dirpath):
+        os.mkdir(out_dirpath)
+
     _create_link_maps_for_gridmap(nav_filepath, out_dirpath, verbose=verbose)
     _create_link_maps_for_search_maps(nav_filepath, out_dirpath, verbose=verbose)
 
