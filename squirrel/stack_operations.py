@@ -132,6 +132,9 @@ def clahe_on_stack():
                         help='Internal path of the input dataset; default="data"; used if in_path is h5 filepath')
     parser.add_argument('--out_key', type=str, default='data',
                         help='Internal path of the output dataset; default="data"; used if out_path is h5 filepath')
+    parser.add_argument('--cast_dtype', type=str, default=None,
+                        help='If set, the data-type will be casted accordingly, '
+                             'including adjustment of the greyscale values; default=None (no dtype casting)')
     parser.add_argument('--batch_size', type=int, default=None,
                         help='Will process and write data in batches (more memory efficient); default=None')
     parser.add_argument('--n_workers', type=int, default=1,
@@ -146,6 +149,7 @@ def clahe_on_stack():
     in_pattern = args.in_pattern
     in_key = args.in_key
     out_key = args.out_key
+    cast_dtype = args.cast_dtype
     batch_size = args.batch_size
     n_workers = args.n_workers
     verbose = args.verbose
@@ -160,6 +164,7 @@ def clahe_on_stack():
         in_pattern=in_pattern,
         in_key=in_key,
         out_key=out_key,
+        cast_dtype=cast_dtype,
         n_workers=n_workers,
         batch_size=batch_size,
         verbose=verbose

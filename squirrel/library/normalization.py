@@ -71,17 +71,28 @@ def normalize_slices(
 def clahe_on_image(
         image,
         clip_limit=3.0,
-        tile_grid_size=(127, 127)
+        tile_grid_size=(127, 127),
+        cast_dtype=None
 ):
     from cv2 import createCLAHE
     clahe = createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
-    return clahe.apply(image)
+
+    if cast_dtype is None:
+        return clahe.apply(image)
+
+    clahe_filtered = clahe.apply(image)
+    dtype_in = clahe_filtered.dtype
+    dtype_out = np.dtype(cast_dtype)
+    max_val_in = np.iinfo(dtype_in).max
+    max_val_out = np.iinfo(dtype_out).max
+    return (clahe_filtered.astype('float64') / max_val_in * max_val_out).astype(dtype_out)
 
 
 def clahe_on_slices(
         stack,
         clip_limit=3.0,
         tile_grid_size=(127, 127),
+        cast_dtype=None,
         z_range=None,
         n_workers=1
 ):
@@ -95,7 +106,7 @@ def clahe_on_slices(
         result_stack = []
         for idx in range(*z_range):
             img = stack[idx]
-            result_stack.append(clahe_on_image(img, clip_limit, tile_grid_size))
+            result_stack.append(clahe_on_image(img, clip_limit, tile_grid_size, cast_dtype))
 
     else:
         print(f'Running with {n_workers} CPUs')
@@ -105,7 +116,7 @@ def clahe_on_slices(
             tasks = []
             for idx in range(*z_range):
                 img = stack[idx]
-                tasks.append(p.apply_async(clahe_on_image, (img, clip_limit, tile_grid_size)))
+                tasks.append(p.apply_async(clahe_on_image, (img, clip_limit, tile_grid_size, cast_dtype)))
             result_stack = [task.get() for task in tasks]
 
     return np.array(result_stack)
