@@ -55,6 +55,7 @@ setup(
             'sq-conversion-cast_dtype = squirrel.conversions:cast_dtype',
             'sq-conversion-cast_segmentation = squirrel.conversions:cast_segmentation',
             'sq-serialem-parse_navigator_file = squirrel.serial_em:parse_navigator_file',
+            'sq-serialem-create_link_maps_workflow = squirrel.serial_em:create_link_maps_workflow',
             'sq-stack-axis_median_filter = squirrel.stack_operations:axis_median_filter',
             'sq-stack-get_label_list = squirrel.stack_operations:get_label_list',
             'sq-stack-tif_nearest_scaling = squirrel.stack_operations:tif_nearest_scaling',
