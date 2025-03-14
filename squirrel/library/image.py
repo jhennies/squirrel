@@ -147,7 +147,7 @@ def _get_scaled_font(font_size):
         return _get_default_font(font_size)
 
 
-def draw_strings_on_image(img_filepath, out_filepath, strings, positions, font_size=30, color=(255, 0, 0)):
+def draw_strings_on_image(img_filepath, out_filepath, strings, positions, font_size=30, color=(255, 0, 0), pivot='center'):
 
     assert len(strings) == len(positions), 'Number of strings and positions must match!'
 
@@ -157,6 +157,9 @@ def draw_strings_on_image(img_filepath, out_filepath, strings, positions, font_s
 
     # Create a drawing context
     draw = ImageDraw.Draw(img)
+
+    if pivot == 'center':
+        positions += (np.array(img.size) / 2)
 
     font = _get_scaled_font(font_size)
 
@@ -170,9 +173,10 @@ def draw_strings_on_image(img_filepath, out_filepath, strings, positions, font_s
 
         # Compute the new top-left position for centering
         pos = positions[idx]
-        pos_ = [pos[0] - text_width / 2, pos[1] - text_height / 2]
+        pos_ = [pos[0] - text_width / 2, pos[1] - text_height / 4 * 3]
 
         draw.text(pos_, string, font=font, fill=color)
+        draw.rectangle([tuple((pos - font_size/1.6).tolist()), tuple((pos + font_size/1.6).tolist())], outline=(0, 255, 255), width=2)
 
     # Save the modified image
     img.save(out_filepath, "PNG")
