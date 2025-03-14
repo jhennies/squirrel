@@ -183,9 +183,15 @@ def create_link_maps_workflow(
 
 
 if __name__ == '__main__':
-    # For development
+    # # For development
     create_link_maps_workflow(
         '/mnt/icem/fromm/for_julian/grid03/nav_250226_grid03.nav',
         '/media/julian/Data/tmp/nav_link_maps/',
         verbose=True
     )
+
+    # create_link_maps_workflow(
+    #     '/mnt/icem/external/00_old-sessions/20250227_direct_sa0096_nelson_sf/screening_images/grid02/nav_250227_grid02.nav',
+    #     '/media/julian/Data/tmp/nav_link_maps2/',
+    #     verbose=True
+    # )

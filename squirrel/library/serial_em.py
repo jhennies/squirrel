@@ -34,7 +34,8 @@ def navigator_file_to_dict(filepath):
                 continue
 
             # Match item sections like "[Item = 7-A]" or "[Item = empty]"
-            match = re.match(r"\[Item\s*=\s*([\w-]+)\]", line)
+            # match = re.match(r"\[Item\s*=\s*([\w-]+)\]", line)
+            match = re.match(r"\[Item\s*=\s*(.*?)\]", line)
             if match:
                 current_item = match.group(1)
                 items[current_item] = {}
@@ -51,6 +52,16 @@ def navigator_dict_to_file(nav_dict, filepath):
         json.dump(nav_dict, f, indent=2)
 
 
+def get_map_items_by_map_file(nav_dict, endswith='_search.mrc'):
+
+    out_items = {}
+
+    for key, val in nav_dict['items'].items():
+        if 'MapFile' in val:
+            if val['MapFile'].endswith(endswith):
+                out_items[key] = val
+
+    return out_items
 def get_map_items_by_map_file(nav_dict, endswith='_search.mrc'):
 
     out_items = {}
