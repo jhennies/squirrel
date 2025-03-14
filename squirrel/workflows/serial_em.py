@@ -30,8 +30,7 @@ def _create_link_maps_for_gridmap(
         nav_filepath, out_dirpath, grid_map_img_bin=8, verbose=False
 ):
 
-    if verbose:
-        print('Creating link maps for gridmap ...')
+    print('Creating link maps for gridmap ...')
 
     # Load navigator
     from squirrel.library.serial_em import navigator_file_to_dict
@@ -138,8 +137,8 @@ def _create_link_map_for_search_map(
 def _create_link_maps_for_search_maps(
         nav_filepath, out_dirpath, search_map_img_bin=4, verbose=False
 ):
-    if verbose:
-        print('Creating link maps for search map ...')
+
+    print('Creating link maps for search map ...')
 
     # Load navigator
     from squirrel.library.serial_em import navigator_file_to_dict
