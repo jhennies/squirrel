@@ -76,3 +76,36 @@ def clahe_on_image(
     from cv2 import createCLAHE
     clahe = createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
     return clahe.apply(image)
+
+
+def clahe_on_slices(
+        stack,
+        clip_limit=3.0,
+        tile_grid_size=(127, 127),
+        z_range=None,
+        n_workers=1
+):
+
+    from squirrel.library.data import norm_z_range
+    stack_shape = stack.shape
+    z_range = norm_z_range(z_range, stack_shape[0])
+
+    if n_workers == 1:
+
+        result_stack = []
+        for idx in range(*z_range):
+            img = stack[idx]
+            result_stack.append(clahe_on_image(img, clip_limit, tile_grid_size))
+
+    else:
+        print(f'Running with {n_workers} CPUs')
+        from multiprocessing import Pool
+
+        with Pool(processes=n_workers) as p:
+            tasks = []
+            for idx in range(*z_range):
+                img = stack[idx]
+                tasks.append(p.apply_async(clahe_on_image, (img, clip_limit, tile_grid_size)))
+            result_stack = [task.get() for task in tasks]
+
+    return np.array(result_stack)

@@ -63,7 +63,8 @@ setup(
             'sq-stack-normalize_slices = squirrel.stack_operations:normalize_slices',
             'sq-stack-compress_tif_stack = squirrel.stack_operations:compress_tif_stack',
             'sq-stack-crop_from_stack = squirrel.stack_operations:crop_from_stack',
-            'sq-stack-calculator = squirrel.stack_operations:stack_calculator'
+            'sq-stack-calculator = squirrel.stack_operations:stack_calculator',
+            'sq-stack-clahe_on_stack = squirrel.stack_operations:clahe_on_stack'
         ]
     },
     install_requires=[
