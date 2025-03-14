@@ -173,7 +173,7 @@ def draw_strings_on_image(img_filepath, out_filepath, strings, positions, font_s
 
         # Compute the new top-left position for centering
         pos = positions[idx]
-        pos_ = [pos[0] - text_width / 2, pos[1] - text_height / 4 * 3]
+        pos_ = [pos[0] - text_width / 2, pos[1] - text_height / 2]
 
         draw.text(pos_, string, font=font, fill=color)
         draw.rectangle([tuple((pos - font_size/1.6).tolist()), tuple((pos + font_size/1.6).tolist())], outline=(0, 255, 255), width=2)
