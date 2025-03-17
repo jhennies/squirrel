@@ -158,15 +158,18 @@ def _create_link_maps_for_search_maps(
     view_to_search_map_items = assign_view_maps_to_search_map(view_map_items, search_map_items, nav_dict['items'])
 
     for search_map_id, view_map_ids in view_to_search_map_items.items():
-        _create_link_map_for_search_map(
-            nav_filepath,
-            search_map_id,
-            search_map_items[search_map_id],
-            {k: v for k, v in view_map_items.items() if k in view_map_ids},
-            out_dirpath,
-            search_map_img_bin=search_map_img_bin,
-            pad_search_map_id=int(math.log10(len(search_map_items))) + 1
-        )
+        if view_map_ids:
+            _create_link_map_for_search_map(
+                nav_filepath,
+                search_map_id,
+                search_map_items[search_map_id],
+                {k: v for k, v in view_map_items.items() if k in view_map_ids},
+                out_dirpath,
+                search_map_img_bin=search_map_img_bin,
+                pad_search_map_id=int(math.log10(len(search_map_items))) + 1
+            )
+        else:
+            print(f'Search map ID: {search_map_id} does not have corresponding views.')
 
 
 def create_link_maps_workflow(
@@ -193,8 +196,13 @@ if __name__ == '__main__':
     #     verbose=True
     # )
 
+    # create_link_maps_workflow(
+    #     '/mnt/icem/external/00_old-sessions/20250227_direct_sa0096_nelson_sf/screening_images/grid02/nav_250227_grid02.nav',
+    #     '/media/julian/Data/tmp/nav_link_maps2/',
+    #     verbose=True
+    # )
     create_link_maps_workflow(
-        '/mnt/icem/external/00_old-sessions/20250227_direct_sa0096_nelson_sf/screening_images/grid02/nav_250227_grid02.nav',
-        '/media/julian/Data/tmp/nav_link_maps2/',
+        '/mnt/icem/external/00_old-sessions/20250227_direct_sa0096_nelson_sf/screening_images/grid04/nav_250227_grid04.nav',
+        '/media/julian/Data/tmp/nav_link_maps3/',
         verbose=True
     )
