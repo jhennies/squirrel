@@ -1,3 +1,4 @@
+import math
 import os.path
 import numpy as np
 
@@ -85,7 +86,8 @@ def _create_link_maps_for_gridmap(
 def _create_link_map_for_search_map(
         nav_filepath, search_map_id, search_map_item, view_map_items,
         out_dirpath,
-        search_map_img_bin=4
+        search_map_img_bin=4,
+        pad_search_map_id=1,
 ):
 
     print(f'search_map_id = {search_map_id}')
@@ -123,7 +125,7 @@ def _create_link_map_for_search_map(
 
     # Get filepath of the search map image
     from squirrel.library.serial_em import get_searchmap_filepath
-    searchmap_filepath = get_searchmap_filepath(search_map_item, nav_filepath)
+    searchmap_filepath = get_searchmap_filepath(search_map_item, nav_filepath, pad_zeros=pad_search_map_id)
 
     # Draw the final result
     from squirrel.library.image import draw_strings_on_image
@@ -162,7 +164,8 @@ def _create_link_maps_for_search_maps(
             search_map_items[search_map_id],
             {k: v for k, v in view_map_items.items() if k in view_map_ids},
             out_dirpath,
-            search_map_img_bin=search_map_img_bin
+            search_map_img_bin=search_map_img_bin,
+            pad_search_map_id=int(math.log10(len(search_map_items))) + 1
         )
 
 

@@ -236,14 +236,20 @@ def get_gridmap_filepath(nav_filepath):
     ))[0]
 
 
-def get_searchmap_filepath(search_map_item, nav_filepath, binning=4):
+def get_searchmap_filepath(search_map_item, nav_filepath, binning=4, pad_zeros=0):
     from glob import glob
     import os
     map_filepath = search_map_item['MapFile'].replace("\\", '/')
     map_section = int(search_map_item['MapSection']) + 1
+    map_section_str = ('{:0' + str(pad_zeros) + 'd}').format(map_section)
     return os.path.join(
         os.path.split(nav_filepath)[0],
-        f'{os.path.splitext(os.path.split(map_filepath)[1])[0]}_{map_section}_bin{binning}.png'
+        f'{os.path.splitext(os.path.split(map_filepath)[1])[0]}_{map_section_str}_bin{binning}.png'
+        # ('{}_{0' + str(pad_zeros) + 'd}_bin{}.png').format(
+        #     os.path.splitext(os.path.split(map_filepath)[1])[0],
+        #     map_section,
+        #     binning
+        # )
     )
 
 
