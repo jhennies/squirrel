@@ -49,6 +49,8 @@ def clahe_on_slices_workflow(
         out_key='data',
         z_range=None,
         cast_dtype=None,
+        invert_output=False,
+        gaussian_sigma=0.0,
         batch_size=None,
         n_workers=1,
         verbose=False
@@ -62,6 +64,8 @@ def clahe_on_slices_workflow(
         print(f'in_pattern = {in_pattern}')
         print(f'in_key = {in_key}')
         print(f'cast_dtype = {cast_dtype}')
+        print(f'invert_output = {invert_output}')
+        print(f'gaussian_sigma = {gaussian_sigma}')
         print(f'out_key = {out_key}')
         print(f'z_range = {z_range}')
         print(f'n_workers = {n_workers}')
@@ -78,6 +82,8 @@ def clahe_on_slices_workflow(
             clip_limit=clip_limit,
             tile_grid_size=tile_grid_size,
             cast_dtype=cast_dtype,
+            invert_output=invert_output,
+            gaussian_sigma=gaussian_sigma,
             z_range=z_range,
             n_workers=n_workers
         )
@@ -93,6 +99,8 @@ def clahe_on_slices_workflow(
             clip_limit=clip_limit,
             tile_grid_size=tile_grid_size,
             cast_dtype=cast_dtype,
+            invert_output=invert_output,
+            gaussian_sigma=gaussian_sigma,
             z_range=[zidx, zidx + batch_size],
             n_workers=n_workers
         )

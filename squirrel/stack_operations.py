@@ -135,6 +135,10 @@ def clahe_on_stack():
     parser.add_argument('--cast_dtype', type=str, default=None,
                         help='If set, the data-type will be casted accordingly, '
                              'including adjustment of the greyscale values; default=None (no dtype casting)')
+    parser.add_argument('--invert_output', action='store_true',
+                        help='Inverts the output')
+    parser.add_argument('--gaussian_sigma', type=float, default=0.0,
+                        help='If > 0, the output will be smoothed by a 2D gaussian filter; default=0.0')
     parser.add_argument('--batch_size', type=int, default=None,
                         help='Will process and write data in batches (more memory efficient); default=None')
     parser.add_argument('--n_workers', type=int, default=1,
@@ -150,6 +154,8 @@ def clahe_on_stack():
     in_key = args.in_key
     out_key = args.out_key
     cast_dtype = args.cast_dtype
+    invert_output = args.invert_output
+    gaussian_sigma = args.gaussian_sigma
     batch_size = args.batch_size
     n_workers = args.n_workers
     verbose = args.verbose
@@ -165,6 +171,8 @@ def clahe_on_stack():
         in_key=in_key,
         out_key=out_key,
         cast_dtype=cast_dtype,
+        invert_output=invert_output,
+        gaussian_sigma=gaussian_sigma,
         n_workers=n_workers,
         batch_size=batch_size,
         verbose=verbose
