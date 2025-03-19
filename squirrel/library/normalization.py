@@ -80,10 +80,11 @@ def clahe_on_image(
     clahe = createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
 
     clahe_filtered = clahe.apply(image)
+    dtype_in = clahe_filtered.dtype
 
     if gaussian_sigma > 0.0:
         from vigra.filters import gaussianSmoothing
-        clahe_filtered = gaussianSmoothing(clahe_filtered, gaussian_sigma)
+        clahe_filtered = gaussianSmoothing(clahe_filtered.astype('float32'), gaussian_sigma).astype(dtype_in)
     if invert_output:
         from squirrel.library.volume import invert_image
         clahe_filtered = invert_image(clahe_filtered)
@@ -91,7 +92,6 @@ def clahe_on_image(
     if cast_dtype is None:
         return clahe_filtered
 
-    dtype_in = clahe_filtered.dtype
     dtype_out = np.dtype(cast_dtype)
     max_val_in = np.iinfo(dtype_in).max
     max_val_out = np.iinfo(dtype_out).max
