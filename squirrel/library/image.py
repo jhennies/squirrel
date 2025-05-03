@@ -147,7 +147,7 @@ def _get_scaled_font(font_size):
         return _get_default_font(font_size)
 
 
-def draw_strings_on_image(img_filepath, out_filepath, strings, positions, font_size=30, color=(255, 0, 0), pivot='center'):
+def draw_strings_on_image(img_filepath, out_filepath, strings, positions, font_size=30, color=(255, 0, 0), pivot='center', verbose=False):
 
     assert len(strings) == len(positions), 'Number of strings and positions must match!'
 
@@ -160,6 +160,8 @@ def draw_strings_on_image(img_filepath, out_filepath, strings, positions, font_s
 
     if pivot == 'center':
         positions += (np.array(img.size) / 2)
+    if verbose:
+        print(f'positions = {positions}')
 
     font = _get_scaled_font(font_size)
 

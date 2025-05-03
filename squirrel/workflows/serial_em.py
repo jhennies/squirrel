@@ -67,10 +67,16 @@ def _create_link_maps_for_gridmap(
         list(grid_map_items.values())[0], np.array(map_width_height) * grid_map_resolution  # 0.2236
     )
     transformed_stage_positions = apply_perspective_transform(search_map_stage_positions, grid_map_perspective_transform)
+    transformed_stage_positions = (np.array(transformed_stage_positions)[:, ::-1]) * (1/(grid_map_resolution * grid_map_img_bin))
 
     # Get filepath of the gridmap image
     from squirrel.library.serial_em import get_gridmap_filepath
     gridmap_filepath = get_gridmap_filepath(nav_filepath)
+    if verbose:
+        print(f'gridmap_filepath = {gridmap_filepath}')
+        print(f'transformed_stage_positions = {transformed_stage_positions}')
+        print(f'search_map_names = {search_map_names}')
+        print(f'grid_map_resolution_bin = {(grid_map_resolution * grid_map_img_bin)}')
 
     # Draw the final result
     from squirrel.library.image import draw_strings_on_image
@@ -78,8 +84,9 @@ def _create_link_maps_for_gridmap(
         gridmap_filepath,
         os.path.join(out_dirpath, os.path.split(gridmap_filepath)[1]),
         strings=search_map_names,
-        positions=(np.array(transformed_stage_positions)[:, ::-1]) * (1/(grid_map_resolution * grid_map_img_bin)),  # + 674,
-        font_size=30
+        positions=transformed_stage_positions,  # + 674,
+        font_size=30,
+        verbose=verbose
     )
 
 
@@ -88,6 +95,7 @@ def _create_link_map_for_search_map(
         out_dirpath,
         search_map_img_bin=4,
         pad_search_map_id=1,
+        verbose=False
 ):
 
     print(f'search_map_id = {search_map_id}')
@@ -126,6 +134,9 @@ def _create_link_map_for_search_map(
     # Get filepath of the search map image
     from squirrel.library.serial_em import get_searchmap_filepath
     searchmap_filepath = get_searchmap_filepath(search_map_item, nav_filepath, pad_zeros=pad_search_map_id)
+    if verbose:
+        print(f'searchmap_filepath = {searchmap_filepath}')
+        print(f'searchmap_resolution_bin = {search_map_resolution * search_map_img_bin}')
 
     # Draw the final result
     from squirrel.library.image import draw_strings_on_image
@@ -166,7 +177,8 @@ def _create_link_maps_for_search_maps(
                 {k: v for k, v in view_map_items.items() if k in view_map_ids},
                 out_dirpath,
                 search_map_img_bin=search_map_img_bin,
-                pad_search_map_id=int(math.log10(len(search_map_items))) + 1
+                pad_search_map_id=int(math.log10(len(search_map_items))) + 1,
+                verbose=verbose
             )
         else:
             print(f'Search map ID: {search_map_id} does not have corresponding views.')
