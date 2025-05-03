@@ -128,5 +128,58 @@ def image_to_shape(image, shape):
         pass
 
 
+def _get_default_font(font_size):
+    from PIL import ImageFont
+    import matplotlib.font_manager as fm
 
+    try:
+        font_path = fm.findSystemFonts(fontpaths=None, fontext='ttf')[0]  # Get first available font
+        return ImageFont.truetype(font_path, font_size)
+    except IndexError:
+        return ImageFont.load_default()  # Fallback
+
+
+def _get_scaled_font(font_size):
+    from PIL import ImageFont
+    try:
+        return ImageFont.truetype("DejaVuSans.ttf", font_size)  # Scalable font
+    except IOError:
+        return _get_default_font(font_size)
+
+
+def draw_strings_on_image(img_filepath, out_filepath, strings, positions, font_size=30, color=(255, 0, 0), pivot='center', verbose=False):
+
+    assert len(strings) == len(positions), 'Number of strings and positions must match!'
+
+    from PIL import Image, ImageDraw, ImageFont
+    # Load the image
+    img = Image.open(img_filepath).convert("RGBA")
+
+    # Create a drawing context
+    draw = ImageDraw.Draw(img)
+
+    if pivot == 'center':
+        positions += (np.array(img.size) / 2)
+    if verbose:
+        print(f'positions = {positions}')
+
+    font = _get_scaled_font(font_size)
+
+    # Draw each number at its given position
+    for idx, string in enumerate(strings):
+
+        # Get text bounding box to determine size
+        bbox = font.getbbox(string)  # (left, top, right, bottom)
+        text_width = bbox[2] - bbox[0]
+        text_height = bbox[3] - bbox[1]
+
+        # Compute the new top-left position for centering
+        pos = positions[idx]
+        pos_ = [pos[0] - text_width / 2, pos[1] - text_height / 4 * 3]
+
+        draw.text(pos_, string, font=font, fill=color)
+        draw.rectangle([tuple((pos - font_size/1.6).tolist()), tuple((pos + font_size/1.6).tolist())], outline=(0, 255, 255), width=2)
+
+    # Save the modified image
+    img.save(out_filepath, "PNG")
 

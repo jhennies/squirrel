@@ -477,8 +477,7 @@ class AffineMatrix:
 
         if filetype == 'csv':
             from numpy import genfromtxt
-            self.set_from_parameters(genfromtxt(filepath, delimiter=','))
-            raise NotImplementedError
+            self.set_from_parameters(parameters=genfromtxt(filepath, delimiter=',').flatten())
             return
 
         raise ValueError(f'Invalid filetype: {filetype}')
@@ -493,7 +492,7 @@ class AffineMatrix:
     def to_file(self, filepath):
         import json
         out_data = dict(
-            transform=self.get_matrix(order='C').tolist(),
+            transform=self.get_matrix(order='C').astype('float64').tolist(),
             pivot=self._pivot.tolist()
         )
         with open(filepath, mode='w') as f:

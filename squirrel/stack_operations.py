@@ -1,4 +1,55 @@
 
+def invert_slices():
+
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Invert slices within a tif stack or h5 dataset',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('in_path', type=str,
+                        help='Input folder containing a tif stack or filepath of h5 container')
+    parser.add_argument('out_path', type=str,
+                        help='Output folder for tif stack or filepath for h5 container where the results will '
+                             'be written to')
+    parser.add_argument('--in_pattern', type=str, default='*.tif',
+                        help='File patter to search for within the input folder; default = "*.tif"; used if in_path is '
+                             'tif stack')
+    parser.add_argument('--in_key', type=str, default='data',
+                        help='Internal path of the input dataset; default="data"; used if in_path is h5 filepath')
+    parser.add_argument('--out_key', type=str, default='data',
+                        help='Internal path of the output dataset; default="data"; used if out_path is h5 filepath')
+    parser.add_argument('--batch_size', type=int, default=None,
+                        help='Will process and write data in batches (more memory efficient); default=None')
+    parser.add_argument('--n_workers', type=int, default=1,
+                        help='The number of cores to use for processing')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    in_path = args.in_path
+    out_path = args.out_path
+    in_pattern = args.in_pattern
+    in_key = args.in_key
+    out_key = args.out_key
+    batch_size = args.batch_size
+    n_workers = args.n_workers
+    verbose = args.verbose
+
+    from squirrel.workflows.volume import invert_slices_workflow
+
+    invert_slices_workflow(
+        in_path,
+        out_path,
+        in_pattern=in_pattern,
+        in_key=in_key,
+        out_key=out_key,
+        batch_size=batch_size,
+        n_workers=n_workers,
+        verbose=verbose
+    )
+
+
 def normalize_slices():
 
     # ----------------------------------------------------
@@ -56,6 +107,78 @@ def normalize_slices():
         quantiles=quantiles,
         anchors=anchors,
         n_workers=n_workers,
+        verbose=verbose
+    )
+
+
+def clahe_on_stack():
+
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Runs a clahe filtering on an image stack (slice-wise)',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('in_path', type=str,
+                        help='Input folder containing a tif stack or filepath of h5 container')
+    parser.add_argument('out_path', type=str,
+                        help='Output folder for tif stack or filepath for h5 container where the results will '
+                             'be written to')
+    parser.add_argument('--clip_limit', type=float, default=3.0,
+                        help='CLAHE parameter; default=3.0')
+    parser.add_argument('--tile_grid_size', type=int, nargs=2, default=(63, 63),
+                        help='CLAHE parameter; default=(63, 63)')
+    parser.add_argument('--in_pattern', type=str, default='*.tif',
+                        help='File patter to search for within the input folder; default = "*.tif"; used if in_path is '
+                             'tif stack')
+    parser.add_argument('--in_key', type=str, default='data',
+                        help='Internal path of the input dataset; default="data"; used if in_path is h5 filepath')
+    parser.add_argument('--out_key', type=str, default='data',
+                        help='Internal path of the output dataset; default="data"; used if out_path is h5 filepath')
+    parser.add_argument('--cast_dtype', type=str, default=None,
+                        help='If set, the data-type will be casted accordingly, '
+                             'including adjustment of the greyscale values; default=None (no dtype casting)')
+    parser.add_argument('--invert_output', action='store_true',
+                        help='Inverts the output')
+    parser.add_argument('--gaussian_sigma', type=float, default=0.0,
+                        help='If > 0, the output will be smoothed by a 2D gaussian filter; default=0.0')
+    parser.add_argument('--batch_size', type=int, default=None,
+                        help='Will process and write data in batches (more memory efficient); default=None')
+    parser.add_argument('--n_workers', type=int, default=1,
+                        help='The number of cores to use for processing')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    in_path = args.in_path
+    out_path = args.out_path
+    clip_limit = args.clip_limit
+    tile_grid_size = args.tile_grid_size
+    in_pattern = args.in_pattern
+    in_key = args.in_key
+    out_key = args.out_key
+    cast_dtype = args.cast_dtype
+    invert_output = args.invert_output
+    gaussian_sigma = args.gaussian_sigma
+    batch_size = args.batch_size
+    n_workers = args.n_workers
+    verbose = args.verbose
+
+    from squirrel.workflows.normalization import clahe_on_slices_workflow
+
+    clahe_on_slices_workflow(
+        in_path,
+        out_path,
+        clip_limit=clip_limit,
+        tile_grid_size=tile_grid_size,
+        in_pattern=in_pattern,
+        in_key=in_key,
+        out_key=out_key,
+        cast_dtype=cast_dtype,
+        invert_output=invert_output,
+        gaussian_sigma=gaussian_sigma,
+        n_workers=n_workers,
+        batch_size=batch_size,
         verbose=verbose
     )
 
@@ -243,3 +366,158 @@ def stack_calculator():
         n_workers=n_workers,
         verbose=verbose
     )
+
+
+def axis_median_filter():
+
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Performs a median filtering on an image stack along the given axis',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('stack', type=str,
+                        help='Path of the input stack')
+    parser.add_argument('out_path', type=str,
+                        help='Output location. Must be either a directory or an h5 file name. '
+                             'Will be created if not existing')
+    parser.add_argument('--key', type=str, default='data',
+                        help='For h5 or ome.zarr input stacks this key is used to locate the dataset inside the stack '
+                             'location; default="data"')
+    parser.add_argument('--pattern', type=str, default='*.tif',
+                        help='File pattern to search for within the input folder; default = "*.tif"')
+    parser.add_argument('--median_radius', type=int, default=2,
+                        help='Radius of the median filter. The window for the filter will be 2*radius+1; default=2')
+    parser.add_argument('--axis', type=int, default=0,
+                        help='Axis along which the filter will be applied; default=0 (z-axis)')
+    parser.add_argument('--operation', type=str, default=None,
+                        help='Operation performed with input and result; default=None \n'
+                             ' - None: output = result; dtype = float \n'
+                             ' - "difference": output = input - result; dtype: float \n'
+                             ' - "difference-clip": output = clip(input - result); dtype: dtype(input)')
+    parser.add_argument('--z_range', type=int, nargs=2, default=None,
+                        help='Use certain slices of the stack only; Defaults to the entire stack')
+    parser.add_argument('--batch_size', type=int, default=None,
+                        help='Defines the number of slices per batch (decreases memory requirement); default=None')
+    parser.add_argument('--n_workers', type=int, default=1,
+                        help='Number of CPUs to use; Parallelization is implemented over the slices within one batch;'
+                             'Hence, n_workers > batch_size does not decrease run-time')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    stack = args.stack
+    out_path = args.out_path
+    key = args.key
+    pattern = args.pattern
+    median_radius = args.median_radius
+    axis = args.axis
+    operation = args.operation
+    z_range = args.z_range
+    batch_size = args.batch_size
+    n_workers = args.n_workers
+    verbose = args.verbose
+
+    from squirrel.workflows.volume import axis_median_filter_workflow
+
+    axis_median_filter_workflow(
+        stack,
+        out_path,
+        key=key,
+        pattern=pattern,
+        median_radius=median_radius,
+        axis=axis,
+        operation=operation,
+        z_range=z_range,
+        batch_size=batch_size,
+        n_workers=n_workers,
+        verbose=verbose,
+    )
+
+
+def get_label_list():
+
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Runs numpy unique on a large volume dataset',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('input_path', type=str,
+                        help='Path of the input stack')
+    parser.add_argument('--key', type=str, default=None,
+                        help='For h5 or ome.zarr input stacks this key is used to locate the dataset inside the stack '
+                             'location; default=None which will be interpreted as "s0" for ome.zarr, "data" for h5 and "setup0/timepoint0/s0" for n5')
+    parser.add_argument('--pattern', type=str, default=None,
+                        help='File pattern to search for within the input folder; default=None (which is interpreted as "*.tif")')
+    parser.add_argument('--out_json', type=str, default=None,
+                        help='This will trigger writing an output file in json format containing the unique labels; '
+                             'default=None will only write it to console')
+    parser.add_argument('--z_batch_size', type=int, default=1,
+                        help='Defines the number of slices per batch (decreases memory requirement); default=1')
+    parser.add_argument('--n_workers', type=int, default=1,
+                        help='Number of CPUs to use; Parallelization is implemented over the batches')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    input_path = args.input_path
+    key = args.key
+    pattern = args.pattern
+    out_json = args.out_json
+    z_batch_size = args.z_batch_size
+    n_workers = args.n_workers
+    verbose = args.verbose
+
+    from squirrel.workflows.volume import get_label_list_workflow
+
+    get_label_list_workflow(
+        input_path,
+        key=key,
+        pattern=pattern,
+        out_json=out_json,
+        z_batch_size=z_batch_size,
+        n_workers=n_workers,
+        verbose=verbose,
+    )
+
+
+def tif_nearest_scaling():
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Scales a tif stack using nearest interpolation',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('input_dirpath', type=str,
+                        help='Path of the input tif stack')
+    parser.add_argument('output_dirpath', type=str,
+                        help='Path of the output tif stack')
+    parser.add_argument('--pattern', type=str, default='*.tif',
+                        help='File pattern to search for within the input folder; default="*.tif"')
+    parser.add_argument('--scale_factors', type=float, nargs=3, default=[1., 1., 1.],
+                        help='Scale factors in z, y, and x; default=[1., 1., 1.], i.e. no scaling')
+    parser.add_argument('--n_workers', type=int, default=1,
+                        help='Number of CPUs to use; Parallelization is implemented over the batches')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    input_dirpath = args.input_dirpath
+    output_dirpath = args.output_dirpath
+    pattern = args.pattern
+    scale_factors = args.scale_factors
+    n_workers = args.n_workers
+    verbose = args.verbose
+
+    from squirrel.workflows.volume import tif_nearest_scaling_workflow
+
+    tif_nearest_scaling_workflow(
+        input_dirpath,
+        output_dirpath,
+        pattern=pattern,
+        scale_factors=scale_factors,
+        n_workers=n_workers,
+        verbose=verbose,
+    )
+

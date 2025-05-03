@@ -185,6 +185,7 @@ def stack_to_ome_zarr_workflow(
         name=None,
         chunk_size=(64, 64, 64),
         z_range=None,
+        xy_range=None,  # [x, y, w, h]
         save_bounds=False,
         append=False,
         n_threads=1,
@@ -198,6 +199,7 @@ def stack_to_ome_zarr_workflow(
         print(f'stack_key = {stack_key}')
         print(f'chunk_size = {chunk_size}')
         print(f'z_range = {z_range}')
+        print(f'xy_range = {xy_range}')
         print(f'n_threads = {n_threads}')
 
     from squirrel.library.data import norm_z_range
@@ -207,10 +209,18 @@ def stack_to_ome_zarr_workflow(
     input_stack_handle, input_stack_shape = load_data_handle(stack_path, key=stack_key, pattern=stack_pattern)
 
     z_range = norm_z_range(z_range, input_stack_shape[0])
-    chunk_data = input_stack_handle[z_range[0]: z_range[1]]
+    if xy_range is None:
+        chunk_data = input_stack_handle[z_range[0]: z_range[1]]
+    else:
+        chunk_data = input_stack_handle[z_range[0]: z_range[1]][
+            :,
+            xy_range[1]: xy_range[1] + xy_range[3],
+            xy_range[0]: xy_range[0] + xy_range[2]
+        ]
 
     # Create ome zarr if necessary
     if not append:
+        assert xy_range is None, 'ome-zarr creation not implemented for cropping in xy!'
         from ..library.ome_zarr import create_ome_zarr
         create_ome_zarr(
             ome_zarr_filepath,
@@ -265,3 +275,240 @@ def ome_zarr_to_stack_workflow(
     from squirrel.library.io import write_tif_stack
     write_tif_stack(chunk_data, target_dirpath, id_offset=z_range[0], slice_name='slice_{:05d}.tif')
 
+
+def n5_to_stack_workflow(
+        n5_filepath,
+        target_dirpath,
+        n5_key='setup0/timepoint0/s0',
+        z_range=None,
+        z_batch_size=None,
+        n_threads=1,
+        verbose=False
+):
+
+    if verbose:
+        print(f'n5_filepath = {n5_filepath}')
+        print(f'target_dirpath = {target_dirpath}')
+        print(f'n5_key = {n5_key}')
+        print(f'z_range = {z_range}')
+        print(f'n_threads = {n_threads}')
+
+    from squirrel.library.n5 import get_n5_handle
+
+    if z_batch_size is not None:
+        assert z_range is None
+
+        handle = get_n5_handle(n5_filepath, n5_key, mode='r')
+
+        for idx in range(0, handle.shape[0], z_batch_size):
+            n5_to_stack_workflow(
+                n5_filepath,
+                target_dirpath,
+                n5_key=n5_key,
+                z_range=[idx, idx + z_batch_size],
+                z_batch_size=None,
+                n_threads=n_threads,
+                verbose=verbose
+            )
+
+        return
+
+    # Load the n5
+    from squirrel.library.data import norm_z_range
+    handle = get_n5_handle(n5_filepath, n5_key, mode='r')
+    z_range = norm_z_range(z_range, handle.shape[0])
+    chunk_data = handle[z_range[0]: z_range[1], :]
+
+    # Save to the tif stack
+    if not os.path.exists(target_dirpath):
+        os.mkdir(target_dirpath)
+    from squirrel.library.io import write_tif_stack
+    write_tif_stack(chunk_data, target_dirpath, id_offset=z_range[0], slice_name='slice_{:05d}.tif')
+
+
+def _relabel_and_write_subvolume(
+        data_h, z_range, mapping, target_dtype, target_path,
+        check_for_existing=True, n_workers=1
+):
+
+    if check_for_existing:
+        exist_all = True
+        for idx in range(*z_range):
+            if not os.path.exists(os.path.join(target_path, 'slice{:05d}.tif')):
+                exist_all = False
+                break
+        if exist_all:
+            return
+
+    start_idx = z_range[0]
+    map_func = np.vectorize(mapping.get)
+
+    relabeled = np.zeros((z_range[1] - z_range[0], data_h.shape[1], data_h.shape[2]), dtype=target_dtype)
+
+    for idy in range(0, data_h.shape[1], data_h.chunks[1]):
+        for idx in range(0, data_h.shape[2], data_h.chunks[2]):
+            print(f'writing chunk idx, idy, idz: {idx}, {idy}, {z_range[0]}')
+            try:
+                data = data_h[
+                       z_range[0]: z_range[1],
+                       idy: idy + data_h.chunks[1],
+                       idx: idx + data_h.chunks[2],
+                ]
+            except TypeError:
+                # For tiff slices it has to be done like this
+                data = data_h[
+                    z_range[0]: z_range[1]
+                ][
+                    idy: idy + data_h.chunks[1],
+                    idx: idx + data_h.chunks[2],
+                ]
+
+            # data = data_h[z_range[0]: z_range[1]]
+            this_relabeled = map_func(data).astype(target_dtype)
+            # print(np.unique(this_relabeled))
+            relabeled[:, idy: idy + data_h.chunks[1], idx: idx + data_h.chunks[2]] = this_relabeled
+
+    from squirrel.library.io import write_tif_stack
+    write_tif_stack(relabeled, target_path, id_offset=start_idx, slice_name='slice{:05d}.tif')
+
+
+def cast_dtype_workflow(
+        input_path,
+        target_path,
+        label_mapping=None,
+        key=None,
+        pattern=None,
+        target_key=None,
+        target_dtype='uint8',
+        z_batch_size=1,
+        n_workers=1,
+        verbose=False
+):
+
+    if verbose:
+        print(f'input_path = {input_path}')
+        print(f'target_path = {target_path}')
+        print(f'type(label_mapping) = {type(label_mapping)}')
+        print(f'key = {key}')
+        print(f'target_key = {target_key}')
+        print(f'target_dtype = {target_dtype}')
+        print(f'z_batch_size = {z_batch_size}')
+        print(f'n_workers = {n_workers}')
+
+    if label_mapping is not None:
+        if type(label_mapping) == str:
+            import json
+            label_mapping = json.load(open(label_mapping, mode='r'))
+        assert type(label_mapping) == dict
+
+    from squirrel.library.io import load_data_handle, get_filetype
+    h, shape = load_data_handle(input_path, key, pattern)
+
+    ft = get_filetype(target_path)
+    if ft != 'dir':
+        raise ValueError('Only implemented for tif stack output')
+
+    if not os.path.exists(target_path):
+        os.mkdir(target_path)
+
+    if n_workers == 1:
+        for idx in range(0, shape[0], z_batch_size):
+            z_range = [idx, min(idx + z_batch_size, shape[0])]
+            _relabel_and_write_subvolume(h, z_range, label_mapping, target_dtype, target_path)
+    else:
+        # from concurrent.futures import ThreadPoolExecutor
+        # with ThreadPoolExecutor(max_workers=n_workers) as tpe:
+        #     tasks = [
+        #         tpe.submit(
+        #             _relabel_and_write_subvolume,
+        #             h, [idx, min(idx + z_batch_size, shape[0])], label_mapping, target_dtype, target_path
+        #         )
+        #         for idx in range(0, shape[0], z_batch_size)
+        #     ]
+        #     [task.result() for task in tasks]
+
+        from multiprocessing import Pool
+        with Pool(processes=n_workers) as p:
+            tasks = [
+                p.apply_async(
+                    _relabel_and_write_subvolume,
+                    (h, [idx, min(idx + z_batch_size, shape[0])], label_mapping, target_dtype, target_path))
+                for idx in range(0, shape[0], z_batch_size)
+            ]
+            [task.get() for task in tasks]
+
+    # for idx in range(0, shape[0], z_batch_size):
+    #     z_range = [idx, min(idx + z_batch_size, shape[0])]
+    #     _relabel_and_write_subvolume(h, z_range, label_mapping, target_dtype, target_path, n_workers=n_workers)
+
+
+def cast_segmentation_workflow(
+        input_path,
+        target_path,
+        key=None,  # Defaults: ome.zarr: "s0"; n5: "setup0/timepoint0/s0"
+        pattern=None,
+        target_key=None,  # Defaults to input_key
+        target_dtype=None,  # None: Tries to find the best-suitable data type. Only for integer types and only use for segmentations!
+        out_json=None,
+        z_batch_size=1,
+        n_workers=1,
+        verbose=False
+):
+
+    from squirrel.library.io import load_data_handle
+    from squirrel.workflows.volume import get_label_list_workflow
+    from squirrel.library.data import get_optimal_dtype
+
+    # If target_dtype is None and source_dtype in ['uint8', 'uint16', 'uint32', 'uint64']
+    #   -> Determine all labels in the data
+    label_mapping = None
+
+    if out_json is not None:
+        assert target_dtype is None
+        if os.path.exists(out_json):
+            if verbose:
+                print(f'Reading out json: {out_json} ...')
+            import json
+            label_list = json.load(open(out_json, mode='r'))
+            label_mapping = dict(zip(label_list, range(len(label_list))))
+            target_dtype = get_optimal_dtype(len(label_list))
+
+    if target_dtype is None and label_mapping is None:
+
+        if verbose:
+            print(f'Computing label list and mapping ...')
+
+        h, shape = load_data_handle(input_path, key, pattern)
+
+        if h.dtype in ['uint8', 'uint16', 'uint32', 'uint64']:
+            label_list = get_label_list_workflow(
+                input_path, key, pattern,
+                z_batch_size=z_batch_size, n_workers=n_workers,
+                out_json=out_json,
+                quiet=True, verbose=verbose
+            )
+
+            # Set up a dictionary to re-assign the labels
+            label_mapping = dict(zip(label_list, range(len(label_list))))
+
+            if verbose:
+                print(f'label_mapping = {label_mapping}')
+
+            target_dtype = get_optimal_dtype(len(label_list))
+
+        else:
+            raise ValueError('target_dtype needs to be specified for non-integer volumes')
+
+    # Iterate the batches and write the results
+    cast_dtype_workflow(
+        input_path,
+        target_path,
+        label_mapping=label_mapping,
+        key=key,
+        pattern=pattern,
+        target_key=target_key,
+        target_dtype=target_dtype,
+        z_batch_size=z_batch_size,
+        n_workers=n_workers,
+        verbose=verbose
+    )

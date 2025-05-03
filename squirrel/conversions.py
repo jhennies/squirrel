@@ -184,7 +184,7 @@ def ome_zarr_to_stack():
     import argparse
 
     parser = argparse.ArgumentParser(
-        description='Convert a dataset within a h5 container or a tif stack to ome.zarr',
+        description='Convert a ome.zarr dataset to a tif stack',
         formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument('ome_zarr_filepath', type=str,
@@ -215,6 +215,153 @@ def ome_zarr_to_stack():
         ome_zarr_key=ome_zarr_key,
         z_range=z_range,
         n_threads=n_threads,
+        verbose=verbose,
+    )
+
+
+def n5_to_stack():
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Convert a n5 dataset to a tif stack',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('n5_filepath', type=str,
+                        help='Input n5 dataset')
+    parser.add_argument('target_dirpath', type=str,
+                        help='Output tif stack')
+    parser.add_argument('--n5_key', type=str, default='setup0/timepoint0/s0',
+                        help='Path within input n5 dataset; default="setup0/timepoint0/s0"')
+    parser.add_argument('--z_range', type=int, nargs=2, default=None,
+                        help='Use certain slices of the stack only; Defaults to the entire stack')
+    parser.add_argument('--z_batch_size', type=int, default=None,
+                        help='Processes data in batches to reduce memory consumption')
+    parser.add_argument('--n_threads', type=int, default=1,
+                        help='Number of CPUs to use')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    n5_filepath = args.n5_filepath
+    target_dirpath = args.target_dirpath
+    n5_key = args.n5_key
+    z_range = args.z_range
+    z_batch_size = args.z_batch_size
+    n_threads = args.n_threads
+    verbose = args.verbose
+
+    from squirrel.workflows.convert import n5_to_stack_workflow
+
+    n5_to_stack_workflow(
+        n5_filepath,
+        target_dirpath,
+        n5_key=n5_key,
+        z_range=z_range,
+        z_batch_size=z_batch_size,
+        n_threads=n_threads,
+        verbose=verbose,
+    )
+
+
+def cast_dtype():
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Casts a dataset to a different data type',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('input_path', type=str,
+                        help='Input data')
+    parser.add_argument('target_dirpath', type=str,
+                        help='Output stack')
+    parser.add_argument('--input_key', type=str, default='data',
+                        help='Path within input dataset; default="data"')
+    parser.add_argument('--input_pattern', type=str, default='*.tif',
+                        help='File pattern used for tif stacks')
+    parser.add_argument('-dtype', '--target_dtype', type=str, default='float32',
+                        help='The datatype to cast to ')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    input_path = args.input_path
+    target_dirpath = args.target_dirpath
+    input_key = args.input_key
+    input_pattern = args.input_pattern
+    target_dtype = args.target_dtype
+    verbose = args.verbose
+
+    from squirrel.workflows.convert import cast_dtype_workflow
+
+    cast_dtype_workflow(
+        input_path,
+        target_dirpath,
+        input_key=input_key,
+        input_pattern=input_pattern,
+        target_dtype=target_dtype,
+        verbose=verbose,
+    )
+
+
+def cast_segmentation():
+
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Casts the dtype of a large dataset and optimizes the labels of segmentations',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('input_path', type=str,
+                        help='Path of the input stack')
+    parser.add_argument('target_path', type=str,
+                        help='Path of the output stack')
+    parser.add_argument('--key', type=str, default=None,
+                        help='For h5 or ome.zarr input stacks this key is used to locate the dataset inside the stack '
+                             'location; default=None which will be interpreted as "s0" for ome.zarr, "data" for h5 and "setup0/timepoint0/s0" for n5')
+    parser.add_argument('--pattern', type=str, default=None,
+                        help='File pattern to search for within the input folder; default=None (which is interpreted as "*.tif")')
+    parser.add_argument('--target_key', type=str, default=None,
+                        help='Key of the output dataset; defaults to --key')
+    parser.add_argument('--target_dtype', type=str, default=None,
+                        help='Dtype to which the data will be casted. \n'
+                             'Note, that if specified, the type casting will be performed without checking the data '
+                             'values! \n'
+                             'If not specified, the data values will be optimally mapped to consecutive labels and the '
+                             'resulting optimal data type will be determined.')
+    parser.add_argument('--out_json', type=str, default=None,
+                        help='Json file in which the label mapping will be saved;'
+                             'If this file exists it will not be re-computed and instead used for the mapping')
+    parser.add_argument('--z_batch_size', type=int, default=1,
+                        help='Defines the number of slices per batch (decreases memory requirement); default=1')
+    parser.add_argument('--n_workers', type=int, default=1,
+                        help='Number of CPUs to use; Parallelization is implemented over the batches')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    input_path = args.input_path
+    target_path = args.target_path
+    key = args.key
+    pattern = args.pattern
+    target_key = args.target_key
+    target_dtype = args.target_dtype
+    out_json = args.out_json
+    z_batch_size = args.z_batch_size
+    n_workers = args.n_workers
+    verbose = args.verbose
+
+    from squirrel.workflows.convert import cast_segmentation_workflow
+
+    cast_segmentation_workflow(
+        input_path,
+        target_path,
+        key=key,
+        pattern=pattern,
+        target_key=target_key,
+        target_dtype=target_dtype,
+        out_json=out_json,
+        z_batch_size=z_batch_size,
+        n_workers=n_workers,
         verbose=verbose,
     )
 

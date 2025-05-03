@@ -11,7 +11,7 @@ setup(
     url='https://github.com/jhennies/squirrel',
     license="GPLv3",
     packages=['squirrel'],
-    entry_points={
+    entry_points={  # Naming scheme: sq-<namespace>-<func-name>, e.g. sq-stack-tif_nearest_scaling
         'console_scripts': [
             'apply_stack_alignment = squirrel.apply_transformation:apply_stack_alignment',
             'apply_affine_on_volume = squirrel.apply_transformation:affine_on_volume',
@@ -20,7 +20,6 @@ setup(
             'average_affine_on_volume = squirrel.apply_transformation:average_affine_on_volume',
             'sequential_affine_on_volume = squirrel.apply_transformation:sequential_affine_on_volume',
             'decompose_affine_matrix = squirrel.apply_transformation:decompose_affine_matrix',
-            'compress_tif_stack = squirrel.stack_operations:compress_tif_stack',
             'elastix_on_volume3d = squirrel.elastix_registration:elastix_on_volume3d',
             'elastix_slices_to_volume = squirrel.elastix_registration:elastix_slices_to_volume',
             'elastix_register_z_chunks = squirrel.elastix_registration:register_z_chunks',
@@ -34,11 +33,9 @@ setup(
             'mib_to_tif = squirrel.conversions:mib_to_tif',
             'stack_to_ome_zarr = squirrel.conversions:stack_to_ome_zarr',
             'ome_zarr_to_stack = squirrel.conversions:ome_zarr_to_stack',
-            'normalize_slices = squirrel.stack_operations:normalize_slices',
             'sift2d_stack_alignment = squirrel.sift2d:sift2d_stack_alignment',
             'sift3d = squirrel.sift3d:main',
             'merge_tif_stacks = squirrel.stack_operations:merge_tif_stacks',
-            'stack_calculator = squirrel.stack_operations:stack_calculator',
             'view_in_napari = squirrel.view_in_napari:main',
             'linalg_dot_product_on_affines = squirrel.linear_algebra:dot_product_on_affines',
             'linalg_scale_sequential_affines = squirrel.linear_algebra:scale_sequential_affines',
@@ -50,10 +47,24 @@ setup(
             'linalg_crop_transform_sequence = squirrel.linear_algebra:crop_transform_sequence',
             'linalg_apply_z_step = squirrel.linear_algebra:apply_z_step',
             'template_matching_stack_alignment = squirrel.template_matching:template_matching_stack_alignment',
-            'crop_from_stack = squirrel.stack_operations:crop_from_stack',
             'apply_auto_pad = squirrel.apply_transformation:apply_auto_pad',
             'fiji_sift_log_to_affine_stack = squirrel.fiji:sift_log_to_affine_stack',
-            'sq-init-mobie-project = squirrel.mobie:init_mobie_project'
+            'sq-mobie-init_project = squirrel.mobie:init_mobie_project',
+            'sq-mobie-export_rois_with_mobie_table = squirrel.mobie:export_rois_with_mobie_table',
+            'sq-conversion-n5_to_stack = squirrel.conversions:n5_to_stack',
+            'sq-conversion-cast_dtype = squirrel.conversions:cast_dtype',
+            'sq-conversion-cast_segmentation = squirrel.conversions:cast_segmentation',
+            'sq-serialem-parse_navigator_file = squirrel.serial_em:parse_navigator_file',
+            'sq-serialem-create_link_maps = squirrel.serial_em:create_link_maps',
+            'sq-stack-axis_median_filter = squirrel.stack_operations:axis_median_filter',
+            'sq-stack-get_label_list = squirrel.stack_operations:get_label_list',
+            'sq-stack-tif_nearest_scaling = squirrel.stack_operations:tif_nearest_scaling',
+            'sq-stack-invert_slices = squirrel.stack_operations:invert_slices',
+            'sq-stack-normalize_slices = squirrel.stack_operations:normalize_slices',
+            'sq-stack-compress_tif_stack = squirrel.stack_operations:compress_tif_stack',
+            'sq-stack-crop_from_stack = squirrel.stack_operations:crop_from_stack',
+            'sq-stack-calculator = squirrel.stack_operations:stack_calculator',
+            'sq-stack-clahe_on_stack = squirrel.stack_operations:clahe_on_stack'
         ]
     },
     install_requires=[

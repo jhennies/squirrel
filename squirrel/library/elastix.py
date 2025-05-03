@@ -138,18 +138,19 @@ def make_auto_mask(image, disk_size=6):
     return mask
 
 
-def big_jump_pre_fix(moving_image, fixed_image, iou_thresh=0.5, verbose=False):
+def big_jump_pre_fix(moving_orig, fixed_orig, moving_image, fixed_image, iou_thresh=0.5, verbose=False):
 
-    union = np.zeros(moving_image.shape, dtype=bool)
-    union[moving_image > 0] = True
-    union[fixed_image > 0] = True
+    union = np.zeros(moving_orig.shape, dtype=bool)
+    union[moving_orig > 0] = True
+    union[fixed_orig > 0] = True
 
-    intersection = np.zeros(moving_image.shape, dtype=bool)
-    intersection[np.logical_and(moving_image > 0, fixed_image > 0)] = True
+    intersection = np.zeros(moving_orig.shape, dtype=bool)
+    intersection[np.logical_and(moving_orig > 0, fixed_orig > 0)] = True
 
     iou = intersection.sum() / union.sum()
+    print(f'IoU = {iou}')
     if iou < iou_thresh:
-        print(f'Fixing big jump! (IoU = {iou})')
+        print(f'Fixing big jump! (IoU = {iou} < {iou_thresh})')
         from skimage.registration import phase_cross_correlation
         from scipy.ndimage.interpolation import shift
 
@@ -273,6 +274,12 @@ def register_with_elastix(
         fixed_image = fixed_image[bounds]
         moving_image = moving_image[bounds]
 
+    moving_orig = None
+    fixed_orig = None
+    if pre_fix_big_jumps:
+        moving_orig = moving_image.copy()
+        fixed_orig = fixed_image.copy()
+
     if use_clahe:
         from squirrel.library.normalization import clahe_on_image
         fixed_image = clahe_on_image(fixed_image)
@@ -286,10 +293,10 @@ def register_with_elastix(
         from skimage.filters import gaussian
         fixed_image = gaussian(fixed_image.astype(float), gaussian_sigma).astype(dtype)
         moving_image = gaussian(moving_image.astype(float), gaussian_sigma).astype(dtype)
-        if mask is not None:
-            from skimage.morphology import erosion
-            from skimage.morphology import disk
-            mask = erosion(mask, footprint=disk(2 * gaussian_sigma))
+        # if mask is not None:
+        #     from skimage.morphology import erosion
+        #     from skimage.morphology import disk
+        #     mask = erosion(mask, footprint=disk(2 * gaussian_sigma))
     if use_edges:
         from skimage.filters import sobel
         fixed_image = sobel(fixed_image.astype(float))
@@ -297,14 +304,21 @@ def register_with_elastix(
         # from tifffile import imwrite, imsave
         # imwrite('/media/julian/Data/tmp/00mask.tif', mask)
         # imwrite('/media/julian/Data/tmp/00fixed.tif', fixed_image)
-        if mask is not None:
-            fixed_image[mask == 0] = 0
-            moving_image[mask == 0] = 0
+        # if mask is not None:
+        #     fixed_image[mask == 0] = 0
+        #     moving_image[mask == 0] = 0
 
     if auto_mask:
         fixed_mask = make_auto_mask(fixed_image, disk_size=6)
         moving_mask = make_auto_mask(moving_image, disk_size=6)
         mask = fixed_mask * moving_mask
+        if gaussian_sigma > 0:
+            from skimage.morphology import erosion
+            from skimage.morphology import disk
+            mask = erosion(mask, footprint=disk(2 * gaussian_sigma))
+        if use_edges:
+            fixed_image[mask == 0] = 0
+            moving_image[mask == 0] = 0
         if verbose:
             print(f'image shape after auto_mask: {fixed_image.shape}')
 
@@ -312,16 +326,24 @@ def register_with_elastix(
         assert type(fixed_image) == np.ndarray
         assert type(moving_image) == np.ndarray
         from squirrel.library.data import norm_full_range
-        fixed_image = norm_full_range(fixed_image, (0.05, 0.95), ignore_zeros=False, mask=mask)
-        moving_image = norm_full_range(moving_image, (0.05, 0.95), ignore_zeros=False, mask=mask)
+        fixed_image = norm_full_range(fixed_image, (0.05, 0.95), ignore_zeros=False, mask=mask, cast_8bit=True)
+        moving_image = norm_full_range(moving_image, (0.05, 0.95), ignore_zeros=False, mask=mask, cast_8bit=True)
 
     pre_fix_offsets = np.array((0., 0.))
+    if verbose:
+        print(f'Checking whether to run pre-fix for big jumps...')
     if pre_fix_big_jumps:
+        if verbose:
+            print(f'Running pre-fix for big jumps!')
         assert type(fixed_image) == np.ndarray
         assert type(moving_image) == np.ndarray
         if transform != 'translation':
             raise NotImplementedError('Big jump fixing only implemented for translations!')
-        pre_fix_offsets, moving_image = big_jump_pre_fix(moving_image, fixed_image, iou_thresh=pre_fix_iou_thresh, verbose=verbose)
+        pre_fix_offsets, moving_image = big_jump_pre_fix(
+            moving_orig, fixed_orig,
+            moving_image, fixed_image,
+            iou_thresh=pre_fix_iou_thresh, verbose=verbose
+        )
         pre_fix_offsets = np.array(pre_fix_offsets)
 
     if verbose:

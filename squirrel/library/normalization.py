@@ -71,8 +71,76 @@ def normalize_slices(
 def clahe_on_image(
         image,
         clip_limit=3.0,
-        tile_grid_size=(127, 127)
+        tile_grid_size=(127, 127),
+        cast_dtype=None,
+        invert_output=False,
+        gaussian_sigma=0.0,
 ):
     from cv2 import createCLAHE
     clahe = createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
-    return clahe.apply(image)
+
+    clahe_filtered = clahe.apply(image)
+    dtype_in = clahe_filtered.dtype
+
+    if gaussian_sigma > 0.0:
+        from vigra.filters import gaussianSmoothing
+        clahe_filtered = gaussianSmoothing(clahe_filtered.astype('float32'), gaussian_sigma).astype(dtype_in)
+    if invert_output:
+        from squirrel.library.volume import invert_image
+        clahe_filtered = invert_image(clahe_filtered)
+
+    if cast_dtype is None:
+        return clahe_filtered
+
+    dtype_out = np.dtype(cast_dtype)
+    max_val_in = np.iinfo(dtype_in).max
+    max_val_out = np.iinfo(dtype_out).max
+    return (clahe_filtered.astype('float64') / max_val_in * max_val_out).astype(dtype_out)
+
+
+def clahe_on_slices(
+        stack,
+        clip_limit=3.0,
+        tile_grid_size=(127, 127),
+        cast_dtype=None,
+        invert_output=False,
+        gaussian_sigma=0.0,
+        z_range=None,
+        n_workers=1
+):
+
+    from squirrel.library.data import norm_z_range
+    stack_shape = stack.shape
+    z_range = norm_z_range(z_range, stack_shape[0])
+
+    if n_workers == 1:
+
+        result_stack = []
+        for idx in range(*z_range):
+            img = stack[idx]
+            result_stack.append(
+                clahe_on_image(
+                    img, clip_limit, tile_grid_size,
+                    cast_dtype, invert_output, gaussian_sigma
+                )
+            )
+
+    else:
+        print(f'Running with {n_workers} CPUs')
+        from multiprocessing import Pool
+
+        with Pool(processes=n_workers) as p:
+            tasks = []
+            for idx in range(*z_range):
+                img = stack[idx]
+                tasks.append(
+                    p.apply_async(
+                        clahe_on_image, (
+                            img, clip_limit, tile_grid_size,
+                            cast_dtype, invert_output, gaussian_sigma
+                        )
+                    )
+                )
+            result_stack = [task.get() for task in tasks]
+
+    return np.array(result_stack)

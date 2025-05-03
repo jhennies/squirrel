@@ -27,14 +27,14 @@ def sift3d_workflow(
 
     from squirrel.library.io import get_filetype, load_nii_file
     from squirrel.library.sift3d import run_sift3d
-    from squirrel.workflows.convert import h5_to_nii
+    from squirrel.workflows.convert import h5_to_nii_workflow
 
     # FIXME This should be moved to the library
     def _create_nii_file(h5_filepath, h5_key, out_path):
         nii_filepath = os.path.join(
             out_path, os.path.splitext(os.path.split(h5_filepath)[1])[0] + '.nii'
         )
-        h5_to_nii(h5_filepath, h5_key, nii_filepath)
+        h5_to_nii_workflow(h5_filepath, h5_key, nii_filepath)
         return nii_filepath
 
     if not os.path.exists(out_path):
