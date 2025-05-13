@@ -140,6 +140,8 @@ def make_auto_mask(image, disk_size=6, method='non-zero', variance_filter_size=3
         mask = np.zeros(image.shape, dtype='uint8')
         mask[:mask_t.shape[0], :mask_t.shape[1]] = mask_t
         mask[image == 0] = 0
+    if mask is None:
+        raise ValueError(f'Invalid auto-mask method: {method}')
 
     footprint = disk(disk_size)
     mask = binary_closing(mask, footprint).astype('uint8')
