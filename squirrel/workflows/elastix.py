@@ -244,7 +244,7 @@ def elastix_stack_alignment_workflow(
         transform='translation',
         key='data',
         pattern='*.tif',
-        auto_mask=False,
+        auto_mask=None,
         number_of_spatial_samples=None,
         maximum_number_of_iterations=None,
         number_of_resolutions=None,

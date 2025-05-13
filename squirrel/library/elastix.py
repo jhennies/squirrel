@@ -126,15 +126,24 @@ def get_affine_rotation_parameters(euler_angles):
     return sitk.Euler3DTransform((0, 0, 0), *euler_angles).GetMatrix()
 
 
-def make_auto_mask(image, disk_size=6):
+def make_auto_mask(image, disk_size=6, method='non-zero', variance_filter_size=3, variance_thresh=10):
     from skimage.morphology import binary_closing, disk
+    from squirrel.library.scaling import scale_image_nearest
+
+    mask = None
+    if method == 'non-zero':
+        mask = (image > 0).astype('uint8')
+    if method == 'variance':
+        from scipy.ndimage import generic_filter
+        mask_t = (generic_filter(scale_image_nearest(image, scale_factors=[0.25, 0.25]), np.var, size=variance_filter_size) > variance_thresh).astype('uint8')
+        mask_t = scale_image_nearest(mask_t, scale_factors=[4, 4])
+        mask = np.zeros(image.shape, dtype='uint8')
+        mask[:mask_t.shape[0], :mask_t.shape[1]] = mask_t
+        mask[image == 0] = 0
 
     footprint = disk(disk_size)
-    mask = binary_closing((image > 0).astype('uint8'), footprint).astype('uint8')
+    mask = binary_closing(mask, footprint).astype('uint8')
 
-    # from vigra.filters import discClosing
-    # mask = (image > 0).astype('uint8')
-    # mask = discClosing(mask, 1)
     return mask
 
 
@@ -178,7 +187,7 @@ def register_with_elastix(
         automatic_transform_initialization=False,
         out_dir=None,
         params_to_origin=False,
-        auto_mask=False,
+        auto_mask=None,
         number_of_spatial_samples=None,
         maximum_number_of_iterations=None,
         number_of_resolutions=None,
@@ -228,7 +237,7 @@ def register_with_elastix(
     import SimpleITK as sitk
 
     # TODO: Properly expose crop_to_bounds independently of auto-masking
-    crop_to_bounds = auto_mask
+    crop_to_bounds = auto_mask is not None
     if crop_to_bounds_off:
         crop_to_bounds = False
     if transform == 'bspline':
@@ -261,6 +270,9 @@ def register_with_elastix(
     if transform is None:
         assert parameter_map is not None,  'Either parameter_map or transform must be specified!'
         transform = parameter_map['Transform'][0]
+    if debug_dirpath is not None:
+        from SimpleITK import WriteParameterFile
+        WriteParameterFile(parameter_map, os.path.join(debug_dirpath, 'elastix_parameters.txt'))
     # assert transform == parameter_map['Transform'][0]
 
     mask = None
@@ -282,6 +294,10 @@ def register_with_elastix(
         fixed_image = fixed_image[bounds]
         moving_image = moving_image[bounds]
 
+    if debug_dirpath is not None:
+        imwrite(os.path.join(debug_dirpath, '01-fixed-cropped.tif'), fixed_image)
+        imwrite(os.path.join(debug_dirpath, '01-moving-cropped.tif'), moving_image)
+
     moving_orig = None
     fixed_orig = None
     if pre_fix_big_jumps:
@@ -301,29 +317,24 @@ def register_with_elastix(
         from skimage.filters import gaussian
         fixed_image = gaussian(fixed_image.astype(float), gaussian_sigma).astype(dtype)
         moving_image = gaussian(moving_image.astype(float), gaussian_sigma).astype(dtype)
-        # if mask is not None:
-        #     from skimage.morphology import erosion
-        #     from skimage.morphology import disk
-        #     mask = erosion(mask, footprint=disk(2 * gaussian_sigma))
     if use_edges:
         from skimage.filters import sobel
         fixed_image = sobel(fixed_image.astype(float))
         moving_image = sobel(moving_image.astype(float))
-        # from tifffile import imwrite, imsave
-        # imwrite('/media/julian/Data/tmp/00mask.tif', mask)
-        # imwrite('/media/julian/Data/tmp/00fixed.tif', fixed_image)
-        # if mask is not None:
-        #     fixed_image[mask == 0] = 0
-        #     moving_image[mask == 0] = 0
 
-    if auto_mask:
-        fixed_mask = make_auto_mask(fixed_image, disk_size=6)
-        moving_mask = make_auto_mask(moving_image, disk_size=6)
+    if auto_mask is not None:
+        fixed_mask = make_auto_mask(fixed_image, disk_size=6, method=auto_mask)
+        moving_mask = make_auto_mask(moving_image, disk_size=6, method=auto_mask)
         mask = fixed_mask * moving_mask
+        if debug_dirpath is not None:
+            imwrite(os.path.join(debug_dirpath, '02-mask-from-fixed.tif'), fixed_mask)
+            imwrite(os.path.join(debug_dirpath, '02-mask-from-moving.tif'), moving_mask)
+            imwrite(os.path.join(debug_dirpath, '02-mask.tif'), mask)
         if gaussian_sigma > 0:
             from skimage.morphology import erosion
             from skimage.morphology import disk
-            mask = erosion(mask, footprint=disk(2 * gaussian_sigma))
+            import math
+            mask = erosion(mask, footprint=disk(int(math.ceil(3  * gaussian_sigma))))
         if use_edges:
             fixed_image[mask == 0] = 0
             moving_image[mask == 0] = 0
@@ -331,9 +342,9 @@ def register_with_elastix(
             print(f'image shape after auto_mask: {fixed_image.shape}')
 
     if debug_dirpath is not None:
-        imwrite(os.path.join(debug_dirpath, '01-fixed-pre-processed.tif'), fixed_image)
-        imwrite(os.path.join(debug_dirpath, '01-moving-pre-processed.tif'), moving_image)
-        imwrite(os.path.join(debug_dirpath, '01-mask-pre-processed.tif'), mask)
+        imwrite(os.path.join(debug_dirpath, '03-fixed-pre-processed.tif'), fixed_image)
+        imwrite(os.path.join(debug_dirpath, '03-moving-pre-processed.tif'), moving_image)
+        imwrite(os.path.join(debug_dirpath, '03-mask-pre-processed.tif'), mask)
 
     if normalize_images:
         assert type(fixed_image) == np.ndarray
@@ -343,9 +354,9 @@ def register_with_elastix(
         moving_image = norm_full_range(moving_image, (0.05, 0.95), ignore_zeros=False, mask=mask, cast_8bit=True)
 
     if debug_dirpath is not None:
-        imwrite(os.path.join(debug_dirpath, '02-fixed-normalized.tif'), fixed_image)
-        imwrite(os.path.join(debug_dirpath, '02-moving-normalized.tif'), moving_image)
-        imwrite(os.path.join(debug_dirpath, '02-mask-normalized.tif'), mask)
+        imwrite(os.path.join(debug_dirpath, '04-fixed-normalized.tif'), fixed_image)
+        imwrite(os.path.join(debug_dirpath, '04-moving-normalized.tif'), moving_image)
+        imwrite(os.path.join(debug_dirpath, '04-mask-normalized.tif'), mask)
 
     pre_fix_offsets = np.array((0., 0.))
     if verbose:
@@ -366,17 +377,6 @@ def register_with_elastix(
 
     if debug_dirpath is not None:
         imwrite(os.path.join(debug_dirpath, '03-moving-after-pre-fix.tif'), moving_image)
-
-    # if verbose:
-    #     import random
-    #     idx = random.randint(0, 1000)
-    #     debug_out_filepath = os.path.join(os.getcwd(), f'elastix_inputs_{idx}.h5')
-    #     print(f'Writing input images to {debug_out_filepath}')
-    #     from h5py import File
-    #     with File(debug_out_filepath, mode='w') as f:
-    #         f.create_dataset('fixed', data=fixed_image)
-    #         f.create_dataset('moving', data=moving_image)
-    #         f.create_dataset('mask', data=mask.astype('uint8'), compression='gzip')
 
     if type(fixed_image) == np.ndarray:
         if verbose:
