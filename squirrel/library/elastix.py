@@ -193,6 +193,7 @@ def register_with_elastix(
         crop_to_bounds_off=False,
         n_workers=os.cpu_count(),
         normalize_images=True,
+        debug_dirpath=None,
         verbose=False
 ):
 
@@ -216,6 +217,13 @@ def register_with_elastix(
         print(f'crop_to_bounds_off={crop_to_bounds_off}')
         print(f'n_workers={n_workers}')
         print(f'normalize_images={normalize_images}')
+        print(f'debug_dirpath = {debug_dirpath}')
+
+    if debug_dirpath is not None and not os.path.exists(debug_dirpath):
+        os.makedirs(debug_dirpath, exist_ok=True)
+        from tifffile import imwrite, imsave
+        imwrite(os.path.join(debug_dirpath, '00-fixed.tif'), fixed_image)
+        imwrite(os.path.join(debug_dirpath, '00-moving.tif'), moving_image)
 
     import SimpleITK as sitk
 
@@ -322,12 +330,22 @@ def register_with_elastix(
         if verbose:
             print(f'image shape after auto_mask: {fixed_image.shape}')
 
+    if debug_dirpath is not None:
+        imwrite(os.path.join(debug_dirpath, '01-fixed-pre-processed.tif'), fixed_image)
+        imwrite(os.path.join(debug_dirpath, '01-moving-pre-processed.tif'), moving_image)
+        imwrite(os.path.join(debug_dirpath, '01-mask-pre-processed.tif'), mask)
+
     if normalize_images:
         assert type(fixed_image) == np.ndarray
         assert type(moving_image) == np.ndarray
         from squirrel.library.data import norm_full_range
         fixed_image = norm_full_range(fixed_image, (0.05, 0.95), ignore_zeros=False, mask=mask, cast_8bit=True)
         moving_image = norm_full_range(moving_image, (0.05, 0.95), ignore_zeros=False, mask=mask, cast_8bit=True)
+
+    if debug_dirpath is not None:
+        imwrite(os.path.join(debug_dirpath, '02-fixed-normalized.tif'), fixed_image)
+        imwrite(os.path.join(debug_dirpath, '02-moving-normalized.tif'), moving_image)
+        imwrite(os.path.join(debug_dirpath, '02-mask-normalized.tif'), mask)
 
     pre_fix_offsets = np.array((0., 0.))
     if verbose:
@@ -346,16 +364,19 @@ def register_with_elastix(
         )
         pre_fix_offsets = np.array(pre_fix_offsets)
 
-    if verbose:
-        import random
-        idx = random.randint(0, 1000)
-        debug_out_filepath = os.path.join(os.getcwd(), f'elastix_inputs_{idx}.h5')
-        print(f'Writing input images to {debug_out_filepath}')
-        from h5py import File
-        with File(debug_out_filepath, mode='w') as f:
-            f.create_dataset('fixed', data=fixed_image)
-            f.create_dataset('moving', data=moving_image)
-            f.create_dataset('mask', data=mask.astype('uint8'), compression='gzip')
+    if debug_dirpath is not None:
+        imwrite(os.path.join(debug_dirpath, '03-moving-after-pre-fix.tif'), moving_image)
+
+    # if verbose:
+    #     import random
+    #     idx = random.randint(0, 1000)
+    #     debug_out_filepath = os.path.join(os.getcwd(), f'elastix_inputs_{idx}.h5')
+    #     print(f'Writing input images to {debug_out_filepath}')
+    #     from h5py import File
+    #     with File(debug_out_filepath, mode='w') as f:
+    #         f.create_dataset('fixed', data=fixed_image)
+    #         f.create_dataset('moving', data=moving_image)
+    #         f.create_dataset('mask', data=mask.astype('uint8'), compression='gzip')
 
     if type(fixed_image) == np.ndarray:
         if verbose:
