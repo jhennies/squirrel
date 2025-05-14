@@ -198,7 +198,7 @@ def amst_workflow(
         transform=transform,
         automatic_transform_initialization=False,
         out_dir=None,
-        auto_mask=not auto_mask_off,
+        auto_mask=None if auto_mask_off else 'non-zero',
         return_result_image=True,
         pre_fix_big_jumps=False,
         parameter_map=elastix_parameters,

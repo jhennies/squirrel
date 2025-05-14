@@ -336,7 +336,7 @@ def register_with_elastix(
             from skimage.morphology import erosion
             from skimage.morphology import disk
             import math
-            mask = erosion(mask, footprint=disk(int(math.ceil(3  * gaussian_sigma))))
+            mask = erosion(mask, footprint=disk(int(math.ceil(3 * gaussian_sigma))))
         if use_edges:
             fixed_image[mask == 0] = 0
             moving_image[mask == 0] = 0
@@ -346,7 +346,8 @@ def register_with_elastix(
     if debug_dirpath is not None:
         imwrite(os.path.join(debug_dirpath, '03-fixed-pre-processed.tif'), fixed_image)
         imwrite(os.path.join(debug_dirpath, '03-moving-pre-processed.tif'), moving_image)
-        imwrite(os.path.join(debug_dirpath, '03-mask-pre-processed.tif'), mask)
+        if mask is not None:
+            imwrite(os.path.join(debug_dirpath, '03-mask-pre-processed.tif'), mask)
 
     if normalize_images:
         assert type(fixed_image) == np.ndarray
@@ -358,7 +359,8 @@ def register_with_elastix(
     if debug_dirpath is not None:
         imwrite(os.path.join(debug_dirpath, '04-fixed-normalized.tif'), fixed_image)
         imwrite(os.path.join(debug_dirpath, '04-moving-normalized.tif'), moving_image)
-        imwrite(os.path.join(debug_dirpath, '04-mask-normalized.tif'), mask)
+        if mask is not None:
+            imwrite(os.path.join(debug_dirpath, '04-mask-normalized.tif'), mask)
 
     pre_fix_offsets = np.array((0., 0.))
     if verbose:
