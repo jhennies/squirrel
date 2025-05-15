@@ -244,7 +244,7 @@ def elastix_stack_alignment_workflow(
         transform='translation',
         key='data',
         pattern='*.tif',
-        auto_mask=False,
+        auto_mask=None,
         number_of_spatial_samples=None,
         maximum_number_of_iterations=None,
         number_of_resolutions=None,
@@ -260,7 +260,8 @@ def elastix_stack_alignment_workflow(
         parameter_map=None,
         quiet=False,
         overwrite=False,
-        verbose=False
+        verbose=False,
+        debug=False
 ):
 
     if not overwrite and os.path.exists(out_filepath):
@@ -316,7 +317,8 @@ def elastix_stack_alignment_workflow(
                 gaussian_sigma=gaussian_sigma,
                 use_clahe=use_clahe,
                 use_edges=use_edges,
-                verbose=verbose
+                verbose=verbose,
+                debug_dirpath=None if not debug else '{}.debug/{:05d}'.format(os.path.splitext(out_filepath)[0], idx)
             )
             transforms.append(result_matrix)
 

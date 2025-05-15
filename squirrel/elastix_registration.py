@@ -266,8 +266,9 @@ def elastix_stack_alignment():
                         help='The transformation; default="translation"')
     parser.add_argument('--pattern', type=str, default='*.tif',
                         help='Used to glob tif files from a tif stack folder; default="*.tif"')
-    parser.add_argument('--auto_mask', action='store_true',
-                        help='Automatically generates a mask for fixed and moving image')
+    parser.add_argument('--auto_mask', type=str, default='None',
+                        help='Automatically generates a mask for fixed and moving image; '
+                             'default=None; ["non-zero", "variance"]')
     parser.add_argument('--number_of_spatial_samples', type=int, default=None,
                         help='Elastix parameter')
     parser.add_argument('--maximum_number_of_iterations', type=int, default=None,
@@ -296,6 +297,8 @@ def elastix_stack_alignment():
     parser.add_argument('--determine_bounds', action='store_true',
                         help='Appends the bounding box of data within each slice to the results metadata. '
                              'Useful for auto-padding later on')
+    parser.add_argument('--debug', actions='store_true',
+                        help='Saves intermediate files for debugging')
     parser.add_argument('-v', '--verbose', action='store_true')
 
     args = parser.parse_args()
@@ -317,6 +320,7 @@ def elastix_stack_alignment():
     z_range = args.z_range
     z_step = args.z_step
     determine_bounds = args.determine_bounds
+    debug = args.debug
     verbose = args.verbose
 
     from squirrel.workflows.elastix import elastix_stack_alignment_workflow
@@ -340,6 +344,7 @@ def elastix_stack_alignment():
         z_range=z_range,
         z_step=z_step,
         determine_bounds=determine_bounds,
+        debug=debug,
         verbose=verbose
     )
 
