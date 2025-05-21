@@ -62,14 +62,22 @@ def update_mobie_table_entry(table_filepath, entry, item):
 def init_mobie_table(
         table_filepath,
         data_map_filepaths,
+        name=None,
         types='intensities',
         views='raw',
         groups='group1',
+        affine=None,
+        blend=None,
+        exclusive=None,
+        use_abs_path=False,
         verbose=False
 ):
     if verbose:
         print(f'table_filepath = {table_filepath}')
         print(f'data_map_filepaths = {data_map_filepaths}')
+
+    if os.path.exists(table_filepath):
+        os.remove(table_filepath)
 
     def _normalize_inputs(inp):
         if type(inp) == str:
@@ -86,14 +94,30 @@ def init_mobie_table(
     views = _normalize_inputs(views)
     groups = _normalize_inputs(groups)
 
-    append_mobie_table(
-        table_filepath,
-        dict(
-            uri=[os.path.relpath(p, os.path.split(table_filepath)[0]) for p in data_map_filepaths],
+    if use_abs_path:
+        uri = data_map_filepaths
+    else:
+        uri = [os.path.relpath(p, os.path.split(table_filepath)[0]) for p in data_map_filepaths]
+
+    table_dict = dict(
+            uri=uri,
             type=types,
             view=views,
             group=groups
         )
+
+    if affine is not None:
+        table_dict['affine'] = [','.join([str(x) for x in a]) for a in affine]
+    if name is not None:
+        table_dict['name'] = _normalize_inputs(name)
+    if blend is not None:
+        table_dict['blend'] = _normalize_inputs(blend)
+    if exclusive is not None:
+        table_dict['exclusive'] = _normalize_inputs(exclusive)
+
+    append_mobie_table(
+        table_filepath,
+        table_dict
     )
 
 
