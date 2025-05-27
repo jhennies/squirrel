@@ -34,16 +34,20 @@ def _create_link_maps_for_gridmap(
     print('Creating link maps for gridmap ...')
 
     from squirrel.library.serial_em import get_search_map_on_grid_info
-    search_map_names, _, transformed_stage_positions, grid_map_resolution, _ = get_search_map_on_grid_info(
+    search_map_on_grid_info = get_search_map_on_grid_info(
         nav_filepath, grid_map_img_bin=grid_map_img_bin, verbose=verbose
     )
+
+    search_map_names = search_map_on_grid_info['search_map_names']
+    search_map_positions = search_map_on_grid_info['search_map_positions']
+    grid_map_resolution = search_map_on_grid_info['grid_map_resolution']
 
     # Get filepath of the gridmap image
     from squirrel.library.serial_em import get_gridmap_filepath
     gridmap_filepath = get_gridmap_filepath(nav_filepath)
     if verbose:
         print(f'gridmap_filepath = {gridmap_filepath}')
-        print(f'transformed_stage_positions = {transformed_stage_positions}')
+        print(f'transformed_stage_positions = {search_map_positions}')
         print(f'search_map_names = {search_map_names}')
         print(f'grid_map_resolution_bin = {(grid_map_resolution * grid_map_img_bin)}')
 
@@ -53,7 +57,7 @@ def _create_link_maps_for_gridmap(
         gridmap_filepath,
         os.path.join(out_dirpath, os.path.split(gridmap_filepath)[1]),
         strings=search_map_names,
-        positions=transformed_stage_positions,  # + 674,
+        positions=search_map_positions,
         font_size=30,
         verbose=verbose
     )
@@ -70,14 +74,16 @@ def _create_link_map_for_search_map(
     print(f'search_map_id = {search_map_id}')
 
     from squirrel.library.serial_em import get_view_on_search_map_info
-    view_map_names, _, transformed_stage_positions, search_map_resolution, _ = get_view_on_search_map_info(
+    view_on_search_map_info = get_view_on_search_map_info(
         nav_filepath,
-        search_map_id,
         search_map_item,
         view_map_items,
         search_map_img_bin=search_map_img_bin,
         verbose=verbose
     )
+    view_map_names = view_on_search_map_info['view_map_names']
+    view_map_positions = view_on_search_map_info['view_map_positions']
+    search_map_resolution = view_on_search_map_info['search_map_resolution']
 
     # Get filepath of the search map image
     from squirrel.library.serial_em import get_searchmap_filepath
@@ -92,7 +98,7 @@ def _create_link_map_for_search_map(
         searchmap_filepath,
         os.path.join(out_dirpath, os.path.split(searchmap_filepath)[1]),
         strings=view_map_names,
-        positions=transformed_stage_positions,
+        positions=view_map_positions,
         font_size=30
     )
 

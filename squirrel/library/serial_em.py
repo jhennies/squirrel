@@ -250,7 +250,7 @@ def get_search_map_on_grid_info(nav_filepath, grid_map_img_bin=8, verbose=False)
         search_map_item_list.append(v)
 
     search_map_stage_positions = np.array(search_map_stage_positions)
-    stage_xyz = np.array(get_value_list_from_item(grid_map_items[next(iter(grid_map_items))], 'StageXYZ'))[:2]
+    stage_xy = np.array(get_value_list_from_item(grid_map_items[next(iter(grid_map_items))], 'StageXYZ'))[:2]
 
     # # Use the affine transform to get the transformed stage positions
     map_scale_mat = np.array(
@@ -258,16 +258,28 @@ def get_search_map_on_grid_info(nav_filepath, grid_map_img_bin=8, verbose=False)
     ) / grid_map_img_bin
 
     transformed_stage_positions = np.array(stage_to_image_coords(
-        (np.array(search_map_stage_positions) - np.array(stage_xyz)),
+        (np.array(search_map_stage_positions) - np.array(stage_xy)),
         map_scale_mat
     ))
 
-    return search_map_names, search_map_item_list, transformed_stage_positions, grid_map_resolution, search_map_resolutions
+    return_dict = dict(
+        search_map_names=search_map_names,
+        search_map_item_list=search_map_item_list,
+        search_map_positions=transformed_stage_positions,
+        search_map_resolutions=search_map_resolutions,
+        grid_map_resolution=grid_map_resolution,
+        grid_map_scale_mat=map_scale_mat,
+        grid_map_stage_xy=stage_xy
+    )
+
+    if verbose:
+        print(f'return_dict = {return_dict}')
+
+    return return_dict
 
 
 def get_view_on_search_map_info(
         nav_filepath,
-        search_map_id,
         search_map_item,
         view_map_items,
         search_map_img_bin=4,
@@ -301,15 +313,28 @@ def get_view_on_search_map_info(
         view_map_stage_positions.append(get_raw_stage_xy_from_item(v))
         view_map_item_list.append(v)
 
-    stage_xyz = np.array(get_value_list_from_item(search_map_item, 'StageXYZ'))[:2]
+    stage_xy = np.array(get_value_list_from_item(search_map_item, 'StageXYZ'))[:2]
     map_scale_mat = np.array(get_value_list_from_item(search_map_item, 'MapScaleMat')) / search_map_img_bin
 
     transformed_stage_positions = np.array(stage_to_image_coords(
-        (np.array(view_map_stage_positions) - np.array(stage_xyz)),
+        (np.array(view_map_stage_positions) - np.array(stage_xy)),
         map_scale_mat
     ))
 
-    return view_map_names, view_map_item_list, transformed_stage_positions, search_map_resolution, view_map_resolutions
+    return_dict = dict(
+        view_map_names=view_map_names,
+        view_map_item_list=view_map_item_list,
+        view_map_positions=transformed_stage_positions,
+        view_map_resolutions=view_map_resolutions,
+        search_map_resolution=search_map_resolution,
+        search_map_scale_mat=map_scale_mat,
+        search_map_stage_xy=stage_xy
+    )
+
+    if verbose:
+        print(f'return_dict = {return_dict}')
+
+    return return_dict
 
 
 def get_all_view_on_search_map_infos(
