@@ -149,18 +149,25 @@ def create_link_maps_workflow(
 
 
 if __name__ == '__main__':
-    # For development
+    # # For development
     create_link_maps_workflow(
         '/media/julian/Data/projects/hennies/cryo_mobie_devel/grid03/nav_250226_grid03.nav',
-        '/media/julian/Data/projects/hennies/cryo_mobie_devel/grid03-link-maps',
+        '/media/julian/Data/projects/hennies/cryo_mobie_devel/grid03-link-maps2',
+        verbose=True
+    )
+    #
+    # create_link_maps_workflow(
+    #     '/media/julian/Data/projects/hennies/cryo_mobie_devel/250521_test-maps/nav_250521_test-maps.nav',
+    #     '/media/julian/Data/projects/hennies/cryo_mobie_devel/250521_test-maps-link-maps',
+    #     verbose=True
+    # )
+
+    create_link_maps_workflow(
+        '/media/julian/Data/projects/hennies/cryo_mobie_devel/grid_krios_to_fix/nav_250512_grid4054.nav',
+        '/media/julian/Data/projects/hennies/cryo_mobie_devel/grid_krios_to_fix-link-maps2',
         verbose=True
     )
 
-    create_link_maps_workflow(
-        '/media/julian/Data/projects/hennies/cryo_mobie_devel/250521_test-maps/nav_250521_test-maps.nav',
-        '/media/julian/Data/projects/hennies/cryo_mobie_devel/250521_test-maps-link-maps',
-        verbose=True
-    )
 
     # create_link_maps_workflow(
     #     '/mnt/icem/external/00_old-sessions/20250227_direct_sa0096_nelson_sf/screening_images/grid02/nav_250227_grid02.nav',
@@ -172,3 +179,9 @@ if __name__ == '__main__':
     #     '/media/julian/Data/tmp/nav_link_maps3/',
     #     verbose=True
     # )
+
+    create_link_maps_workflow(
+        '/mnt/icem/external/00_old-sessions/20250227_direct_sa0096_nelson_sf/screening_images/grid04/nav_250227_grid04.nav',
+        '/media/julian/Data/projects/hennies/cryo_mobie_devel/nelson_sf',
+        verbose=True
+    )

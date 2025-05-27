@@ -106,62 +106,26 @@ def get_value_from_item(item_dict, name):
         return float(item_dict[name])
 
 
-def compute_perspective_transform(src_pts, dst_pts):
+def stage_to_image_coords(stage_coords, scale_mat):
     """
-    Computes the 3x3 perspective transformation matrix to map A (rectangle) to B (quadrilateral).
-    """
-    import cv2
-
-    src_pts = np.array(src_pts, dtype=np.float32)
-    dst_pts = np.array(dst_pts, dtype=np.float32)
-
-    perspective_matrix = cv2.getPerspectiveTransform(src_pts, dst_pts)
-    return perspective_matrix
-
-
-def get_perspective_from_pts(item_dict, map_width_height):
-
-    pts_x = get_value_list_from_item(item_dict, 'PtsX')
-    pts_y = get_value_list_from_item(item_dict, 'PtsY')
-
-    half_mwh = np.array(map_width_height) / 2
-
-    # How the four corner points ...
-    src_pts = np.array([
-        [-half_mwh[0], -half_mwh[1]],
-        [-half_mwh[0], half_mwh[1]],
-        [half_mwh[0], half_mwh[1]],
-        [half_mwh[0], -half_mwh[1]]
-    ])
-    # ... are transformed to form the final output orientation
-    dst_pts = np.array((pts_x, pts_y)).swapaxes(0, 1)[:4]
-
-    # return compute_perspective_transform(src_pts, dst_pts)
-    return compute_perspective_transform(dst_pts, src_pts)
-
-
-def apply_perspective_transform(points, perspective_matrix):
-    """
-    Applies the perspective transformation to a set of points.
+    Convert stage coordinates (microns) to pixel coordinates on the map image.
 
     Parameters:
-    points: List of (x, y) points to transform.
-    perspective_matrix: 3x3 perspective transformation matrix.
+        stage_coords (list of tuples): Stage coordinates (microns).
+        scale_mat (list): [a, b, c, d] from MapScaleMat.
 
     Returns:
-    Transformed points as a NumPy array.
+        list of tuples: Image pixel coordinates.
     """
-    points = np.array(points)
-    # Convert points to homogeneous coordinates (x, y) → (x, y, 1)
-    points_homogeneous = np.hstack([points, np.ones((points.shape[0], 1))])  # Shape: (N, 3)
+    a, b, c, d = scale_mat
+    affine = np.array([[a, b],
+                       [c, d]])
 
-    # Apply transformation
-    transformed_points_homogeneous = np.dot(perspective_matrix, points_homogeneous.T).T  # Shape: (N, 3)
-
-    # Convert back from homogeneous coordinates (divide by last column)
-    transformed_points = transformed_points_homogeneous[:, :2] / transformed_points_homogeneous[:, 2][:, np.newaxis]
-
-    return transformed_points
+    stage_coords = np.asarray(stage_coords)
+    # FIXME: I'm still not sure if I need to do affine or affine.T
+    #  so far, it didn't do much of a difference, because the matrices were quite symmetric
+    img_coords = stage_coords @ affine.T
+    return [tuple(coord) for coord in img_coords]
 
 
 def get_gridmap_filepath(nav_filepath):
@@ -285,16 +249,18 @@ def get_search_map_on_grid_info(nav_filepath, grid_map_img_bin=8, verbose=False)
         search_map_stage_positions.append(get_raw_stage_xy_from_item(v))
         search_map_item_list.append(v)
 
-    # Compute the perspective transform
-    from squirrel.library.serial_em import (
-        apply_perspective_transform, get_perspective_from_pts, get_value_list_from_item
-    )
-    map_width_height = get_value_list_from_item(grid_map_items[next(iter(grid_map_items))], 'MapWidthHeight')
-    grid_map_perspective_transform = get_perspective_from_pts(
-        list(grid_map_items.values())[0], np.array(map_width_height) * grid_map_resolution  # 0.2236
-    )
-    transformed_stage_positions = apply_perspective_transform(search_map_stage_positions, grid_map_perspective_transform)
-    transformed_stage_positions = (np.array(transformed_stage_positions)[:, ::-1]) * (1/(grid_map_resolution * grid_map_img_bin))
+    search_map_stage_positions = np.array(search_map_stage_positions)
+    stage_xyz = np.array(get_value_list_from_item(grid_map_items[next(iter(grid_map_items))], 'StageXYZ'))[:2]
+
+    # # Use the affine transform to get the transformed stage positions
+    map_scale_mat = np.array(
+        get_value_list_from_item(grid_map_items[next(iter(grid_map_items))], 'MapScaleMat')
+    ) / grid_map_img_bin
+
+    transformed_stage_positions = np.array(stage_to_image_coords(
+        (np.array(search_map_stage_positions) - np.array(stage_xyz)),
+        map_scale_mat
+    ))
 
     return search_map_names, search_map_item_list, transformed_stage_positions, grid_map_resolution, search_map_resolutions
 
@@ -335,23 +301,13 @@ def get_view_on_search_map_info(
         view_map_stage_positions.append(get_raw_stage_xy_from_item(v))
         view_map_item_list.append(v)
 
-    # Compute the perspective transform
-    from squirrel.library.serial_em import (
-        apply_perspective_transform,
-        get_perspective_from_pts,
-        get_value_from_item,
-        get_value_list_from_item
-    )
-    map_width_height = (
-        np.array(get_value_list_from_item(search_map_item, 'MapWidthHeight'))
-        * get_value_from_item(search_map_item, 'MapBinning')
-    )
-    # map_width_height = [7800, 7800]
-    search_map_perspective_transform = get_perspective_from_pts(
-        search_map_item, np.array(map_width_height) * search_map_resolution
-    )
-    transformed_stage_positions = apply_perspective_transform(view_map_stage_positions, search_map_perspective_transform)
-    transformed_stage_positions = (np.array(transformed_stage_positions)[:, ::-1]) * (1/(search_map_resolution * search_map_img_bin))
+    stage_xyz = np.array(get_value_list_from_item(search_map_item, 'StageXYZ'))[:2]
+    map_scale_mat = np.array(get_value_list_from_item(search_map_item, 'MapScaleMat')) / search_map_img_bin
+
+    transformed_stage_positions = np.array(stage_to_image_coords(
+        (np.array(view_map_stage_positions) - np.array(stage_xyz)),
+        map_scale_mat
+    ))
 
     return view_map_names, view_map_item_list, transformed_stage_positions, search_map_resolution, view_map_resolutions
 
