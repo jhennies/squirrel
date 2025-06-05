@@ -415,7 +415,7 @@ def get_all_view_on_search_map_infos(
     return search_map_infos
 
 
-class Navigator():
+class Navigator:
 
     SEARCH_STRINGS = dict(
         record='_record.mrc',
@@ -465,7 +465,8 @@ class Navigator():
             record=self.record_bin
         )
         def _this(item):
-            return (np.array(get_value_list_from_item(item, 'MapWidthHeight')) / binning[map_type]).astype(int)
+            bin_factor = get_value_from_item(item, 'MapBinning') / (get_value_from_item(item, 'MontBinning') * binning[map_type])
+            return (np.array(get_value_list_from_item(item, 'MapWidthHeight')) * bin_factor).astype(int)
         return self._get_values(map_type, _this)
 
     def get_map_items_dict(self, map_type):
@@ -567,11 +568,25 @@ class Navigator():
         raise ValueError(f'Invalid map_type: {map_type}')
 
     def get_map_full_affines(self, map_type, flatten=False, invert=False, full_square=False):
+        """
+        This function returns the full affine transformation that maps stage coordinates to the image pixels.
+        Note that this is not necessarily identical with the MapAffine entry in the navigator as (a) the image binning
+        (parameter when instanciating this class) and (b) the difference of MapBinning and MontBinning is applied here
+        to the MapAffine.
+
+        :param map_type:
+        :param flatten:
+        :param invert:
+        :param full_square:
+        :return:
+        """
 
         def _get_affine():
+            bin_factor = map_binning / (mont_binning * bin)
+            # bin_factor = 1 / bin
             affine = np.array([
-                [mat[0, 0] / bin, mat[0, 1] / bin, 0, img_shp[0] / 2],
-                [mat[1, 0] / bin, mat[1, 1] / bin, 0, img_shp[1] / 2],
+                [mat[0, 0] * bin_factor, mat[0, 1] * bin_factor, 0, img_shp[0] / 2],
+                [mat[1, 0] * bin_factor, mat[1, 1] * bin_factor, 0, img_shp[1] / 2],
                 [0, 0, 1, 0],
                 [0, 0, 0, 1]
             ])
@@ -601,6 +616,9 @@ class Navigator():
 
         img_shapes = self.get_map_shapes(map_type)
 
+        map_binnings = self.get_map_binnings(map_type)
+        mont_binnings = self.get_mont_binnings(map_type)
+
         affines = []
 
         for idx, scale_mat in enumerate(scale_mats):
@@ -609,6 +627,8 @@ class Navigator():
 
                 xy = xys[idx]
                 img_shp = img_shapes[idx]
+                map_binning = map_binnings[idx]
+                mont_binning = mont_binnings[idx]
 
                 mat = scale_mat
 
@@ -618,11 +638,15 @@ class Navigator():
 
                 this_xys = xys[idx]
                 this_img_shapes = img_shapes[idx]
+                this_map_binnings = map_binnings[idx]
+                this_mont_binnings = mont_binnings[idx]
 
                 affine = []
                 for jdx, mat in enumerate(scale_mat):
                     xy = this_xys[jdx]
                     img_shp = this_img_shapes[jdx]
+                    map_binning = this_map_binnings[jdx]
+                    mont_binning = this_mont_binnings[jdx]
 
                     affine.append(_get_affine())
 
@@ -642,6 +666,16 @@ class Navigator():
         if map_type in ['view', 'record']:
             return [[(grid_affine[0] @ y)[:3].flatten() for y in x] for x in affine]
         raise ValueError(f'Invalid map_type! {map_type}')
+
+    def get_map_binnings(self, map_type):
+        def _this(item):
+            return get_value_from_item(item, 'MapBinning')
+        return self._get_values(map_type, _this)
+
+    def get_mont_binnings(self, map_type):
+        def _this(item):
+            return get_value_from_item(item, 'MontBinning')
+        return self._get_values(map_type, _this)
 
     def _get_values(self, map_type, func):
         if map_type == 'grid':
