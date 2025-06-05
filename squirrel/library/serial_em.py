@@ -182,7 +182,7 @@ def get_nav_item_id_from_note(in_item):
 
 
 def get_nav_item_sec_from_note(in_item):
-    return in_item['Note'].split(' ')[3]
+    return in_item['Note'].split(' - ')[0].split(' ')[-1]
 
 
 def get_view_map_items_by_drawn_id(view_map_items, drawn_id, nav_dict_items, return_dict=False):
@@ -545,7 +545,10 @@ class Navigator():
             for x in self.view_map_items:
                 this_fps = []
                 for y in x:
-                    this_fps.append(get_view_map_filepath(y, self.filepath, pad_zeros=2))
+                    this_fps.append(get_view_map_filepath(y, self.filepath, pad_zeros=1))
+                    if not os.path.exists(this_fps[-1]):
+                        # Try with padding more zeros
+                        this_fps[-1] = get_view_map_filepath(y, self.filepath, pad_zeros=2)
                     assert os.path.exists(this_fps[-1]), f'View map filepath does not exist! {this_fps[-1]}'
                 fps.append(this_fps)
             return fps
@@ -554,7 +557,10 @@ class Navigator():
             for x in self.record_map_items:
                 this_fps = []
                 for y in x:
-                    this_fps.append(get_record_map_filepath(y, self.filepath, binning=self.record_bin, pad_zeros=2))
+                    this_fps.append(get_record_map_filepath(y, self.filepath, binning=self.record_bin, pad_zeros=1))
+                    if not os.path.exists(this_fps[-1]):
+                        # Try with padding more zeros
+                        this_fps[-1] = get_record_map_filepath(y, self.filepath, binning=self.record_bin, pad_zeros=2)
                     assert os.path.exists(this_fps[-1]), f'Record map filepath does not exist! {this_fps[-1]}'
                 fps.append(this_fps)
             return fps
