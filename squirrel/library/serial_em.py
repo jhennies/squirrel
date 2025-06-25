@@ -106,6 +106,19 @@ def get_value_from_item(item_dict, name):
         return float(item_dict[name])
 
 
+def get_type_from_item(item):
+    map_file = item['MapFile'].replace("\\", '/')
+    if 'gridmap.st' in map_file:
+        return 'grid'
+    if '_search.mrc' in map_file:
+        return 'search'
+    if '_view.mrc' in map_file:
+        return 'view'
+    if '_record.mrc' in map_file:
+        return 'record'
+    raise RuntimeError(f'Map type could not be inferred from file name: {map_file}')
+
+
 def get_map_scale_xy(map_item):
     return get_value_list_from_item(map_item, 'StageXYZ')[:2]
 
@@ -132,12 +145,24 @@ def stage_to_image_coords(stage_coords, scale_mat):
     return [tuple(coord) for coord in img_coords]
 
 
+def get_mdoc_from_map_filepath(map_type, filepath):
+    if map_type == 'grid':
+        return os.path.join(os.path.split(filepath)[0], "gridmap.st.mdoc")
+    if map_type == 'search':
+        return f"{'_'.join(filepath.split('_')[:-2])}.mrc.mdoc"
+    if map_type == 'view':
+        return f"{'_'.join(filepath.split('_')[:-1])}.mrc.mdoc"
+    if map_type == 'record':
+        return f"{'_'.join(filepath.split('_')[:-2])}.mrc.mdoc"
+    raise ValueError(f'Invalid map_type: {map_type}')
+
+
 def get_gridmap_filepath(nav_filepath):
     from glob import glob
     import os
     return glob(os.path.join(
         os.path.split(nav_filepath)[0],
-        'gridmap_*.png'
+        'gridmap_*.mrc'
     ))[0]
 
 
@@ -149,7 +174,7 @@ def get_searchmap_filepath(search_map_item, nav_filepath, binning=4, pad_zeros=0
     map_section_str = ('{:0' + str(pad_zeros) + 'd}').format(map_section)
     return os.path.join(
         os.path.split(nav_filepath)[0],
-        f'{os.path.splitext(os.path.split(map_filepath)[1])[0]}_{map_section_str}_bin{binning}.png'
+        f'{os.path.splitext(os.path.split(map_filepath)[1])[0]}_{map_section_str}_bin{binning}.mrc'
     )
 
 
@@ -161,7 +186,7 @@ def get_view_map_filepath(view_map_item, nav_filepath, pad_zeros=0):
     map_section_str = ('{:0' + str(pad_zeros) + 'd}').format(map_section)
     return os.path.join(
         os.path.split(nav_filepath)[0],
-        f'{os.path.splitext(os.path.split(map_filepath)[1])[0]}_{map_section_str}.png'
+        f'{os.path.splitext(os.path.split(map_filepath)[1])[0]}_{map_section_str}.mrc'
     )
 
 
@@ -173,8 +198,33 @@ def get_record_map_filepath(record_map_item, nav_filepath, binning=4, pad_zeros=
     map_section_str = ('{:0' + str(pad_zeros) + 'd}').format(map_section)
     return os.path.join(
         os.path.split(nav_filepath)[0],
-        f'{os.path.splitext(os.path.split(map_filepath)[1])[0]}_{map_section_str}_bin{binning}.png'
+        f'{os.path.splitext(os.path.split(map_filepath)[1])[0]}_{map_section_str}_bin{binning}.mrc'
     )
+
+
+def get_map_filepath(nav_filepath, map_item=None, binning=1):
+    map_type = get_type_from_item(map_item)
+    if map_type == 'grid':
+        fp = get_gridmap_filepath(nav_filepath)
+    if map_type == 'search':
+        for zero_padding in range(4):
+            fp = get_searchmap_filepath(map_item, nav_filepath, binning=binning, pad_zeros=zero_padding)
+            if os.path.exists(fp):
+                return fp
+    if map_type == 'view':
+        for zero_padding in range(4):
+            fp = get_view_map_filepath(map_item, nav_filepath, pad_zeros=zero_padding)
+            if os.path.exists(fp):
+                return fp
+    if map_type == 'record':
+        for zero_padding in range(4):
+            fp = get_record_map_filepath(map_item, nav_filepath, binning=binning, pad_zeros=zero_padding)
+            if os.path.exists(fp):
+                return fp
+    if os.path.exists(fp):
+        return fp
+    raise RuntimeError(f'No valid filepath found for {map_filepath}')
+
 
 
 def get_nav_item_id_from_note(in_item):
@@ -224,7 +274,7 @@ def get_resolution_from_mdoc(filepath, unit='micrometer'):
     raise ValueError(f'Invalid unit: {unit}')
 
 
-def get_resolution_of_nav_item(nav_item, mdoc_dirpath=None, unit='micrometer'):
+def get_resolution_of_nav_item(nav_item, mdoc_dirpath=None, unit='micrometer', map_type=None):
 
     import os
     map_filepath = nav_item['MapFile'].replace("\\", '/')
@@ -431,6 +481,13 @@ class Navigator:
         self.search_bin = search_bin
         self.grid_bin = grid_bin
 
+        self.binnings = dict(
+            grid=grid_bin,
+            search=search_bin,
+            view=view_bin,
+            record=record_bin
+        )
+
         self.filepath = filepath
         self.nav_dict = navigator_file_to_dict(filepath)
 
@@ -449,10 +506,12 @@ class Navigator:
             self.record_map_item_keys
         ) = self.get_search_and_view_map_items()
 
-        self.grid_map_filepath = self.get_map_filepaths('grid')
-        self.search_map_filepaths = self.get_map_filepaths('search')
-        self.view_map_filepaths = self.get_map_filepaths('view')
-        self.record_map_filepaths = self.get_map_filepaths('record')
+        self.grid_map_filepath, self.grid_mdoc_filepath = self.get_map_filepaths('grid')
+        self.grid_map_filepath = self.grid_map_filepath[0]
+        self.grid_mdoc_filepath = self.grid_mdoc_filepath[0]
+        self.search_map_filepaths, self.search_mdoc_filepaths = self.get_map_filepaths('search')
+        self.view_map_filepaths, self.view_mdoc_filepaths = self.get_map_filepaths('view')
+        self.record_map_filepaths, self.record_mdoc_filepaths = self.get_map_filepaths('record')
 
     def get_map_names(self, map_type):
         pass
@@ -521,7 +580,13 @@ class Navigator:
         pass
 
     def get_map_resolutions(self, map_type):
-        pass
+        def _this(item):
+            map_type = get_type_from_item(item)
+            binning = self.binnings[map_type]
+            fp = get_map_filepath(self.filepath, map_item=item, binning=binning)
+            mdoc_fp = get_mdoc_from_map_filepath(map_type, fp)
+            return get_resolution_from_mdoc(mdoc_fp, unit='micrometer')
+        return self._get_values(map_type, _this)
 
     def get_map_scale_matrices(self, map_type):
         return self._get_values(map_type, get_map_scale_matrix_from_item)
@@ -532,39 +597,40 @@ class Navigator:
     def get_map_filepaths(self, map_type):
         # FIXME Use self._get_values
         if map_type == 'grid':
-            fp = get_gridmap_filepath(self.filepath)
-            assert os.path.exists(fp), f'Grid map filepath does not exist! {fp}'
-            return fp
+            fp = get_map_filepath(self.filepath, self.grid_map_item)
+            mdoc_fp = get_mdoc_from_map_filepath(map_type, fp)
+            return [fp], [mdoc_fp]
         if map_type == 'search':
             fps = []
+            mdoc_fps = []
             for x in self.search_map_items:
-                fps.append(get_searchmap_filepath(x, self.filepath, self.search_bin, pad_zeros=1))
-                assert os.path.exists(fps[-1]), f'Search map filepath does not exist! {fps[-1]}'
-            return fps
+                fps.append(get_map_filepath(self.filepath, x, self.search_bin))
+                mdoc_fps.append(get_mdoc_from_map_filepath(map_type, fps[-1]))
+            return fps, mdoc_fps
         if map_type == 'view':
             fps = []
+            mdoc_fps = []
             for x in self.view_map_items:
                 this_fps = []
+                this_mdoc_fps = []
                 for y in x:
-                    this_fps.append(get_view_map_filepath(y, self.filepath, pad_zeros=1))
-                    if not os.path.exists(this_fps[-1]):
-                        # Try with padding more zeros
-                        this_fps[-1] = get_view_map_filepath(y, self.filepath, pad_zeros=2)
-                    assert os.path.exists(this_fps[-1]), f'View map filepath does not exist! {this_fps[-1]}'
+                    this_fps.append(get_map_filepath(self.filepath, y))
+                    this_mdoc_fps.append(get_mdoc_from_map_filepath(map_type, this_fps[-1]))
                 fps.append(this_fps)
-            return fps
+                mdoc_fps.append(this_mdoc_fps)
+            return fps, mdoc_fps
         if map_type == 'record':
             fps = []
+            mdoc_fps = []
             for x in self.record_map_items:
                 this_fps = []
+                this_mdoc_fps = []
                 for y in x:
-                    this_fps.append(get_record_map_filepath(y, self.filepath, binning=self.record_bin, pad_zeros=1))
-                    if not os.path.exists(this_fps[-1]):
-                        # Try with padding more zeros
-                        this_fps[-1] = get_record_map_filepath(y, self.filepath, binning=self.record_bin, pad_zeros=2)
-                    assert os.path.exists(this_fps[-1]), f'Record map filepath does not exist! {this_fps[-1]}'
+                    this_fps.append(get_map_filepath(self.filepath, y, binning=self.record_bin))
+                    this_mdoc_fps.append(get_mdoc_from_map_filepath(map_type, this_fps[-1]))
                 fps.append(this_fps)
-            return fps
+                mdoc_fps.append(this_mdoc_fps)
+            return fps, mdoc_fps
         raise ValueError(f'Invalid map_type: {map_type}')
 
     def get_map_full_affines(self, map_type, flatten=False, invert=False, full_square=False):
@@ -582,11 +648,11 @@ class Navigator:
         """
 
         def _get_affine():
-            bin_factor = map_binning / (mont_binning * bin)
-            # bin_factor = 1 / bin
+
+            bin_factor = map_binning / mont_binning * map_resolution
             affine = np.array([
-                [mat[0, 0] * bin_factor, mat[0, 1] * bin_factor, 0, img_shp[0] / 2],
-                [mat[1, 0] * bin_factor, mat[1, 1] * bin_factor, 0, img_shp[1] / 2],
+                [mat[0, 0] * bin_factor, mat[0, 1] * bin_factor, 0, img_shp[0] / 2 * (map_resolution * bin)],
+                [mat[1, 0] * bin_factor, mat[1, 1] * bin_factor, 0, img_shp[1] / 2 * (map_resolution * bin)],
                 [0, 0, 1, 0],
                 [0, 0, 0, 1]
             ])
@@ -618,6 +684,7 @@ class Navigator:
 
         map_binnings = self.get_map_binnings(map_type)
         mont_binnings = self.get_mont_binnings(map_type)
+        map_resolutions = self.get_map_resolutions(map_type)
 
         affines = []
 
@@ -629,6 +696,7 @@ class Navigator:
                 img_shp = img_shapes[idx]
                 map_binning = map_binnings[idx]
                 mont_binning = mont_binnings[idx]
+                map_resolution = map_resolutions[idx]
 
                 mat = scale_mat
 
@@ -640,6 +708,7 @@ class Navigator:
                 this_img_shapes = img_shapes[idx]
                 this_map_binnings = map_binnings[idx]
                 this_mont_binnings = mont_binnings[idx]
+                this_map_resolutions = map_resolutions[idx]
 
                 affine = []
                 for jdx, mat in enumerate(scale_mat):
@@ -647,6 +716,7 @@ class Navigator:
                     img_shp = this_img_shapes[jdx]
                     map_binning = this_map_binnings[jdx]
                     mont_binning = this_mont_binnings[jdx]
+                    map_resolution = this_map_resolutions[jdx]
 
                     affine.append(_get_affine())
 
@@ -654,17 +724,30 @@ class Navigator:
 
         return affines
 
-    def get_map_full_affines_to_grid_map(self, map_type):
+    def get_map_full_affines_to_grid_map(self, map_type, stage_coordinate_system=False):
 
         affine = self.get_map_full_affines(map_type, flatten=False, invert=True, full_square=True)
         grid_affine = self.get_map_full_affines('grid', flatten=False, invert=False, full_square=True)
 
+        if stage_coordinate_system:
+            # Aligned to stage coordinate system
+            if map_type == 'grid':
+                return [(affine[0])[:3].flatten()]
+            if map_type == 'search':
+                return [x[:3].flatten() for x in affine]
+            if map_type in ['view', 'record']:
+                return [[y[:3].flatten() for y in x] for x in affine]
+
+            raise ValueError(f'Invalid map_type! {map_type}')
+
+        # Aligned to grid map
         if map_type == 'grid':
             return [(grid_affine[0] @ affine[0])[:3].flatten()]
         if map_type == 'search':
             return [(grid_affine[0] @ x)[:3].flatten() for x in affine]
         if map_type in ['view', 'record']:
             return [[(grid_affine[0] @ y)[:3].flatten() for y in x] for x in affine]
+
         raise ValueError(f'Invalid map_type! {map_type}')
 
     def get_map_binnings(self, map_type):
