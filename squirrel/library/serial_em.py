@@ -226,7 +226,6 @@ def get_map_filepath(nav_filepath, map_item=None, binning=1):
     raise RuntimeError(f'No valid filepath found for {map_filepath}')
 
 
-
 def get_nav_item_id_from_note(in_item):
     return in_item['Note'].split(' ')[0]
 
@@ -465,6 +464,16 @@ def get_all_view_on_search_map_infos(
     return search_map_infos
 
 
+def get_contrast_limits_from_map(
+        map_fp
+):
+    from squirrel.library.data import get_contrast_limits
+    import mrcfile
+    with mrcfile.open(map_fp, permissive=True) as mrc:
+        img = mrc.data
+    return get_contrast_limits(img)
+
+
 class Navigator:
 
     SEARCH_STRINGS = dict(
@@ -512,6 +521,11 @@ class Navigator:
         self.search_map_filepaths, self.search_mdoc_filepaths = self.get_map_filepaths('search')
         self.view_map_filepaths, self.view_mdoc_filepaths = self.get_map_filepaths('view')
         self.record_map_filepaths, self.record_mdoc_filepaths = self.get_map_filepaths('record')
+
+        self._grid_map_contrast_limits = None
+        self._search_map_contrast_limits = None
+        self._view_map_contrast_limits = None
+        self._record_map_contrast_limits = None
 
     def get_map_names(self, map_type):
         pass
@@ -760,6 +774,24 @@ class Navigator:
             return get_value_from_item(item, 'MontBinning')
         return self._get_values(map_type, _this)
 
+    def get_contrast_limits(self, map_type):
+        if map_type == 'grid':
+            if self._grid_map_contrast_limits is None:
+                self._grid_map_contrast_limits = self._get_values_from_map_fp(map_type, get_contrast_limits_from_map)
+            return self._grid_map_contrast_limits
+        if map_type == 'search':
+            if self._search_map_contrast_limits is None:
+                self._search_map_contrast_limits = self._get_values_from_map_fp(map_type, get_contrast_limits_from_map)
+            return self._search_map_contrast_limits
+        if map_type == 'view':
+            if self._view_map_contrast_limits is None:
+                self._view_map_contrast_limits = self._get_values_from_map_fp(map_type, get_contrast_limits_from_map)
+            return self._view_map_contrast_limits
+        if map_type == 'record':
+            if self._record_map_contrast_limits is None:
+                self._record_map_contrast_limits = self._get_values_from_map_fp(map_type, get_contrast_limits_from_map)
+            return self._record_map_contrast_limits
+
     def _get_values(self, map_type, func):
         if map_type == 'grid':
             return [func(self.grid_map_item)]
@@ -769,5 +801,17 @@ class Navigator:
             return [[func(y) for y in x] for x in self.view_map_items]
         if map_type == 'record':
             return [[func(y) for y in x] for x in self.record_map_items]
+
+        raise ValueError(f'Invalid map_type! {map_type}')
+
+    def _get_values_from_map_fp(self, map_type, func):
+        if map_type == 'grid':
+            return [func(self.grid_map_filepath)]
+        if map_type == 'search':
+            return [func(x) for x in self.search_map_filepaths]
+        if map_type == 'view':
+            return [[func(y) for y in x] for x in self.view_map_filepaths]
+        if map_type == 'record':
+            return [[func(y) for y in x] for x in self.record_map_filepaths]
 
         raise ValueError(f'Invalid map_type! {map_type}')

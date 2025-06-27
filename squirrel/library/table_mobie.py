@@ -2,11 +2,89 @@
 import os
 
 
+MOBIE_TABLE_ENTRY_NAMES = [
+    'uri',
+    'name',
+    'type',
+    'view',
+    'group',
+    'affine',
+    'blend',
+    'exclusive',
+    'contrast_limits'
+]
+
+
 def get_mobie_table_path(project_path):
     return os.path.join(project_path, 'mobie.csv')
 
 
-def append_mobie_table(table_filepath, entry):
+def normalize_mobie_table_entry_dict(entries, entry_count=None, use_abs_path=False, table_filepath=None):
+
+    def _normalize_uri(uri):
+        if use_abs_path:
+            uri = os.path.abspath(uri)
+        else:
+            assert table_filepath is not None
+            uri = os.path.relpath(uri, os.path.split(table_filepath)[0])
+        return uri
+
+    def _normalize_affine(affine):
+        return ','.join([str(x) for x in affine])
+
+    def _normalize_exclusive(exclusive):
+        if type(exclusive) is not str:
+            return 'true' if exclusive else 'false'
+        return exclusive
+
+    def _normalize_contrast_limits(contrast_limits):
+        return ','.join(f'{x:.1f}' if isinstance(x, int) or x == int(x) else str(x) for x in contrast_limits)
+
+    # Let's make sure everything is a list!
+    for k, v in entries.items():
+        assert type(v) == list, 'Entries have to be given as as list even if only one element is added!'
+
+    entry_count_from_entries = max([len(v) for _, v in entries.items()])
+    entry_count = entry_count_from_entries if entry_count is None else entry_count
+
+    # First pass to determine the number of entries or check that the length of the arrays matches the given entry count
+    for k, v in entries.items():
+
+        assert len(v) == entry_count or len(v) == 1, 'The number of elements in an entry must match the entry count or be of len = 1'
+        if len(v) == 1:
+            entries[k] = v * entry_count
+
+    # Now we can make sure that everything is properly readable by MoBIE
+    for k, v in entries.items():
+
+        for idx, item in enumerate(v):
+            if k == 'uri':
+                v[idx] = _normalize_uri(item)
+            elif k == 'name':
+                pass
+            elif k == 'type':
+                pass
+            elif k == 'view':
+                pass
+            elif k == 'group':
+                pass
+            elif k == 'affine':
+                v[idx] = _normalize_affine(item)
+            elif k == 'blend':
+                pass
+            elif k == 'exclusive':
+                v[idx] = _normalize_exclusive(item)
+            elif k == 'contrast_limits':
+                v[idx] = _normalize_contrast_limits(item)
+
+        entries[k] = v
+
+    return entries
+
+
+def append_mobie_table(table_filepath, entries, use_abs_path=False):
+
+    entries = normalize_mobie_table_entry_dict(entries, use_abs_path=use_abs_path, table_filepath=table_filepath)
 
     import pandas as pd
 
@@ -14,7 +92,7 @@ def append_mobie_table(table_filepath, entry):
     if os.path.exists(table_filepath):
         table_data = pd.read_csv(table_filepath, sep='\t')
 
-    new_table_data = pd.concat([table_data, pd.DataFrame(entry)], ignore_index=True, sort=False)
+    new_table_data = pd.concat([table_data, pd.DataFrame(entries)], ignore_index=True, sort=False)
     new_table_data = new_table_data.fillna('')
 
     new_table_data.to_csv(table_filepath, index=False, sep='\t')
@@ -62,15 +140,9 @@ def update_mobie_table_entry(table_filepath, entry, item):
 def init_mobie_table(
         table_filepath,
         data_map_filepaths,
-        name=None,
-        types='intensities',
-        views='raw',
-        groups='group1',
-        affine=None,
-        blend=None,
-        exclusive=None,
         use_abs_path=False,
-        verbose=False
+        verbose=False,
+        **entry_kwargs
 ):
     if verbose:
         print(f'table_filepath = {table_filepath}')
@@ -79,45 +151,18 @@ def init_mobie_table(
     if os.path.exists(table_filepath):
         os.remove(table_filepath)
 
-    def _normalize_inputs(inp):
-        if type(inp) == str:
-            return [inp] * len(data_map_filepaths)
-        if (type(inp) == list or type(inp) == tuple) and len(inp) == 1:
-            return inp * len(data_map_filepaths)
-        if type(inp) == list or type(inp) == tuple:
-            assert len(inp) == len(data_map_filepaths), 'Invalid input!'
-            return inp
-        else:
-            raise RuntimeError('Invalid input!')
+    for k, v in entry_kwargs.items():
+        assert k in MOBIE_TABLE_ENTRY_NAMES, f'{k} not in {MOBIE_TABLE_ENTRY_NAMES}'
 
-    types = _normalize_inputs(types)
-    views = _normalize_inputs(views)
-    groups = _normalize_inputs(groups)
-
-    if use_abs_path:
-        uri = data_map_filepaths
-    else:
-        uri = [os.path.relpath(p, os.path.split(table_filepath)[0]) for p in data_map_filepaths]
-
-    table_dict = dict(
-            uri=uri,
-            type=types,
-            view=views,
-            group=groups
-        )
-
-    if affine is not None:
-        table_dict['affine'] = [','.join([str(x) for x in a]) for a in affine]
-    if name is not None:
-        table_dict['name'] = _normalize_inputs(name)
-    if blend is not None:
-        table_dict['blend'] = _normalize_inputs(blend)
-    if exclusive is not None:
-        table_dict['exclusive'] = _normalize_inputs(exclusive)
+    entries = dict(
+            uri=data_map_filepaths,
+            **entry_kwargs
+    )
 
     append_mobie_table(
         table_filepath,
-        table_dict
+        entries,
+        use_abs_path
     )
 
 
