@@ -33,6 +33,11 @@ def norm_8bit(im, quantiles, ignore_zeros=False):
     return im.astype('uint8')
 
 
+def get_contrast_limits(im, method='minmax'):
+    if method == 'minmax':
+        return im.min(), im.max()
+
+
 def norm_full_range(im, quantiles, anchors=None, ignore_zeros=False, mask=None, cast_8bit=False):
 
     # mask = im > 0

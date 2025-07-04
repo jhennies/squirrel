@@ -44,7 +44,7 @@ def _create_link_maps_for_gridmap(
 
     # Get filepath of the gridmap image
     from squirrel.library.serial_em import get_gridmap_filepath
-    gridmap_filepath = get_gridmap_filepath(nav_filepath)
+    gridmap_filepath = get_gridmap_filepath(nav_filepath, extension='png')
     if verbose:
         print(f'gridmap_filepath = {gridmap_filepath}')
         print(f'transformed_stage_positions = {search_map_positions}')
@@ -87,7 +87,7 @@ def _create_link_map_for_search_map(
 
     # Get filepath of the search map image
     from squirrel.library.serial_em import get_searchmap_filepath
-    searchmap_filepath = get_searchmap_filepath(search_map_item, nav_filepath, pad_zeros=pad_search_map_id)
+    searchmap_filepath = get_searchmap_filepath(search_map_item, nav_filepath, pad_zeros=pad_search_map_id, extension='png')
     if verbose:
         print(f'searchmap_filepath = {searchmap_filepath}')
         print(f'searchmap_resolution_bin = {search_map_resolution * search_map_img_bin}')
@@ -156,38 +156,44 @@ def create_link_maps_workflow(
 
 if __name__ == '__main__':
     # # For development
-    create_link_maps_workflow(
-        '/media/julian/Data/projects/hennies/cryo_mobie_devel/grid03/nav_250226_grid03.nav',
-        '/media/julian/Data/projects/hennies/cryo_mobie_devel/grid03-link-maps2',
-        verbose=True
-    )
+    # create_link_maps_workflow(
+    #     '/media/julian/Data/projects/hennies/cryo_mobie_devel/grid03/nav_250226_grid03.nav',
+    #     '/media/julian/Data/projects/hennies/cryo_mobie_devel/grid03-link-maps2',
+    #     verbose=True
+    # )
+    # #
+    # # create_link_maps_workflow(
+    # #     '/media/julian/Data/projects/hennies/cryo_mobie_devel/250521_test-maps/nav_250521_test-maps.nav',
+    # #     '/media/julian/Data/projects/hennies/cryo_mobie_devel/250521_test-maps-link-maps',
+    # #     verbose=True
+    # # )
     #
     # create_link_maps_workflow(
-    #     '/media/julian/Data/projects/hennies/cryo_mobie_devel/250521_test-maps/nav_250521_test-maps.nav',
-    #     '/media/julian/Data/projects/hennies/cryo_mobie_devel/250521_test-maps-link-maps',
+    #     '/media/julian/Data/projects/hennies/cryo_mobie_devel/grid_krios_to_fix/nav_250512_grid4054.nav',
+    #     '/media/julian/Data/projects/hennies/cryo_mobie_devel/grid_krios_to_fix-link-maps2',
     #     verbose=True
     # )
-
-    create_link_maps_workflow(
-        '/media/julian/Data/projects/hennies/cryo_mobie_devel/grid_krios_to_fix/nav_250512_grid4054.nav',
-        '/media/julian/Data/projects/hennies/cryo_mobie_devel/grid_krios_to_fix-link-maps2',
-        verbose=True
-    )
-
-
-    # create_link_maps_workflow(
-    #     '/mnt/icem/external/00_old-sessions/20250227_direct_sa0096_nelson_sf/screening_images/grid02/nav_250227_grid02.nav',
-    #     '/media/julian/Data/tmp/nav_link_maps2/',
-    #     verbose=True
-    # )
+    #
+    #
+    # # create_link_maps_workflow(
+    # #     '/mnt/icem/external/00_old-sessions/20250227_direct_sa0096_nelson_sf/screening_images/grid02/nav_250227_grid02.nav',
+    # #     '/media/julian/Data/tmp/nav_link_maps2/',
+    # #     verbose=True
+    # # )
+    # # create_link_maps_workflow(
+    # #     '/mnt/icem/external/00_old-sessions/20250227_direct_sa0096_nelson_sf/screening_images/grid04/nav_250227_grid04.nav',
+    # #     '/media/julian/Data/tmp/nav_link_maps3/',
+    # #     verbose=True
+    # # )
+    #
     # create_link_maps_workflow(
     #     '/mnt/icem/external/00_old-sessions/20250227_direct_sa0096_nelson_sf/screening_images/grid04/nav_250227_grid04.nav',
-    #     '/media/julian/Data/tmp/nav_link_maps3/',
+    #     '/media/julian/Data/projects/hennies/cryo_mobie_devel/nelson_sf',
     #     verbose=True
     # )
 
     create_link_maps_workflow(
-        '/mnt/icem/external/00_old-sessions/20250227_direct_sa0096_nelson_sf/screening_images/grid04/nav_250227_grid04.nav',
-        '/media/julian/Data/projects/hennies/cryo_mobie_devel/nelson_sf',
-        verbose=True
+        '/mnt/icem/external/20250630_canserv_pid35315_francois_sf/serialem/250630_SF0475/nav_250630_SF0475.nav',
+        '/media/julian/Data/projects/hennies/cryo_mobie_devel/250630_SF0475-link_maps',
+        verbose=False
     )
