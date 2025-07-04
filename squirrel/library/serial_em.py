@@ -65,13 +65,17 @@ def get_map_items_by_map_file(nav_dict, endswith='_search.mrc'):
     return out_items
 
 
-def get_map_items_by_map_file(nav_dict, endswith='_search.mrc'):
+def get_map_items_by_glob(nav_dict, nav_filepath, glob='*.mrc'):
+    from fnmatch import fnmatch
 
     out_items = {}
+    test_fp = os.path.join(os.path.split(nav_filepath)[0], glob)
 
     for key, val in nav_dict['items'].items():
         if 'MapFile' in val:
-            if val['MapFile'].endswith(endswith):
+            item_fp = get_map_filepath_from_nav_item(nav_filepath, val)
+
+            if fnmatch(item_fp, test_fp):
                 out_items[key] = val
 
     return out_items
@@ -94,6 +98,7 @@ def get_map_scale_matrix_from_item(item_dict):
         mat = [float(x) for x in item_dict['MapScaleMat'].split(' ')]
         mat = np.array(mat).reshape([2, 2], order='C')
         return mat
+    return None
 
 
 def get_value_list_from_item(item_dict, name):
@@ -157,16 +162,16 @@ def get_mdoc_from_map_filepath(map_type, filepath):
     raise ValueError(f'Invalid map_type: {map_type}')
 
 
-def get_gridmap_filepath(nav_filepath):
+def get_gridmap_filepath(nav_filepath, extension='mrc'):
     from glob import glob
     import os
     return glob(os.path.join(
         os.path.split(nav_filepath)[0],
-        'gridmap_*.mrc'
+        f'gridmap_*.{extension}'
     ))[0]
 
 
-def get_searchmap_filepath(search_map_item, nav_filepath, binning=4, pad_zeros=0):
+def get_searchmap_filepath(search_map_item, nav_filepath, binning=4, pad_zeros=0, extension='mrc'):
     from glob import glob
     import os
     map_filepath = search_map_item['MapFile'].replace("\\", '/')
@@ -174,11 +179,11 @@ def get_searchmap_filepath(search_map_item, nav_filepath, binning=4, pad_zeros=0
     map_section_str = ('{:0' + str(pad_zeros) + 'd}').format(map_section)
     return os.path.join(
         os.path.split(nav_filepath)[0],
-        f'{os.path.splitext(os.path.split(map_filepath)[1])[0]}_{map_section_str}_bin{binning}.mrc'
+        f'{os.path.splitext(os.path.split(map_filepath)[1])[0]}_{map_section_str}_bin{binning}.{extension}'
     )
 
 
-def get_view_map_filepath(view_map_item, nav_filepath, pad_zeros=0):
+def get_view_map_filepath(view_map_item, nav_filepath, pad_zeros=0, extension='mrc'):
     from glob import glob
     import os
     map_filepath = view_map_item['MapFile'].replace("\\", '/')
@@ -186,11 +191,11 @@ def get_view_map_filepath(view_map_item, nav_filepath, pad_zeros=0):
     map_section_str = ('{:0' + str(pad_zeros) + 'd}').format(map_section)
     return os.path.join(
         os.path.split(nav_filepath)[0],
-        f'{os.path.splitext(os.path.split(map_filepath)[1])[0]}_{map_section_str}.mrc'
+        f'{os.path.splitext(os.path.split(map_filepath)[1])[0]}_{map_section_str}.{extension}'
     )
 
 
-def get_record_map_filepath(record_map_item, nav_filepath, binning=4, pad_zeros=0):
+def get_record_map_filepath(record_map_item, nav_filepath, binning=4, pad_zeros=0, extension='mrc'):
     from glob import glob
     import os
     map_filepath = record_map_item['MapFile'].replace("\\", '/')
@@ -198,9 +203,25 @@ def get_record_map_filepath(record_map_item, nav_filepath, binning=4, pad_zeros=
     map_section_str = ('{:0' + str(pad_zeros) + 'd}').format(map_section)
     return os.path.join(
         os.path.split(nav_filepath)[0],
-        f'{os.path.splitext(os.path.split(map_filepath)[1])[0]}_{map_section_str}_bin{binning}.mrc'
+        f'{os.path.splitext(os.path.split(map_filepath)[1])[0]}_{map_section_str}_bin{binning}.{extension}'
     )
 
+
+def get_mdoc_filepath(mrc_filepath):
+    return mrc_filepath + '.mdoc'
+
+
+def get_filepath_from_nav_item(nav_filepath, map_item, item_id):
+    from glob import glob
+    import os
+    map_filepath = map_item[item_id].replace("\\", '/')
+    return os.path.join(
+        os.path.split(nav_filepath)[0],
+        os.path.split(map_filepath)[1]
+    )
+
+def get_map_filepath_from_nav_item(nav_filepath, map_item):
+    return get_filepath_from_nav_item(nav_filepath, map_item, 'MapFile')
 
 def get_map_filepath(nav_filepath, map_item=None, binning=1):
     map_type = get_type_from_item(map_item)
@@ -238,7 +259,18 @@ def get_view_map_items_by_drawn_id(view_map_items, drawn_id, nav_dict_items, ret
     if return_dict:
         return {k: v for k, v in view_map_items.items() if
                 nav_dict_items[get_nav_item_id_from_note(v)]['DrawnID'] == drawn_id}
-    return [k for k, v in view_map_items.items() if nav_dict_items[get_nav_item_id_from_note(v)]['DrawnID'] == drawn_id]
+
+    return_items = []
+    for k, v in view_map_items.items():
+        nav_item = nav_dict_items[get_nav_item_id_from_note(v)]
+        if 'DrawnID' not in nav_item:
+            print(f'Warning: "DrawnID" entry not in navigator item {get_nav_item_id_from_note(v)}')
+            continue
+        if nav_dict_items[get_nav_item_id_from_note(v)]['DrawnID'] == drawn_id:
+            return_items.append(k)
+    return return_items
+
+    # return [k for k, v in view_map_items.items() if nav_dict_items[get_nav_item_id_from_note(v)]['DrawnID'] == drawn_id]
 
 
 def assign_view_maps_to_search_map(view_map_items, search_map_items, nav_dict_items, return_items=False):
@@ -474,7 +506,7 @@ def get_contrast_limits_from_map(
     return get_contrast_limits(img)
 
 
-class Navigator:
+class OldSingleParticleNavigator:
 
     SEARCH_STRINGS = dict(
         record='_record.mrc',
@@ -545,6 +577,11 @@ class Navigator:
     def get_map_items_dict(self, map_type):
 
         map_items = get_map_items_by_map_file(self.nav_dict, self.SEARCH_STRINGS[map_type])
+
+        if not map_items and map_type == 'grid':
+            key = next(iter(self.nav_dict['items']))
+            map_items = {key: self.nav_dict['items'][key]}
+            assert map_items[key]['MapFile'].endswith('.mrc')
 
         if map_type != 'view' and map_type != 'record':
             return map_items
@@ -815,3 +852,277 @@ class Navigator:
             return [[func(y) for y in x] for x in self.record_map_filepaths]
 
         raise ValueError(f'Invalid map_type! {map_type}')
+
+
+class Navigator:
+
+    def __init__(
+            self, filepath,
+            map_types: list[str] = None,
+            search_strings: dict[str, str] = None,
+            map_binnings: dict[str, int] = None,
+            verbose: bool = False
+    ):
+
+        self.verbose = verbose
+        self.map_types = map_types if map_types is not None else ['grid']
+        self.search_strings = search_strings if search_strings is not None else dict(grid='gridmap.st')
+        self.map_binnings = map_binnings if map_binnings is not None else dict(zip(self.map_types, [1] * len(self.map_types)))
+
+        assert len(self.search_strings) == len(self.map_types), 'Number of search strings must match number of map types'
+        assert len(self.map_binnings) == len(self.map_types), 'Number of map binnings must match number of map types'
+
+        self.filepath = filepath
+        self.nav_dict = navigator_file_to_dict(filepath)
+
+        # It is important to add the items like this because some items might depend on the earlier added ones being
+        #   present already
+        self.map_items_dict = dict()
+        for map_type in self.map_types:
+            self.map_items_dict[map_type] = self.get_map_items_dict(map_type)
+
+        self.map_items = {
+            map_type: self.get_map_items(map_type)
+            for map_type in self.map_types
+        }
+
+        self.map_filepaths = {
+            map_type: self.get_map_filepaths(map_type)
+            for map_type in self.map_types
+        }
+
+        self.mdoc_filepaths = {
+            map_type: self.get_mdoc_filepaths(map_type)
+            for map_type in self.map_types
+        }
+
+        self.map_contrast_limits = {
+            map_type: None
+            for map_type in self.map_types
+        }
+
+    # def _get_values(self, map_type, func, **kwargs):
+    #     return [func(x, **kwargs) for x in self.map_items[map_type][1]]
+    #
+    # def _get_values_with_idx(self, map_type, func, **kwargs):
+    #     return [func(idx, map_type, **kwargs) for idx in range(len(self.map_items[map_type]))]
+
+    def _function_on_property(self, map_type, prop_name, func, **kwargs):
+        return [func(x, **kwargs) for x in getattr(self, prop_name)[map_type]]
+
+    def get_map_items_dict(self, map_type):
+        return get_map_items_by_glob(self.nav_dict, self.filepath, self.search_strings[map_type])
+
+    @staticmethod
+    def _sort_key(item):
+        import re
+        match = re.match(r"(\d+)(.*)", item)
+        if match:
+            number = int(match.group(1))
+            suffix = match.group(2)
+            return number, suffix
+        return float('inf'), item
+
+    def get_map_items(self, map_type):
+        sorted_map_keys = sorted(list(self.map_items_dict[map_type].keys()), key=self._sort_key)
+        keys = []
+        map_items = []
+        for key in sorted_map_keys:
+            keys.append(key)
+            map_items.append(self.map_items_dict[map_type][key])
+        return keys, map_items
+
+    def get_map_filepath(self, item):
+        fp = get_map_filepath_from_nav_item(self.filepath, item)
+        return fp
+
+    def get_map_filepaths(self, map_type):
+        return self._get_values(map_type, self.get_map_filepath)
+
+    def get_mdoc_filepath(self, idx, map_type):
+        return get_mdoc_filepath(self.map_filepaths[map_type][idx])
+
+    def get_mdoc_filepaths(self, map_type):
+        return self._get_values_with_idx(map_type, self.get_mdoc_filepath)
+
+    def _get_affine(self, item, binning, invert=False, full_square=False, flatten=False):
+
+        xy = get_map_scale_xy(item)
+        mat = get_map_scale_matrix_from_item(item)
+        img_shp = self._get_map_shape(item, binning)
+        map_binning = get_value_from_item(item, 'MapBinning')
+        mont_binning = get_value_from_item(item, 'MontBinning')
+        map_resolution = self._get_map_resolution(item, binning)
+
+        bin_factor = map_binning / mont_binning * map_resolution
+        affine = np.array([
+            [mat[0, 0] * bin_factor, mat[0, 1] * bin_factor, 0, img_shp[0] / 2 * (map_resolution * binning)],
+            [mat[1, 0] * bin_factor, mat[1, 1] * bin_factor, 0, img_shp[1] / 2 * (map_resolution * binning)],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1]
+        ])
+        if invert:
+            affine = np.linalg.inv(affine)
+        if not full_square:
+            affine = affine[:3]
+        affine[0, 3] += xy[0]
+        affine[1, 3] += xy[1]
+        if flatten:
+            affine = affine.flatten()
+
+        return affine
+
+    def _get_map_full_affine(self, item, binning, apply_affine=None, invert=False, full_square=False, flatten=False):
+
+        if apply_affine is not None:
+            affine = self._get_affine(item, binning, invert=invert, full_square=full_square, flatten=False)
+            if flatten:
+                return (apply_affine @ affine).flatten()
+            return apply_affine @ affine
+
+        return self._get_affine(item, binning, invert=invert, full_square=full_square, flatten=flatten)
+
+    def get_map_full_affines(self, map_type, stage_coordinate_system=False):
+
+        kwargs = dict(
+            apply_affine=(
+                None if stage_coordinate_system else
+                self._get_map_full_affine(self.map_items['grid'][1][0], self.map_binnings['grid'] ,invert=False, full_square=True, flatten=False)
+            ),
+            binning=self.map_binnings[map_type],
+            invert=False, full_square=True, flatten=True
+        )
+        return self._get_values(map_type, self._get_map_full_affine, **kwargs)
+
+    def _get_map_resolution(self, item, binning):
+        fp = get_map_filepath_from_nav_item(self.filepath, item)
+        mdoc_fp = get_mdoc_filepath(fp)
+        return get_resolution_from_mdoc(mdoc_fp, unit='micrometer')
+
+    def get_map_scale_matrices(self, map_type):
+        return self._get_values(map_type, get_map_scale_matrix_from_item)
+
+    def get_map_scale_xys(self, map_type):
+        return self._get_values(map_type, get_map_scale_xy)
+
+    @staticmethod
+    def _get_map_shape(item, binning):
+        bin_factor = get_value_from_item(item, 'MapBinning') / (
+                    get_value_from_item(item, 'MontBinning') * binning)
+        return (np.array(get_value_list_from_item(item, 'MapWidthHeight')) * bin_factor).astype(int)
+
+    def get_map_shapes(self, map_type):
+        return self._get_values(map_type, self._get_map_shape, binning=self.map_binnings[map_type])
+
+
+class TomoCLEMNavigator(Navigator):
+
+    MAP_TYPES = [
+        'grid',
+        'medium_mag',
+        # 'target',
+        # 'tilt_stack'
+    ]
+
+    SEARCH_STRINGS = dict(
+        grid=None,
+        medium_mag='MMM_*.mrc'
+    )
+
+    def __init__(self, filepath):
+        super().__init__(filepath, map_types=self.MAP_TYPES, search_strings=self.SEARCH_STRINGS)
+
+    def get_map_items_dict(self, map_type):
+
+        if map_type == 'grid':
+            key = next(iter(self.nav_dict['items']))
+            map_items = {key: self.nav_dict['items'][key]}
+            assert map_items[key]['MapFile'].endswith('.mrc')
+            return map_items
+
+        return super().get_map_items_dict(map_type)
+
+
+class SingleParticleNavigator(Navigator):
+
+    MAP_TYPES = [
+        'grid',
+        'search',
+        'view',
+        'record'
+    ]
+
+    SEARCH_STRINGS = dict(
+        record='*_record.mrc',
+        view='*_view.mrc',
+        search='*_search.mrc',
+        grid='gridmap.st'
+    )
+
+
+    def __init__(self, filepath: str, record_bin: int = 1, view_bin: int = 1, search_bin: int = 4, grid_bin: int = 8):
+
+        super().__init__(
+            filepath,
+            map_types=self.MAP_TYPES,
+            search_strings=self.SEARCH_STRINGS,
+            map_binnings=dict(
+                record=record_bin,
+                view=view_bin,
+                search=search_bin,
+                grid=grid_bin
+            )
+        )
+
+    def _function_on_property(self, map_type, prop_name, func, **kwargs):
+        if map_type in ['grid', 'search']:
+            return super()._function_on_property(map_type, prop_name, func, **kwargs)
+        if map_type in ['view', 'record']:
+            return [[func(y, **kwargs) for y in x] for x in getattr(self, prop_name)[map_type]]
+
+    # def _get_values(self, map_type, func, **kwargs):
+    #     if map_type in ['grid', 'search']:
+    #         return super()._get_values(map_type, func, **kwargs)
+    #     if map_type in ['view', 'record']:
+    #         return [[func(y, **kwargs) for y in x] for x in self.map_items[map_type][1]]
+    #     raise ValueError(f'Invalid map_type = {map_type}')
+    #
+    # def _get_values_with_idx(self, map_type, func, **kwargs):
+    #     if map_type in ['grid', 'search']:
+    #         return super()._get_values_with_idx(map_type, func, **kwargs)
+    #     if map_type in ['view', 'record']:
+    #         return [
+    #             [func([idx, idy], map_type, **kwargs) for idy in range(len(x))]
+    #             for idx, x in enumerate(self.map_items[map_type])
+    #         ]
+    #
+    #     raise ValueError(f'Invalid map_type = {map_type}')
+
+    def get_map_items_dict(self, map_type):
+        if map_type in ['grid', 'search']:
+            return super().get_map_items_dict(map_type)
+        if map_type in ['view', 'record']:
+            map_items = get_map_items_by_glob(self.nav_dict, self.filepath, self.search_strings[map_type])
+            return assign_view_maps_to_search_map(
+                map_items, self.map_items_dict['search'], self.nav_dict['items'], return_items=True
+            )
+        raise ValueError(f'Invalid map_type = {map_type}')
+
+    def get_view_or_record_map_items(self, map_type):
+        sorted_search_map_keys = sorted(list(self.map_items_dict['search'].keys()), key=self._sort_key)
+        map_items = []
+        map_item_keys = []
+        for key in sorted_search_map_keys:
+            if len(self.map_items_dict[map_type][key]) > 0:
+                sorted_map_keys = sorted(list(self.map_items_dict[map_type][key].keys()), key=self._sort_key)
+                map_items.append([self.map_items_dict[map_type][key][vm_key] for vm_key in sorted_map_keys])
+                map_item_keys.append(sorted_map_keys)
+            else:
+                print(f'Search map ID: {key} does not have corresponding {map_type} maps.')
+        return map_item_keys, map_items
+
+    def get_map_items(self, map_type):
+        if map_type in ['grid', 'search']:
+            return super().get_map_items(map_type)
+        if map_type in ['view', 'record']:
+            return self.get_view_or_record_map_items(map_type)
