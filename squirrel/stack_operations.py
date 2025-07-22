@@ -309,7 +309,7 @@ def crop_from_stack():
         roi=roi,
         key=key,
         pattern=pattern,
-        for_reslice=reslice_sample,
+        reslice_sample=reslice_sample,
         verbose=verbose
     )
 
