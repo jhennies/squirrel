@@ -89,7 +89,8 @@ def crop_from_stack_workflow(
         x_positions += int((h.shape[2] - x_positions[-1]) / 2)
         x_positions = tuple(x_positions)
         data = []
-        for sl in h:
+        for idx, sl in enumerate(h):
+            print(f'{idx + 1} / {h.shape[2]}')
             data.append(sl[:, x_positions])
         data = np.array(data).transpose((2, 1, 0))
 
