@@ -54,10 +54,11 @@ def invert_slices_workflow(
 def crop_from_stack_workflow(
         stack_path,
         out_path,
-        roi,
+        roi=None,
         key='data',
         pattern='*.tif',
         out_slice_offset=None,
+        reslice_sample=False,
         verbose=False
 ):
 
@@ -67,17 +68,31 @@ def crop_from_stack_workflow(
         print(f'out_path = {out_path}')
         print(f'key = {key}')
         print(f'pattern = {pattern}')
+        print(f'reslice_sample = {reslice_sample}')
+
+    if roi is None and not reslice_sample:
+        raise RuntimeError('Either roi must be given or for_reslice set to True')
 
     from squirrel.library.io import load_data_handle, get_filetype
     from squirrel.library.io import TiffStack
 
     h, s = load_data_handle(stack_path, key=key, pattern=pattern)
 
-    roi = np.s_[roi[0]: roi[0] + roi[3], roi[1]: roi[1] + roi[4], roi[2]: roi[2] + roi[5]]
-    if isinstance(h, TiffStack):
-        data = h[:][roi]
+    if not reslice_sample:
+        roi = np.s_[roi[0]: roi[0] + roi[3], roi[1]: roi[1] + roi[4], roi[2]: roi[2] + roi[5]]
+        if isinstance(h, TiffStack):
+            data = h[:][roi]
+        else:
+            data = h[roi]
     else:
-        data = h[roi]
+        x_positions = np.array(range(0, h.shape[2] - 64, int((h.shape[2] - 64) / 15)))
+        x_positions += int((h.shape[2] - x_positions[-1]) / 2)
+        x_positions = tuple(x_positions)
+        data = []
+        assert isinstance(h, TiffStack), 'Only implemented for tiff stacks!'
+        for sl in h:
+            data.append(sl[:, x_positions])
+        data = np.array(data).transpose((2, 1, 0))
 
     ft_out = get_filetype(out_path)
 
@@ -391,6 +406,15 @@ def tif_nearest_scaling_workflow(
 
 if __name__ == '__main__':
 
+    crop_from_stack_workflow(
+        '/media/julian/Data/projects/woller/problem-area1/problem_area',
+        '/media/julian/Data/tmp/crop_from_stack_test.h5',
+        roi=None,
+        pattern='*.tif',
+        reslice_sample=True,
+        verbose=False
+    )
+
     # stack_calculator_workflow(
     #     ('/media/julian/Data/projects/walter/cryo_fib_preprocessing/2024-03-21_2h/InLensCombined',
     #      '/media/julian/Data/projects/walter/cryo_fib_preprocessing/2024-03-21_2h/InLensCombined'),
@@ -411,22 +435,22 @@ if __name__ == '__main__':
     #     verbose=True
     # )
 
-    axis_median_filter_workflow(
-        '/media/julian/Data/projects/ionescu/cryofib-achromarium-segmentation/2022-02-23_giant-bacteria/segmentations/chunks/chunk_0000_2048_0000.h5',
-        '/media/julian/Data/tmp/test-axis_median.h5',
-        key='em',
-        median_radius=200,
-        axis=1,
-        operation='difference-clip',
-        verbose=True
-    )
-
-    axis_median_filter_workflow(
-        '/media/julian/Data/tmp/test-axis_median.h5',
-        '/media/julian/Data/tmp/test-axis_median-ax2.h5',
-        key='em',
-        median_radius=200,
-        axis=2,
-        operation='difference-clip',
-        verbose=True
-    )
+    # axis_median_filter_workflow(
+    #     '/media/julian/Data/projects/ionescu/cryofib-achromarium-segmentation/2022-02-23_giant-bacteria/segmentations/chunks/chunk_0000_2048_0000.h5',
+    #     '/media/julian/Data/tmp/test-axis_median.h5',
+    #     key='em',
+    #     median_radius=200,
+    #     axis=1,
+    #     operation='difference-clip',
+    #     verbose=True
+    # )
+    #
+    # axis_median_filter_workflow(
+    #     '/media/julian/Data/tmp/test-axis_median.h5',
+    #     '/media/julian/Data/tmp/test-axis_median-ax2.h5',
+    #     key='em',
+    #     median_radius=200,
+    #     axis=2,
+    #     operation='difference-clip',
+    #     verbose=True
+    # )

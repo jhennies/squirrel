@@ -286,6 +286,8 @@ def crop_from_stack():
                              'location')
     parser.add_argument('--pattern', type=str, default='*.tif',
                         help='File pattern to search for within the input folder; default = "*.tif"')
+    parser.add_argument('--reslice_sample', action='store_true',
+                        help='Crops yz slices along the x-axis; --roi is ignored')
     parser.add_argument('-v', '--verbose', action='store_true')
 
     args = parser.parse_args()
@@ -294,6 +296,7 @@ def crop_from_stack():
     roi = args.roi
     key = args.key
     pattern = args.pattern
+    reslice_sample = args.reslice_sample
     verbose = args.verbose
 
     assert roi is not None
@@ -303,9 +306,10 @@ def crop_from_stack():
     crop_from_stack_workflow(
         stack_path,
         out_path,
-        roi,
+        roi=roi,
         key=key,
         pattern=pattern,
+        for_reslice=reslice_sample,
         verbose=verbose
     )
 
