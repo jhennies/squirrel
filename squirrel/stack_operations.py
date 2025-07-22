@@ -299,8 +299,6 @@ def crop_from_stack():
     reslice_sample = args.reslice_sample
     verbose = args.verbose
 
-    assert roi is not None
-
     from squirrel.workflows.volume import crop_from_stack_workflow
 
     crop_from_stack_workflow(
