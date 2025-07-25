@@ -440,10 +440,6 @@ def estimate_crop_xy_workflow(
     # Compute the max projection
     max_projection = slices.max(axis=0)
 
-    # max_projection = np.zeros((100, 200))
-    # max_projection[10:90, 30:50] = 1
-    # shape = (10, 100, 200)
-
     # Determine the bounds and add the padding
     from squirrel.library.image import get_bounds
     bounds = get_bounds(max_projection, return_ints=True)
