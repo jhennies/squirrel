@@ -440,6 +440,9 @@ def estimate_crop_xy_workflow(
     # Compute the max projection
     max_projection = slices.max(axis=0)
 
+    if verbose:
+        print(f'max_projection.shape = {max_projection.shape}')
+
     # Determine the bounds and add the padding
     from squirrel.library.image import get_bounds
     bounds = get_bounds(max_projection, return_ints=True)
@@ -529,7 +532,7 @@ if __name__ == '__main__':
         '/media/julian/Data/projects/woller/problem-area1/problem_area',
         number_of_samples=4,
         padding=64,
-        verbose=False
+        verbose=True
     )
 
     # stack_calculator_workflow(
