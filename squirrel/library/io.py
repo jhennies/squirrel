@@ -238,7 +238,10 @@ class TiffStack(list):
 
     def __getitem__(self, item):
 
-        filepaths = list.__getitem__(self, item)
+        if isinstance(item, tuple):
+            filepaths = [list.__getitem__(self, x) for x in item]
+        else:
+            filepaths = list.__getitem__(self, item)
         if isinstance(filepaths, str):
             return read_tif_slice(filepaths, return_filepath=False)
         if isinstance(filepaths, list):
@@ -248,6 +251,10 @@ class TiffStack(list):
             except ValueError:
                 print(f"Warning: Inconsistent slice shapes! Can't convert to np.array, so returning list instead")
                 return stack
+
+    def __iter__(self):
+        for x in super().__iter__():
+            yield read_tif_slice(x, return_filepath=False)
 
     def get_slice_and_filepath(self, idx):
 

@@ -286,6 +286,8 @@ def crop_from_stack():
                              'location')
     parser.add_argument('--pattern', type=str, default='*.tif',
                         help='File pattern to search for within the input folder; default = "*.tif"')
+    parser.add_argument('--reslice_sample', action='store_true',
+                        help='Crops yz slices along the x-axis; --roi is ignored')
     parser.add_argument('-v', '--verbose', action='store_true')
 
     args = parser.parse_args()
@@ -294,18 +296,18 @@ def crop_from_stack():
     roi = args.roi
     key = args.key
     pattern = args.pattern
+    reslice_sample = args.reslice_sample
     verbose = args.verbose
-
-    assert roi is not None
 
     from squirrel.workflows.volume import crop_from_stack_workflow
 
     crop_from_stack_workflow(
         stack_path,
         out_path,
-        roi,
+        roi=roi,
         key=key,
         pattern=pattern,
+        reslice_sample=reslice_sample,
         verbose=verbose
     )
 
@@ -521,3 +523,47 @@ def tif_nearest_scaling():
         verbose=verbose,
     )
 
+
+def estimate_crop_xy():
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Estimates a the minimum xy-bounds that contains the full stack',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('input_path', type=str,
+                        help='Path of the input stack')
+    parser.add_argument('--key', type=str, default=None,
+                        help='For h5 or ome.zarr input stacks this key is used to locate the dataset inside the stack '
+                             'location; default=None which will be interpreted as "s0" for ome.zarr, "data" for h5 and "setup0/timepoint0/s0" for n5')
+    parser.add_argument('--pattern', type=str, default=None,
+                        help='File pattern to search for within the input folder; default=None (which is interpreted as "*.tif")')
+    parser.add_argument('-pad', '--padding', type=int, default=64,
+                        help='Adds a certain amount of buffer to the output bounds')
+    parser.add_argument('-out', '--out_image', type=str, default='max_projection.tif',
+                        help='Saves the maximum projection as a tif image; defaults to "max_projection.tif"')
+    parser.add_argument('-samples', '--number_of_samples', type=int, default=16,
+                        help='The number of slices used to generate the maximum projection; default=16')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    input_path = args.input_path
+    key = args.key
+    pattern = args.pattern
+    padding = args.padding
+    out_image = args.out_image
+    number_of_samples = args.number_of_samples
+    verbose = args.verbose
+
+    from squirrel.workflows.volume import estimate_crop_xy_workflow
+
+    estimate_crop_xy_workflow(
+        input_path,
+        key=key,
+        pattern=pattern,
+        padding=padding,
+        out_image=out_image,
+        number_of_samples=number_of_samples,
+        verbose=verbose
+    )

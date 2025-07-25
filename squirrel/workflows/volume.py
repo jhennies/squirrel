@@ -54,10 +54,11 @@ def invert_slices_workflow(
 def crop_from_stack_workflow(
         stack_path,
         out_path,
-        roi,
+        roi=None,
         key='data',
         pattern='*.tif',
         out_slice_offset=None,
+        reslice_sample=False,
         verbose=False
 ):
 
@@ -67,17 +68,31 @@ def crop_from_stack_workflow(
         print(f'out_path = {out_path}')
         print(f'key = {key}')
         print(f'pattern = {pattern}')
+        print(f'reslice_sample = {reslice_sample}')
+
+    if roi is None and not reslice_sample:
+        raise RuntimeError('Either roi must be given or for_reslice set to True')
 
     from squirrel.library.io import load_data_handle, get_filetype
     from squirrel.library.io import TiffStack
 
     h, s = load_data_handle(stack_path, key=key, pattern=pattern)
 
-    roi = np.s_[roi[0]: roi[0] + roi[3], roi[1]: roi[1] + roi[4], roi[2]: roi[2] + roi[5]]
-    if isinstance(h, TiffStack):
-        data = h[:][roi]
+    if not reslice_sample:
+        roi = np.s_[roi[0]: roi[0] + roi[3], roi[1]: roi[1] + roi[4], roi[2]: roi[2] + roi[5]]
+        if isinstance(h, TiffStack):
+            data = h[:][roi]
+        else:
+            data = h[roi]
     else:
-        data = h[roi]
+        x_positions = np.array(range(0, h.shape[2] - 64, int((h.shape[2] - 64) / 15)))
+        x_positions += int((h.shape[2] - x_positions[-1]) / 2)
+        x_positions = tuple(x_positions)
+        data = []
+        for idx, sl in enumerate(h):
+            print(f'{idx + 1} / {h.shape[0]}')
+            data.append(sl[:, x_positions])
+        data = np.array(data).transpose((2, 1, 0))
 
     ft_out = get_filetype(out_path)
 
@@ -389,7 +404,133 @@ def tif_nearest_scaling_workflow(
             write_tif_slice(out_img, output_dirpath, 'slice_{:05d}.tif'.format(out_idz))
 
 
+def estimate_crop_xy_workflow(
+        input_path,
+        key=None,
+        pattern=None,
+        padding=64,
+        out_image='max_projection.png',
+        number_of_samples=16,
+        verbose=False
+):
+
+    if verbose:
+        print(f'input_path = {input_path}')
+        print(f'key = {key}')
+        print(f'pattern = {pattern}')
+        print(f'padding = {padding}')
+        print(f'out_image = {out_image}')
+        print(f'number_of_samples = {number_of_samples}')
+
+    # Load the relevant slices
+    from squirrel.library.io import load_data_handle
+    h, shape = load_data_handle(input_path, key, pattern)
+
+    slice_ids = np.array(range(number_of_samples)) / (number_of_samples - 1) * (shape[0] - 1)
+    slice_ids = np.round(slice_ids).astype(int)
+    if verbose:
+        print(f'shape[0] = {shape[0]}')
+        print(f'slice_ids = {slice_ids}')
+
+    slices = h[tuple(slice_ids)]
+
+    if verbose:
+        print(f'slices.shape = {slices.shape}')
+
+    # Compute the max projection
+    max_projection = slices.max(axis=0)
+
+    # Determine the bounds and add the padding
+    from squirrel.library.image import get_bounds
+    bounds = get_bounds(max_projection, return_ints=True)
+    bounds_start = np.array(bounds[:2])
+    bounds_stop = np.array(bounds[2:])
+    bounds_start -= padding
+    bounds_start[bounds_start < 0] = 0
+    bounds_stop += padding
+    shape_yx = np.array(shape[1:])
+    bounds_stop[bounds_stop > shape_yx] = shape_yx[bounds_stop > shape_yx]
+    bounds = np.concatenate((bounds_start, bounds_stop), axis=0).tolist()
+
+    if verbose:
+        from matplotlib import pyplot as plt
+        plt.imshow(max_projection)
+        plt.show()
+
+    # Save the maximum projection (with bounds?)
+    from PIL import Image, ImageDraw
+
+    def _draw_rectangle_on_image(image_array, rectangle, color=(255, 0, 0), alpha=32, width=3,
+                                            output_path='output.png'):
+        """
+        Draws a semi-transparent rectangle on a grayscale image and saves it as a PNG.
+
+        Parameters:
+            image_array (np.ndarray): 2D grayscale image array.
+            rectangle (list or tuple): [y_start, x_start, y_stop, x_stop].
+            color (tuple): RGB color of the rectangle.
+            alpha (int): Transparency (0–255), 128 = 50% transparent.
+            width (int): Border thickness in pixels.
+            output_path (str): Path to save the output PNG.
+        """
+        # Convert grayscale image to RGB then to RGBA
+        base_img = Image.fromarray(image_array.astype(np.uint8), mode='L').convert('RGBA')
+
+        # Create a transparent overlay
+        overlay = Image.new('RGBA', base_img.size, (0, 0, 0, 0))
+        draw = ImageDraw.Draw(overlay)
+
+        y0, x0, y1, x1 = rectangle
+        rgba_color = (*color, alpha)
+        draw.rectangle((x0, y0, x1-1, y1-1), outline=rgba_color, width=width)
+        draw.rectangle((x0, y0, x1-1, y1-1), outline=color, width=3)
+
+        # Composite the overlay onto the base image
+        result = Image.alpha_composite(base_img, overlay)
+        result.save(output_path)
+        print(f"Saved maximum projection to: {output_path}")
+
+    if out_image is not None:
+        if os.path.exists(os.path.split(out_image)[0]):
+            out_filepath = out_image
+        else:
+            out_filepath = os.path.join(os.path.split(input_path)[0], out_image)
+        _draw_rectangle_on_image(
+            max_projection,
+            bounds,
+            color=(255, 128, 0),
+            output_path=out_filepath,
+            width=200
+        )
+
+    # Print bounds
+    # Convert to YXHW
+    bounds[2:] = [bounds[2] - bounds[0], bounds[3] - bounds[1]]
+    # Convert to XYWH order
+    bounds = bounds[:2][::-1] + bounds[2:][::-1]
+    print('____________________________________')
+    print('BOUNDS (X, Y, W, H):')
+    print(' '.join([str(int(x)) for x in bounds]))
+    print('____________________________________')
+
+
 if __name__ == '__main__':
+
+    # crop_from_stack_workflow(
+    #     '/media/julian/Data/projects/woller/problem-area1/problem_area',
+    #     '/media/julian/Data/tmp/crop_from_stack_test.h5',
+    #     roi=None,
+    #     pattern='*.tif',
+    #     reslice_sample=True,
+    #     verbose=False
+    # )
+
+    estimate_crop_xy_workflow(
+        '/media/julian/Data/projects/woller/problem-area1/problem_area',
+        number_of_samples=4,
+        padding=64,
+        verbose=False
+    )
 
     # stack_calculator_workflow(
     #     ('/media/julian/Data/projects/walter/cryo_fib_preprocessing/2024-03-21_2h/InLensCombined',
@@ -411,22 +552,22 @@ if __name__ == '__main__':
     #     verbose=True
     # )
 
-    axis_median_filter_workflow(
-        '/media/julian/Data/projects/ionescu/cryofib-achromarium-segmentation/2022-02-23_giant-bacteria/segmentations/chunks/chunk_0000_2048_0000.h5',
-        '/media/julian/Data/tmp/test-axis_median.h5',
-        key='em',
-        median_radius=200,
-        axis=1,
-        operation='difference-clip',
-        verbose=True
-    )
-
-    axis_median_filter_workflow(
-        '/media/julian/Data/tmp/test-axis_median.h5',
-        '/media/julian/Data/tmp/test-axis_median-ax2.h5',
-        key='em',
-        median_radius=200,
-        axis=2,
-        operation='difference-clip',
-        verbose=True
-    )
+    # axis_median_filter_workflow(
+    #     '/media/julian/Data/projects/ionescu/cryofib-achromarium-segmentation/2022-02-23_giant-bacteria/segmentations/chunks/chunk_0000_2048_0000.h5',
+    #     '/media/julian/Data/tmp/test-axis_median.h5',
+    #     key='em',
+    #     median_radius=200,
+    #     axis=1,
+    #     operation='difference-clip',
+    #     verbose=True
+    # )
+    #
+    # axis_median_filter_workflow(
+    #     '/media/julian/Data/tmp/test-axis_median.h5',
+    #     '/media/julian/Data/tmp/test-axis_median-ax2.h5',
+    #     key='em',
+    #     median_radius=200,
+    #     axis=2,
+    #     operation='difference-clip',
+    #     verbose=True
+    # )
