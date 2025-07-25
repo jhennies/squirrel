@@ -486,7 +486,7 @@ def estimate_crop_xy_workflow(
         y0, x0, y1, x1 = rectangle
         rgba_color = (*color, alpha)
         draw.rectangle((x0, y0, x1-1, y1-1), outline=rgba_color, width=width)
-        draw.rectangle((x0, y0, x1-1, y1-1), outline=color, width=3)
+        draw.rectangle((x0, y0, x1-1, y1-1), outline=color, width=int(max(image_array.shape) / 500))
 
         # Composite the overlay onto the base image
         result = Image.alpha_composite(base_img, overlay)
