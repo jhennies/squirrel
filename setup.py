@@ -64,7 +64,8 @@ setup(
             'sq-stack-compress_tif_stack = squirrel.stack_operations:compress_tif_stack',
             'sq-stack-crop_from_stack = squirrel.stack_operations:crop_from_stack',
             'sq-stack-calculator = squirrel.stack_operations:stack_calculator',
-            'sq-stack-clahe_on_stack = squirrel.stack_operations:clahe_on_stack'
+            'sq-stack-clahe_on_stack = squirrel.stack_operations:clahe_on_stack',
+            'sq-stack-estimate_crop_xy = squirrel.stack_operations:estimate_crop_xy'
         ]
     },
     install_requires=[

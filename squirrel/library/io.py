@@ -238,7 +238,10 @@ class TiffStack(list):
 
     def __getitem__(self, item):
 
-        filepaths = list.__getitem__(self, item)
+        if isinstance(item, tuple):
+            filepaths = [list.__getitem__(self, x) for x in item]
+        else:
+            filepaths = list.__getitem__(self, item)
         if isinstance(filepaths, str):
             return read_tif_slice(filepaths, return_filepath=False)
         if isinstance(filepaths, list):
