@@ -440,6 +440,9 @@ def estimate_crop_xy_workflow(
     # Compute the max projection
     max_projection = slices.max(axis=0)
 
+    if verbose:
+        print(f'max_projection.shape = {max_projection.shape}')
+
     # Determine the bounds and add the padding
     from squirrel.library.image import get_bounds
     bounds = get_bounds(max_projection, return_ints=True)
@@ -483,7 +486,7 @@ def estimate_crop_xy_workflow(
         y0, x0, y1, x1 = rectangle
         rgba_color = (*color, alpha)
         draw.rectangle((x0, y0, x1-1, y1-1), outline=rgba_color, width=width)
-        draw.rectangle((x0, y0, x1-1, y1-1), outline=color, width=3)
+        draw.rectangle((x0, y0, x1-1, y1-1), outline=color, width=int(max(image_array.shape) / 500))
 
         # Composite the overlay onto the base image
         result = Image.alpha_composite(base_img, overlay)
@@ -510,6 +513,7 @@ def estimate_crop_xy_workflow(
     bounds = bounds[:2][::-1] + bounds[2:][::-1]
     print('____________________________________')
     print('BOUNDS (X, Y, W, H):')
+    print(f"[{', '.join([str(int(x)) for x in bounds])}]")
     print(' '.join([str(int(x)) for x in bounds]))
     print('____________________________________')
 
@@ -529,7 +533,7 @@ if __name__ == '__main__':
         '/media/julian/Data/projects/woller/problem-area1/problem_area',
         number_of_samples=4,
         padding=64,
-        verbose=False
+        verbose=True
     )
 
     # stack_calculator_workflow(
