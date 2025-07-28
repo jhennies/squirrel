@@ -513,6 +513,7 @@ def estimate_crop_xy_workflow(
     bounds = bounds[:2][::-1] + bounds[2:][::-1]
     print('____________________________________')
     print('BOUNDS (X, Y, W, H):')
+    print(f"[{', '.join([str(int(x)) for x in bounds])}]")
     print(' '.join([str(int(x)) for x in bounds]))
     print('____________________________________')
 
