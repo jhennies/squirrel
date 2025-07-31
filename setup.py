@@ -65,7 +65,8 @@ setup(
             'sq-stack-crop_from_stack = squirrel.stack_operations:crop_from_stack',
             'sq-stack-calculator = squirrel.stack_operations:stack_calculator',
             'sq-stack-clahe_on_stack = squirrel.stack_operations:clahe_on_stack',
-            'sq-stack-estimate_crop_xy = squirrel.stack_operations:estimate_crop_xy'
+            'sq-stack-estimate_crop_xy = squirrel.stack_operations:estimate_crop_xy',
+            'sq-stack-filter_2d_workflow = squirrel.stack_operations:filter_2d'
         ]
     },
     install_requires=[
