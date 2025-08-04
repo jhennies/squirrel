@@ -1,5 +1,5 @@
 import runpy
-from setuptools import setup
+from setuptools import setup, find_packages
 
 version = runpy.run_path("squirrel/__version__.py")["__version__"]
 
@@ -10,7 +10,7 @@ setup(
     author_email='hennies@embl.de',
     url='https://github.com/jhennies/squirrel',
     license="GPLv3",
-    packages=['squirrel'],
+    packages=find_packages(),
     entry_points={  # Naming scheme: sq-<namespace>-<func-name>, e.g. sq-stack-tif_nearest_scaling
         'console_scripts': [
             'apply_stack_alignment = squirrel.apply_transformation:apply_stack_alignment',
