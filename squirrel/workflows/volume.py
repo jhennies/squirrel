@@ -546,6 +546,7 @@ def filter_2d_workflow(
     stack_handle, stack_shape = load_data_handle(input_path, key, pattern)
 
     if batch_size is None:
+
         imf = ImageFilter(stack_handle[:])
         filtered_stack = imf.get_filtered_stack(filter_names, filter_kwargs, n_workers=n_workers)
         write_stack(out_path, filtered_stack, key=out_key)
