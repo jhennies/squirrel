@@ -518,7 +518,59 @@ def estimate_crop_xy_workflow(
     print('____________________________________')
 
 
+def filter_2d_workflow(
+        input_path,
+        out_path,
+        key=None,
+        pattern=None,
+        out_key=None,
+        filter_names=('gaussian',),
+        filter_kwargs=(dict(sigma=1.0),),
+        batch_size=None,
+        n_workers=1,
+        verbose=False
+):
+    if verbose:
+        print(f'input_path = {input_path}')
+        print(f'out_path = {out_path}')
+        print(f'key = {key}')
+        print(f'pattern = {pattern}')
+        print(f'filter_names = {filter_names}')
+        print(f'filter_kwargs = {filter_kwargs}')
+        print(f'batch_size = {batch_size}')
+        print(f'n_workers = {n_workers}')
+
+    from squirrel.library.filters import ImageFilter
+    from squirrel.library.io import load_data_handle, write_stack, get_filetype
+
+    stack_handle, stack_shape = load_data_handle(input_path, key, pattern)
+
+    if batch_size is None:
+
+        imf = ImageFilter(stack_handle[:])
+        filtered_stack = imf.get_filtered_stack(filter_names, filter_kwargs, n_workers=n_workers)
+        write_stack(out_path, filtered_stack, key=out_key)
+        return
+
+    assert get_filetype(out_path) == 'dir', 'Batched processing only implemented for tif stack output!'
+
+    from squirrel.library.io import write_tif_stack
+    for zidx in range(0, stack_shape[0], batch_size):
+
+        imf = ImageFilter(stack_handle[zidx: zidx + batch_size])
+        filtered_substack = imf.get_filtered_stack(filter_names, filter_kwargs, n_workers=n_workers)
+        write_tif_stack(filtered_substack, out_path, id_offset=zidx, slice_name='slice_{:05}.tif')
+
+
 if __name__ == '__main__':
+
+    filter_2d_workflow(
+        '/media/julian/Data/projects/woller/problem-area1/problem_area',
+        '/media/julian/Data/tmp/test_stack_filter',
+        filter_names=['gaussian', 'gaussian_gradient_magnitude'],
+        filter_kwargs=[dict(sigma=5.0), dict(sigma=1.0)],
+        batch_size=8, n_workers=8
+    )
 
     # crop_from_stack_workflow(
     #     '/media/julian/Data/projects/woller/problem-area1/problem_area',
@@ -529,12 +581,12 @@ if __name__ == '__main__':
     #     verbose=False
     # )
 
-    estimate_crop_xy_workflow(
-        '/media/julian/Data/projects/woller/problem-area1/problem_area',
-        number_of_samples=4,
-        padding=64,
-        verbose=True
-    )
+    # estimate_crop_xy_workflow(
+    #     '/media/julian/Data/projects/woller/problem-area1/problem_area',
+    #     number_of_samples=4,
+    #     padding=64,
+    #     verbose=True
+    # )
 
     # stack_calculator_workflow(
     #     ('/media/julian/Data/projects/walter/cryo_fib_preprocessing/2024-03-21_2h/InLensCombined',

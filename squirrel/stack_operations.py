@@ -567,3 +567,73 @@ def estimate_crop_xy():
         number_of_samples=number_of_samples,
         verbose=verbose
     )
+
+
+def filter_2d():
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Performs a 2D filter on each slice of an image stack',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('input_path', type=str,
+                        help='Path of the input stack')
+    parser.add_argument('out_path', type=str,
+                        help='Output folder for tif stack or filepath for h5 container where the results will be '
+                             'written to')
+    parser.add_argument('--key', type=str, default=None,
+                        help='For h5 or ome.zarr input stacks this key is used to locate the dataset inside the stack '
+                             'location; default=None which will be interpreted as "s0" for ome.zarr, '
+                             '"data" for h5 and "setup0/timepoint0/s0" for n5')
+    parser.add_argument('--pattern', type=str, default=None,
+                        help='File pattern to search for within the input folder; '
+                             'default=None (which is interpreted as "*.tif")')
+    parser.add_argument('--out_key', type=str, default=None,
+                        help='For h5 and ome.zarr output paths')
+    parser.add_argument('-filters', '--filter_names', type=str, nargs='+', default=('gaussian',),
+                        help='List of filters that will be applied consecutively; '
+                             'Possible values=["gaussian", "gaussian_gradient_magnitude"]; default=("gaussian",)'
+                             'More filters will be added when required. ')
+    parser.add_argument('-kwargs', '--filter_kwargs', type=str, nargs='+', default=None,
+                        help='This defines the keyword argument the filter requires; '
+                             'default=None which uses the defaults of the respective filter\n'
+                             'These are the parameters required for the implemented filters:\n'
+                             ' - "gaussian": "sigma=1.0"\n'
+                             ' - "gaussian_gradient_magnitude": "sigma=1.0"\n'
+                             'If a filter takes multiple kwargs, separate by comma. e.g.:\n'
+                             '  -filters filter_a filter_b -kwargs kwarg_a1=1.0,kwarg_a2=2.0 kwargs_b1=2,kwarg_b2=3.0')
+    parser.add_argument('--batch_size', type=int, default=None,
+                        help='Will process and write data in batches (more memory efficient); default=None')
+    parser.add_argument('--n_workers', type=int, default=1,
+                        help='The number of cores to use for processing')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    input_path = args.input_path
+    out_path = args.out_path
+    key = args.key
+    pattern = args.pattern
+    out_key = args.out_key
+    filter_names = args.filter_names
+    filter_kwargs = args.filter_kwargs
+    batch_size = args.batch_size
+    n_workers = args.n_workers
+    verbose = args.verbose
+
+    filter_kwargs = [{k: float(v) for k, v in (kwarg.split('=') for kwarg in kwargs.split(','))} for kwargs in filter_kwargs]
+
+    from squirrel.workflows.volume import filter_2d_workflow
+
+    filter_2d_workflow(
+        input_path,
+        out_path,
+        key=key,
+        pattern=pattern,
+        out_key=out_key,
+        filter_names=filter_names,
+        filter_kwargs=filter_kwargs,
+        batch_size=batch_size,
+        n_workers=n_workers,
+        verbose=verbose
+    )

@@ -90,8 +90,9 @@ def clahe_on_slices_workflow(
         write_stack(out_path, normalized_stack, key=out_key)
         return
 
-    assert get_filetype(out_path) == 'dir', 'Batch processing only implemented for tif stack output!'
+    assert get_filetype(out_path) == 'dir', 'Batched processing only implemented for tif stack output!'
 
+    from squirrel.library.io import write_tif_stack
     for zidx in range(0, stack_shape[0], batch_size):
 
         normalized_substack = clahe_on_slices(
@@ -105,5 +106,4 @@ def clahe_on_slices_workflow(
             n_workers=n_workers
         )
 
-        from squirrel.library.io import write_tif_stack
         write_tif_stack(normalized_substack, out_path, id_offset=zidx, slice_name='slice_{:05}.tif')

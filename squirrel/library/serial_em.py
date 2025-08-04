@@ -384,6 +384,7 @@ class Navigator:
     def __init__(
             self, filepath,
             map_types: list[str] = None,
+            map_hierarchy: list[str] = None,
             search_strings: dict[str, str] = None,
             map_binnings: dict[str, int] = None,
             verbose: bool = False
@@ -414,43 +415,13 @@ class Navigator:
 
         self.map_sec_ids = {map_type: self._get_map_sec_ids(map_type) for map_type in self.map_types}
 
-        # # map_type_relation defines the dependencies of the map types
-        # # Example 1: {'grid': {'search': {'view': 'record'}}}
-        # #   -> linear dependency where record depends on view, view on search and search on grid
-        # # Example 2: {'grid': {'search': ['view', 'record']}}
-        # #   -> view and record depend on search and search on grid
-        # self.map_type_relation = self._get_map_type_relation()
-        # self.map_type_relation_sequences = self._get_map_type_relation_sequence()
-        # # item_relations is a dictionary that defines which item depends on which item from the higher order map_type
-        # # Example 1: {'g1': {s1: {v1: [r1]}}}
-        # # Example 2: {'g1': {s1: [[v1], [r1]]}}
-        # self.item_relation = self._get_item_relation()
-        # self.tree, self.flat_list = self._build_tree_and_flat_list()
-        # pass
+        self.map_hierarchy = map_hierarchy
+        self._build_key_hierarchy()
 
-        self.map_hierarchy = None
-        self.map_item_relation = None
+        self._count = [0] * len(self.map_types)
 
     def _function_on_property(self, map_type, prop_name, func, **kwargs):
         return {k: func(v, **kwargs) for k, v in getattr(self, prop_name)[map_type].items()}
-
-    def _get_map_type_relation_sequence(self):
-
-        def build_path(key, mapping):
-            path = []
-            while key is not None:
-                path.append(key)
-                key = mapping.get(key)
-            return path[::-1]
-
-        return {k: build_path(k, self.map_type_relation) for k in self.map_type_relation}
-
-    def _get_map_type_relation(self):
-        # return self.map_types
-        return dict(zip(self.map_types, [None] * len(self.map_types)))
-
-    def _get_item_relation(self):
-        return [list(self.map_items_dict[mt].keys()) for mt in self.map_types]
 
     def _get_map_items_dict(self, map_type):
         return get_map_items_by_glob(self.nav_dict, self.filepath, self.search_strings[map_type])
@@ -525,10 +496,6 @@ class Navigator:
         )
         return self._function_on_property(map_type, 'map_items_dict', self._get_map_full_affine, **kwargs)
 
-    def get_grid_affine(self, stage_coordinate_system=False):
-        affines = self.get_map_full_affines('grid', stage_coordinate_system=stage_coordinate_system)
-        return affines[next(iter(affines))]
-
     def _get_map_sec_ids(self, map_type):
         return self._function_on_property(map_type, 'map_items_dict', get_map_sec_id)
 
@@ -538,107 +505,66 @@ class Navigator:
             self.map_contrast_limits[map_type] = self._function_on_property(map_type, 'map_filepaths', get_contrast_limits_from_map)
         return self.map_contrast_limits[map_type]
 
-    def get_property(self, prop_name, map_type, map_ids=None, parent_map_id=None):
-        if map_ids is not None:
-            return [getattr(self, prop_name)[map_type][x] for x in map_ids]
-        if parent_map_id is not None:
-            parent_map_type = self.map_type_relation[map_type]
-            map_ids = self.item_relation[parent_map_type][parent_map_id]
-            return [getattr(self, prop_name)[map_type][x] for x in map_ids]
-        return getattr(self, prop_name)[map_type]
+    def _get_key_dependencies_for_map_type(self, map_type: str) -> list:
+        if self.map_hierarchy is None:
+            return list(self.map_items_dict[map_type].keys())
+        raise NotImplementedError('map_hierarchy != None is not implemented for the base class! '
+                                  'Classes that need this must implement the functionality '
+                                  'and thus override this function.')
 
-    def get_function(self, func_name, map_type, map_ids=None, parent_map_id=None, **kwargs):
-        if map_ids is not None:
-            return [getattr(self, func_name)(map_type, **kwargs)[x] for x in map_ids]
-        if parent_map_id is not None:
-            parent_map_type = self.map_type_relation[map_type]
-            map_ids = self.item_relation[parent_map_type][parent_map_id]
-            return [getattr(self, func_name)(map_type, **kwargs)[x] for x in map_ids]
-        return getattr(self, func_name)(map_type, **kwargs)
+    def _build_key_hierarchy(self):
+        self.key_hierarchy = dict()
+        ordered_map_types = self.map_hierarchy if self.map_hierarchy is not None else self.map_types
+        for map_type in ordered_map_types:
+            self.key_hierarchy[map_type] = self._get_key_dependencies_for_map_type(map_type)
 
-    def iterate_keys(self):
-        pass
+    def get_property_by_hierarchy(self, map_type, property, parent_key):
 
-    def _build_tree_and_flat_list(
-            hierarchy: Optional[List[str]],
-            relation_functions: Dict[str, Callable[[], Dict[Any, Any]]]
-    ) -> (List[Dict], List[Dict]):
-        """
-        hierarchy: list like ['grid', 'search', 'view', 'record'] or None
-        relation_functions: dict mapping relation name (e.g., 'search_on_grid') to function returning mapping
-        Returns: (tree, flat_list)
-        """
-        flat_list = []
-        id_to_node = {}
-        child_to_parent = {}
+        def find_index_path(nested, target, path=None):
+            if path is None:
+                path = []
 
-        # Step 1: Build flat list
-        if hierarchy:
-            for i in range(len(hierarchy) - 1):
-                parent_type = hierarchy[i]
-                child_type = hierarchy[i + 1]
-                relation_key = f"{child_type}_on_{parent_type}"
-                if relation_key not in relation_functions:
-                    raise ValueError(f"Missing relation function for {relation_key}")
-
-                relation = relation_functions[
-                    relation_key]()  # returns {parent_id: [child_ids]} or {parent_id: child_id}
-
-                for parent_id, children in relation.items():
-                    if not isinstance(children, list):
-                        children = [children]  # promote to list if one-to-one
-
-                    for child_id in children:
-                        flat_list.append({
-                            "id": child_id,
-                            "type": child_type,
-                            "parent_id": parent_id
-                        })
-                        child_to_parent[child_id] = parent_id
-
-        # Step 2: Add root-level items (if hierarchy exists)
-        if hierarchy:
-            root_type = hierarchy[0]
-            roots_found = set(item["parent_id"] for item in flat_list if item["parent_id"] is not None)
-            # Assume root items are keys in the first relation
-            root_relation_key = f"{hierarchy[1]}_on_{hierarchy[0]}"
-            root_relation = relation_functions[root_relation_key]()
-            for root_id in root_relation.keys():
-                flat_list.append({
-                    "id": root_id,
-                    "type": root_type,
-                    "parent_id": None
-                })
-        else:
-            # No hierarchy: flatten all items from all relation functions
-            for key, func in relation_functions.items():
-                mapping = func()
-                for parent_id, children in mapping.items():
-                    if not isinstance(children, list):
-                        children = [children]
-                    flat_list.append({"id": parent_id, "type": "unknown", "parent_id": None})
-                    for child_id in children:
-                        flat_list.append({"id": child_id, "type": "unknown", "parent_id": parent_id})
-
-        # Step 3: Build tree from flat list
-        tree = []
-        id_to_node = {}
-
-        for item in flat_list:
-            node = {k: item[k] for k in ["id", "type", "parent_id"]}
-            node["children"] = []
-            id_to_node[node["id"]] = node
-
-        for node in id_to_node.values():
-            pid = node["parent_id"]
-            if pid is None:
-                tree.append(node)
+            if isinstance(nested, list):
+                for i, item in enumerate(nested):
+                    result = find_index_path(item, target, path + [i])
+                    if result is not None:
+                        return result
             else:
-                parent_node = id_to_node.get(pid)
-                if parent_node:
-                    parent_node["children"].append(node)
+                if nested == target:
+                    return path
 
-        return tree, flat_list
+            return None
+
+        parent_map_type = self.map_hierarchy[self.map_hierarchy.index(map_type) - 1]
+        index_path = find_index_path(self.key_hierarchy[parent_map_type], parent_key)
+
+        this_keys = self.key_hierarchy[map_type]
+        for idx in index_path:
+            this_keys = this_keys[idx]
+
+        return [property[x] for x in this_keys]
+
+    def _key_generator(self):
+
+        def loop_func(hierarchy, this_key_hierarchy, idx_path = None):
+            this_hierarchy = hierarchy.pop(0)
+
+            for idx, item in enumerate(this_key_hierarchy):
+                this_idx_path = [idx] if idx_path is None else idx_path + [idx]
+                yield this_hierarchy, item, this_idx_path
+
+                if hierarchy:
+
+                    this_child_key_hierarchy = self.key_hierarchy[hierarchy[0]]
+                    for jdx in this_idx_path:
+                        this_child_key_hierarchy = this_child_key_hierarchy[jdx]
+
+                    yield from loop_func(hierarchy.copy(), this_child_key_hierarchy, this_idx_path)
+
+        yield from loop_func(self.map_hierarchy.copy(), self.key_hierarchy['grid'])
+
+    def __iter__(self):
+        return self._key_generator()
 
 
 class SingleParticleNavigator(Navigator):
@@ -662,6 +588,7 @@ class SingleParticleNavigator(Navigator):
         super().__init__(
             filepath,
             map_types=self.MAP_TYPES,
+            map_hierarchy=self.MAP_TYPES,
             search_strings=self.SEARCH_STRINGS,
             map_binnings=dict(
                 record=record_bin,
@@ -670,13 +597,6 @@ class SingleParticleNavigator(Navigator):
                 grid=grid_bin
             )
         )
-
-    def _get_map_type_relation(self):
-        mtr = super()._get_map_type_relation()
-        mtr['search'] = 'grid'
-        mtr['view'] = 'search'
-        mtr['record'] = 'view'
-        return mtr
 
     @staticmethod
     def assign_record_maps_to_view_maps(record_items, view_items):
@@ -689,39 +609,6 @@ class SingleParticleNavigator(Navigator):
                     rec_maps_to_view_maps[view_k] = rec_k
                     break
         return rec_maps_to_view_maps
-
-    def _get_item_relation(self):
-        assert len(self.map_items_dict['grid']) == 1, 'Only one grid item allowed!'
-
-        view_on_search = assign_view_maps_to_search_map(
-            self.map_items_dict['view'],
-            self.map_items_dict['search'],
-            self.nav_dict['items']
-        )
-        record_on_view = self.assign_record_maps_to_view_maps(
-            self.map_items_dict['record'],
-            self.map_items_dict['view']
-        )
-        # record_on_search = assign_view_maps_to_search_map(
-        #     self.map_items_dict['record'],
-        #     self.map_items_dict['search'],
-        #     self.nav_dict['items']
-        # )
-        # view_rec_on_search = dict()
-        # for k, v in view_on_search.items():
-        #     view_rec_on_search[k] = [v, record_on_search[k]]
-
-        # return {list(self.map_items_dict['grid'].keys())[0]: view_rec_on_search}
-
-        item_relation = dict()
-        # for map_type in self.map_type_relation_sequences['record']:
-        item_relation['grid'] = {
-            list(self.map_items_dict['grid'].keys())[0]: list(self.map_items_dict['search'].keys())
-        }
-        item_relation['search'] = view_on_search
-        item_relation['view'] = record_on_view
-
-        return item_relation
 
     def get_grid_map_filepath(self, item):
         fp = get_gridmap_filepath(self.filepath)
@@ -770,3 +657,18 @@ class SingleParticleNavigator(Navigator):
             return self._function_on_property(map_type, 'map_items_dict', self.get_record_map_filepath)
         return super().get_map_filepaths(map_type)
 
+    def _get_key_dependencies_for_map_type(self, map_type):
+
+        if map_type == 'grid':
+            return [list(self.map_items_dict[map_type].keys())[0]]
+
+        if map_type == 'search':
+            return [sorted(list(self.map_items_dict[map_type].keys()))]
+
+        if map_type == 'view':
+            assignment_info = assign_view_maps_to_search_map(self.map_items_dict['view'], self.map_items_dict['search'], self.nav_dict['items'], return_items=False)
+            return [[sorted(assignment_info[k]) for k in self.key_hierarchy['search'][0]]]
+
+        if map_type == 'record':
+            assignment_info = assign_view_maps_to_search_map(self.map_items_dict['record'], self.map_items_dict['search'], self.nav_dict['items'], return_items=False)
+            return [[[[kk] for kk in sorted(assignment_info[k])] for k in self.key_hierarchy['search'][0]]]

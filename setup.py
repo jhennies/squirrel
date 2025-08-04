@@ -1,5 +1,5 @@
 import runpy
-from setuptools import setup
+from setuptools import setup, find_packages
 
 version = runpy.run_path("squirrel/__version__.py")["__version__"]
 
@@ -10,7 +10,7 @@ setup(
     author_email='hennies@embl.de',
     url='https://github.com/jhennies/squirrel',
     license="GPLv3",
-    packages=['squirrel'],
+    packages=find_packages(),
     entry_points={  # Naming scheme: sq-<namespace>-<func-name>, e.g. sq-stack-tif_nearest_scaling
         'console_scripts': [
             'apply_stack_alignment = squirrel.apply_transformation:apply_stack_alignment',
@@ -65,7 +65,8 @@ setup(
             'sq-stack-crop_from_stack = squirrel.stack_operations:crop_from_stack',
             'sq-stack-calculator = squirrel.stack_operations:stack_calculator',
             'sq-stack-clahe_on_stack = squirrel.stack_operations:clahe_on_stack',
-            'sq-stack-estimate_crop_xy = squirrel.stack_operations:estimate_crop_xy'
+            'sq-stack-estimate_crop_xy = squirrel.stack_operations:estimate_crop_xy',
+            'sq-stack-filter_2d_workflow = squirrel.stack_operations:filter_2d'
         ]
     },
     install_requires=[
