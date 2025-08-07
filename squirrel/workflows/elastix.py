@@ -259,7 +259,7 @@ def elastix_stack_alignment_workflow(
         determine_bounds=False,
         parameter_map=None,
         quiet=False,
-        overwrite=False,
+        overwrite=Fsalse,
         verbose=False,
         debug=False
 ):

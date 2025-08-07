@@ -363,12 +363,6 @@ def get_map_shape(map_item, binning):
     return (np.array(get_value_list_from_item(map_item, 'MapWidthHeight')) * bin_factor).astype(int)
 
 
-def get_map_sec_id(map_item):
-    import re
-    match = re.search(r'Sec (\d+)', map_item['Note'])
-    return int(match.group(1)) if match else None
-
-
 def get_contrast_limits_from_map(
         map_fp
 ):
@@ -420,8 +414,21 @@ class Navigator:
 
         self._count = [0] * len(self.map_types)
 
+    @staticmethod
+    def _sort_key(item):
+        import re
+        match = re.match(r"(\d+)(.*)", item)
+        if match:
+            number = int(match.group(1))
+            suffix = match.group(2)
+            return number, suffix
+        return float('inf'), item
+
     def _function_on_property(self, map_type, prop_name, func, **kwargs):
-        return {k: func(v, **kwargs) for k, v in getattr(self, prop_name)[map_type].items()}
+        try:
+            return {k: func(map_type=map_type, key=k, item=v, **kwargs) for k, v in getattr(self, prop_name)[map_type].items()}
+        except TypeError:
+            return {k: func(v, **kwargs) for k, v in getattr(self, prop_name)[map_type].items()}
 
     def _get_map_items_dict(self, map_type):
         return get_map_items_by_glob(self.nav_dict, self.filepath, self.search_strings[map_type])
@@ -435,19 +442,18 @@ class Navigator:
     def _get_mdoc_filepaths(self, map_type):
         return self._function_on_property(map_type, 'map_filepaths', get_mdoc_filepath)
 
-    def _get_map_resolution(self, item):
-        fp = get_map_filepath_from_nav_item(self.filepath, item)
-        mdoc_fp = get_mdoc_filepath(fp)
+    def _get_map_resolution(self, map_type, key):
+        mdoc_fp = self.mdoc_filepaths[map_type][key]
         return get_resolution_from_mdoc(mdoc_fp, unit='micrometer')
 
-    def _get_affine(self, item, binning, invert=False, full_square=False, flatten=False):
+    def _get_affine(self, map_type, key, item, binning, invert=False, full_square=False, flatten=False):
 
         xy = get_map_scale_xy(item)
         mat = get_map_scale_matrix_from_item(item)
         img_shp = get_map_shape(item, binning)
         map_binning = get_value_from_item(item, 'MapBinning')
         mont_binning = get_value_from_item(item, 'MontBinning')
-        map_resolution = self._get_map_resolution(item)
+        map_resolution = self._get_map_resolution(map_type, key)
 
         bin_factor = map_binning / mont_binning * map_resolution
         affine = np.array([
@@ -467,15 +473,15 @@ class Navigator:
             affine = affine.flatten()
         return affine
 
-    def _get_map_full_affine(self, item, binning, apply_affine=None, invert=False, full_square=False, flatten=False):
+    def _get_map_full_affine(self, map_type, key, item, binning=1, apply_affine=None, invert=False, full_square=False, flatten=False):
 
         if apply_affine is not None:
-            affine = self._get_affine(item, binning, invert=invert, full_square=full_square, flatten=False)
+            affine = self._get_affine(map_type, key, item, binning, invert=invert, full_square=full_square, flatten=False)
             if flatten:
                 return (apply_affine @ affine).flatten()
             return apply_affine @ affine
 
-        return self._get_affine(item, binning, invert=invert, full_square=full_square, flatten=flatten)
+        return self._get_affine(map_type, key, item, binning, invert=invert, full_square=full_square, flatten=flatten)
 
     def get_grid_key(self):
         return next(iter(self.map_items_dict['grid']))
@@ -489,15 +495,21 @@ class Navigator:
         kwargs = dict(
             apply_affine=(
                 None if stage_coordinate_system else
-                self._get_map_full_affine(self.get_grid_item(), self.map_binnings['grid'], invert=False, full_square=True, flatten=False)
+                self._get_map_full_affine('grid', self.get_grid_key(), self.get_grid_item(), self.map_binnings['grid'], invert=False, full_square=True, flatten=False)
             ),
             binning=self.map_binnings[map_type],
             invert=True, full_square=True, flatten=True
         )
         return self._function_on_property(map_type, 'map_items_dict', self._get_map_full_affine, **kwargs)
 
+    @staticmethod
+    def _get_map_sec_id(map_item):
+        import re
+        match = re.search(r'Sec (\d+)', map_item['Note'])
+        return int(match.group(1)) if match else None
+
     def _get_map_sec_ids(self, map_type):
-        return self._function_on_property(map_type, 'map_items_dict', get_map_sec_id)
+        return self._function_on_property(map_type, 'map_items_dict', self._get_map_sec_id)
 
     def get_contrast_limits(self, map_type):
         if self.map_contrast_limits[map_type] is None:
@@ -599,7 +611,7 @@ class SingleParticleNavigator(Navigator):
         )
 
     @staticmethod
-    def assign_record_maps_to_view_maps(record_items, view_items):
+    def _assign_record_maps_to_view_maps(record_items, view_items):
         rec_maps_to_view_maps = dict()
         for view_k, view_v in view_items.items():
             vidx = view_v['Note'].split(' ')[0]
@@ -610,52 +622,79 @@ class SingleParticleNavigator(Navigator):
                     break
         return rec_maps_to_view_maps
 
-    def get_grid_map_filepath(self, item):
+    def _get_grid_map_filepath(self, item):
         fp = get_gridmap_filepath(self.filepath)
         return fp
 
-    def get_search_map_filepath(self, item):
+    def _get_search_map_filepath(self, item):
         for zero_padding in range(4):
             fp = get_searchmap_filepath(item, self.filepath, binning=self.map_binnings['search'], pad_zeros=zero_padding)
             if fp.exists():
                 return fp
 
     @staticmethod
-    def _get_view_map_filepath(view_map_item, nav_filepath, pad_zeros=0, extension='mrc'):
+    def _get_view_map_filepath_from_item(view_map_item, nav_filepath, pad_zeros=0, extension='mrc'):
         map_filepath = Path(view_map_item['MapFile'].replace("\\", '/'))
         map_section = get_map_sec_id(view_map_item) + 1
         map_section_str = ('{:0' + str(pad_zeros) + 'd}').format(map_section)
         return Path(nav_filepath).parent / f'{map_filepath.stem}_{map_section_str}.{extension}'
 
-    def get_view_map_filepath(self, item):
+    def _get_view_map_filepath(self, item):
         for zero_padding in range(4):
-            fp = self._get_view_map_filepath(item, self.filepath, pad_zeros=zero_padding)
+            fp = self._get_view_map_filepath_from_item(item, self.filepath, pad_zeros=zero_padding)
             if fp.exists():
                 return fp
 
     @staticmethod
-    def _get_record_map_filepath(record_map_item, nav_filepath, binning=4, pad_zeros=0, extension='mrc'):
+    def _get_record_map_filepath_from_item(record_map_item, nav_filepath, binning=4, pad_zeros=0, extension='mrc'):
         map_filepath = Path(record_map_item['MapFile'].replace("\\", '/'))
         map_section = get_map_sec_id(record_map_item) + 1
         map_section_str = ('{:0' + str(pad_zeros) + 'd}').format(map_section)
         return Path(nav_filepath).parent / f'{map_filepath.stem}_{map_section_str}_bin{binning}.{extension}'
 
-    def get_record_map_filepath(self, item):
+    def _get_record_map_filepath(self, item):
         for zero_padding in range(4):
-            fp = self._get_record_map_filepath(item, self.filepath, binning=self.map_binnings['record'], pad_zeros=zero_padding)
+            fp = self._get_record_map_filepath_from_item(item, self.filepath, binning=self.map_binnings['record'], pad_zeros=zero_padding)
             if fp.exists():
                 return fp
 
     def _get_map_filepaths(self, map_type):
         if map_type == 'grid':
-            return self._function_on_property(map_type, 'map_items_dict', self.get_grid_map_filepath)
+            return self._function_on_property(map_type, 'map_items_dict', self._get_grid_map_filepath)
         if map_type == 'search':
-            return self._function_on_property(map_type, 'map_items_dict', self.get_search_map_filepath)
+            return self._function_on_property(map_type, 'map_items_dict', self._get_search_map_filepath)
         if map_type == 'view':
-            return self._function_on_property(map_type, 'map_items_dict', self.get_view_map_filepath)
+            return self._function_on_property(map_type, 'map_items_dict', self._get_view_map_filepath)
         if map_type == 'record':
-            return self._function_on_property(map_type, 'map_items_dict', self.get_record_map_filepath)
+            return self._function_on_property(map_type, 'map_items_dict', self._get_record_map_filepath)
         return super().get_map_filepaths(map_type)
+
+    def _get_grid_mdoc_filepath(self, item):
+        fp = get_map_filepath_from_nav_item(self.filepath, item)
+        return get_mdoc_filepath(fp)
+
+    def _get_search_mdoc_filepath(self, item):
+        fp = get_map_filepath_from_nav_item(self.filepath, item)
+        return get_mdoc_filepath(fp)
+
+    def _get_view_mdoc_filepath(self, fp):
+        import re
+        return Path(re.sub(r'_view(_\d+)?\.mrc$', r'_view.mrc.mdoc', str(fp)))
+
+    def _get_record_mdoc_filepath(self, fp):
+        import re
+        return re.sub(r'_record(_\d+_bin\d+)?\.mrc$', r'_record.mrc.mdoc', str(fp))
+
+    def _get_mdoc_filepaths(self, map_type):
+        if map_type == 'grid':
+            return self._function_on_property(map_type, 'map_items_dict', self._get_grid_mdoc_filepath)
+        if map_type == 'search':
+            return self._function_on_property(map_type, 'map_items_dict', self._get_search_mdoc_filepath)
+        if map_type == 'view':
+            return self._function_on_property(map_type, 'map_filepaths', self._get_view_mdoc_filepath)
+        if map_type == 'record':
+            return self._function_on_property(map_type, 'map_filepaths', self._get_record_mdoc_filepath)
+        return super()._get_mdoc_filepaths(map_type)
 
     def _get_key_dependencies_for_map_type(self, map_type):
 
@@ -663,12 +702,157 @@ class SingleParticleNavigator(Navigator):
             return [list(self.map_items_dict[map_type].keys())[0]]
 
         if map_type == 'search':
-            return [sorted(list(self.map_items_dict[map_type].keys()))]
+            return [sorted(list(self.map_items_dict[map_type].keys()), key=self._sort_key)]
 
         if map_type == 'view':
             assignment_info = assign_view_maps_to_search_map(self.map_items_dict['view'], self.map_items_dict['search'], self.nav_dict['items'], return_items=False)
-            return [[sorted(assignment_info[k]) for k in self.key_hierarchy['search'][0]]]
+            return [[sorted(assignment_info[k], key=self._sort_key) for k in self.key_hierarchy['search'][0]]]
 
         if map_type == 'record':
-            assignment_info = assign_view_maps_to_search_map(self.map_items_dict['record'], self.map_items_dict['search'], self.nav_dict['items'], return_items=False)
-            return [[[[kk] for kk in sorted(assignment_info[k])] for k in self.key_hierarchy['search'][0]]]
+            assignment_info = self._assign_record_maps_to_view_maps(self.map_items_dict['record'], self.map_items_dict['view'])
+            return [[[[assignment_info[kkk]] for kkk in kk] for kk in k] for k in self.key_hierarchy['view']]
+
+
+class TomoCLEMNavigator(Navigator):
+
+    MAP_TYPES = [
+        'grid',
+        'mmm',
+        'view',
+        # 'tilt_stack'
+    ]
+
+    SEARCH_STRINGS = dict(
+        grid=None,
+        mmm='MMM_*.mrc',
+        view='*tgt_???_view.mrc'
+    )
+
+    def __init__(
+            self,
+            filepath: str,
+            grid_bin: int = 1,
+            mmm_bin: int = 1,
+            view_bin: int = 1
+    ):
+        super().__init__(
+            filepath,
+            map_types=self.MAP_TYPES,
+            map_hierarchy=self.MAP_TYPES,
+            search_strings=self.SEARCH_STRINGS,
+            map_binnings=dict(
+                grid=grid_bin,
+                mmm=mmm_bin,
+                view=view_bin
+            )
+        )
+
+        self.lamella_ids = {map_type: self._get_map_lamella_ids(map_type) for map_type in self.map_types}
+
+    @staticmethod
+    def _get_lamella_from_note(medium_mag_map_item):
+        lamella_id = medium_mag_map_item['Note'].split(' - ')[2][:3]
+        return lamella_id
+
+    @staticmethod
+    def _get_lamella_from_map_file(map_item):
+        return map_item['MapFile'].split('\\')[-1][:3]
+
+    def _get_view_map_item_by_lamella_id(self, view_map_items, lamella_id, return_key_only=False):
+        if return_key_only:
+            return [k for k, v in view_map_items.items() if self._get_lamella_from_map_file(v) == lamella_id]
+        return {k: v for k, v in view_map_items.items() if
+                v['MapFile'].split('\\')[-1][:3] == lamella_id}
+
+    def _get_map_items_dict(self, map_type):
+
+        if map_type == 'grid':
+            key = next(iter(self.nav_dict['items']))
+            map_items = {key: self.nav_dict['items'][key]}
+            assert map_items[key]['MapFile'].endswith('.mrc')
+            return map_items
+
+        return super()._get_map_items_dict(map_type)
+
+    def _get_grid_map_filepath(self, fp):
+        binning = self.map_binnings['grid']
+        return fp.parent / f'{fp.stem}_stitched_grid01_bin{binning}{fp.suffix}'
+
+    def _get_mmm_map_filepath(self, fp):
+        binning = self.map_binnings['mmm']
+        return fp.parent / f'{fp.stem}_stitched_grid01_bin{binning}{fp.suffix}'
+
+    def _get_view_map_filepath(self, fp):
+        return self.filepath.parent.parent / 'pace' / fp.name
+
+    def _get_map_filepath(self, map_type, key, item):
+        fp = super()._get_map_filepath(item)
+        if map_type == 'grid':
+            return self._get_grid_map_filepath(fp)
+        if map_type == 'mmm':
+            return self._get_mmm_map_filepath(fp)
+        if map_type == 'view':
+            return self._get_view_map_filepath(fp)
+        return fp
+
+    def _get_grid_mdoc_filepath(self, item):
+        fp = get_map_filepath_from_nav_item(self.filepath, item)
+        return get_mdoc_filepath(fp)
+
+    def _get_mmm_mdoc_filepath(self, item):
+        fp = get_map_filepath_from_nav_item(self.filepath, item)
+        return get_mdoc_filepath(fp)
+
+    def _get_view_mdoc_filepath(self, fp):
+        import re
+        return Path(re.sub(r'_view(_\d+)?\.mrc$', r'_view.mrc.mdoc', str(fp)))
+
+    def _get_mdoc_filepaths(self, map_type):
+        if map_type == 'grid':
+            return self._function_on_property(map_type, 'map_items_dict', self._get_grid_mdoc_filepath)
+        if map_type == 'mmm':
+            return self._function_on_property(map_type, 'map_items_dict', self._get_mmm_mdoc_filepath)
+        if map_type == 'view':
+            pass
+        return super()._get_mdoc_filepaths(map_type)
+
+    @staticmethod
+    def _get_map_sec_id(map_item):
+        import re
+        fp = map_item['MapFile']
+        match = re.search(r'_([0-9]+)(?:_[^.]*)?\.mrc$', str(fp))
+        if match:
+            return int(match.group(1))
+        return 0
+
+    def _get_map_lamella_id(self, map_type, key, item):
+        if map_type == 'mmm':
+            return self._get_lamella_from_note(item)
+        if map_type in ['view']:
+            return self._get_lamella_from_map_file(item)
+        return ''
+
+    def _get_map_lamella_ids(self, map_type):
+        return self._function_on_property(map_type, 'map_items_dict', self._get_map_lamella_id)
+
+    def _assign_view_maps_to_mmm_maps(self, view_map_items):
+        nav_dict_items = self.nav_dict['items']
+        medium_mag_map_items = self.map_items_dict['mmm']
+        lamella_ids = {k: self._get_lamella_from_note(v) for k, v in medium_mag_map_items.items()}
+
+        return {
+            k: self._get_view_map_item_by_lamella_id(view_map_items, v, return_key_only=True)
+            for k, v in lamella_ids.items()
+        }
+
+    def _get_key_dependencies_for_map_type(self, map_type):
+
+        if map_type == 'grid':
+            return [list(self.map_items_dict[map_type].keys())[0]]
+
+        if map_type == 'mmm':
+            return [sorted(list(self.map_items_dict[map_type].keys()))]
+
+        if map_type == 'view':
+            assignment_info = self._assign_view_maps_to_mmm_maps(self.map_items_dict['view'])
+            return [[sorted(assignment_info[k]) for k in self.key_hierarchy['mmm'][0]]]
