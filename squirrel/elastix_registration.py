@@ -297,7 +297,7 @@ def elastix_stack_alignment():
     parser.add_argument('--determine_bounds', action='store_true',
                         help='Appends the bounding box of data within each slice to the results metadata. '
                              'Useful for auto-padding later on')
-    parser.add_argument('--debug', actions='store_true',
+    parser.add_argument('--debug', action='store_true',
                         help='Saves intermediate files for debugging')
     parser.add_argument('-v', '--verbose', action='store_true')
 
