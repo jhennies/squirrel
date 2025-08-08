@@ -368,6 +368,7 @@ class AffineStack:
         # return AffineStack(stack=new_stack, is_sequenced=True, pivot=self._pivot)
         new_stack = self.new_stack_with_same_meta(new_stack)
         new_stack.set_meta('z_step', 1)
+        print(self.is_sequenced)
         return new_stack
 
     def set_meta(self, name=None, data=None):

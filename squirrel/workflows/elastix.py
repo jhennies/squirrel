@@ -255,11 +255,12 @@ def elastix_stack_alignment_workflow(
         use_edges=False,
         z_range=None,
         z_step=1,
+        apply_z_step=False,
         average_for_z_step=False,
         determine_bounds=False,
         parameter_map=None,
         quiet=False,
-        overwrite=Fsalse,
+        overwrite=False,
         verbose=False,
         debug=False
 ):
@@ -331,6 +332,9 @@ def elastix_stack_alignment_workflow(
         # transforms = transforms.get_sequenced_stack()
         # transforms = transforms.get_interpolated(z_step)
         transforms.set_meta('z_step', z_step)
+        if apply_z_step:
+            transforms = transforms.get_sequenced_stack()
+            transforms = transforms.apply_z_step()
 
     if determine_bounds:
         assert len(transforms) == len(bounds)
@@ -557,8 +561,10 @@ def apply_multi_step_stack_alignment_workflow(
     )
 
     if write_result:
-        from squirrel.library.io import write_h5_container
-        write_h5_container(out_filepath, result_volume)
+        # from squirrel.library.io import write_h5_container
+        from squirrel.library.io import write_stack
+        # write_h5_container(out_filepath, result_volume)
+        write_stack(out_filepath, result_volume)
         return result_volume
     else:
         return result_volume
