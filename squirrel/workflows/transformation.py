@@ -592,6 +592,11 @@ def dot_product_on_affines_workflow(
         AffineStack(filepath=transform_filepaths[0]),
         AffineStack(filepath=transform_filepaths[1])
     ]
+    if transforms[0].is_sequenced or transforms[1].is_sequenced:
+        if not transforms[0].is_sequenced:
+            transforms[0] = transforms[0].get_sequenced_stack()
+        if not transforms[1].is_sequenced:
+            transforms[1] = transforms[1].get_sequenced_stack()
 
     if inverse[0]:
         transforms[0] = -transforms[0]
