@@ -117,7 +117,7 @@ def amst_workflow(
         raw_stack=None,
         pre_align_key='data',
         pre_align_pattern='*.tif',
-        transform=None,
+        # transform=None,
         auto_mask_off=False,
         median_radius=7,
         z_smooth_method='median',

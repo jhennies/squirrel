@@ -6,6 +6,15 @@ from pathlib import Path
 
 def navigator_file_to_dict(filepath):
 
+    def get_unique_key(base_key, existing_keys):
+        """Generate a unique key by appending -1, -2, etc. if necessary."""
+        if base_key not in existing_keys:
+            return base_key
+        i = 1
+        while f"{base_key}-{i}" in existing_keys:
+            i += 1
+        return f"{base_key}-{i}"
+
     import re
 
     data = {}
@@ -40,7 +49,8 @@ def navigator_file_to_dict(filepath):
             # match = re.match(r"\[Item\s*=\s*([\w-]+)\]", line)
             match = re.match(r"\[Item\s*=\s*(.*?)\]", line)
             if match:
-                current_item = match.group(1)
+                base_item = match.group(1)
+                current_item = get_unique_key(base_item, items)
                 items[current_item] = {}
                 continue
 
@@ -568,9 +578,11 @@ class Navigator:
                 if hierarchy:
 
                     this_child_key_hierarchy = self.key_hierarchy[hierarchy[0]]
-                    for jdx in this_idx_path:
-                        this_child_key_hierarchy = this_child_key_hierarchy[jdx]
-
+                    try:
+                        for jdx in this_idx_path:
+                            this_child_key_hierarchy = this_child_key_hierarchy[jdx]
+                    except IndexError:
+                        continue
                     yield from loop_func(hierarchy.copy(), this_child_key_hierarchy, this_idx_path)
 
         yield from loop_func(self.map_hierarchy.copy(), self.key_hierarchy['grid'])
@@ -719,13 +731,15 @@ class TomoCLEMNavigator(Navigator):
         'grid',
         'mmm',
         'view',
+        'tgt'
         # 'tilt_stack'
     ]
 
     SEARCH_STRINGS = dict(
         grid=None,
         mmm='MMM_*.mrc',
-        view='*tgt_???_view.mrc'
+        view='*tgt_???_view.mrc',
+        tgt='*tgt_???.mrc'
     )
 
     def __init__(
@@ -733,7 +747,8 @@ class TomoCLEMNavigator(Navigator):
             filepath: str,
             grid_bin: int = 1,
             mmm_bin: int = 1,
-            view_bin: int = 1
+            view_bin: int = 1,
+            tgt_bin: int = 1
     ):
         super().__init__(
             filepath,
@@ -743,7 +758,8 @@ class TomoCLEMNavigator(Navigator):
             map_binnings=dict(
                 grid=grid_bin,
                 mmm=mmm_bin,
-                view=view_bin
+                view=view_bin,
+                tgt=tgt_bin
             )
         )
 
@@ -758,9 +774,9 @@ class TomoCLEMNavigator(Navigator):
     def _get_lamella_from_map_file(map_item):
         return map_item['MapFile'].split('\\')[-1][:3]
 
-    def _get_view_map_item_by_lamella_id(self, view_map_items, lamella_id, return_key_only=False):
+    def _get_map_item_by_lamella_id(self, map_items, lamella_id, return_key_only=False):
         if return_key_only:
-            return [k for k, v in view_map_items.items() if self._get_lamella_from_map_file(v) == lamella_id]
+            return [k for k, v in map_items.items() if self._get_lamella_from_map_file(v) == lamella_id]
         return {k: v for k, v in view_map_items.items() if
                 v['MapFile'].split('\\')[-1][:3] == lamella_id}
 
@@ -785,6 +801,9 @@ class TomoCLEMNavigator(Navigator):
     def _get_view_map_filepath(self, fp):
         return self.filepath.parent.parent / 'pace' / fp.name
 
+    def _get_tgt_map_filepath(self, fp):
+        return self.filepath.parent.parent / 'pace' / fp.name
+
     def _get_map_filepath(self, map_type, key, item):
         fp = super()._get_map_filepath(item)
         if map_type == 'grid':
@@ -793,6 +812,8 @@ class TomoCLEMNavigator(Navigator):
             return self._get_mmm_map_filepath(fp)
         if map_type == 'view':
             return self._get_view_map_filepath(fp)
+        if map_type == 'tgt':
+            return self._get_tgt_map_filepath(fp)
         return fp
 
     def _get_grid_mdoc_filepath(self, item):
@@ -828,20 +849,20 @@ class TomoCLEMNavigator(Navigator):
     def _get_map_lamella_id(self, map_type, key, item):
         if map_type == 'mmm':
             return self._get_lamella_from_note(item)
-        if map_type in ['view']:
+        if map_type in ['view', 'tgt']:
             return self._get_lamella_from_map_file(item)
         return ''
 
     def _get_map_lamella_ids(self, map_type):
         return self._function_on_property(map_type, 'map_items_dict', self._get_map_lamella_id)
 
-    def _assign_view_maps_to_mmm_maps(self, view_map_items):
+    def _assign_maps_to_mmm_maps(self, map_items):
         nav_dict_items = self.nav_dict['items']
         medium_mag_map_items = self.map_items_dict['mmm']
         lamella_ids = {k: self._get_lamella_from_note(v) for k, v in medium_mag_map_items.items()}
 
         return {
-            k: self._get_view_map_item_by_lamella_id(view_map_items, v, return_key_only=True)
+            k: self._get_map_item_by_lamella_id(map_items, v, return_key_only=True)
             for k, v in lamella_ids.items()
         }
 
@@ -854,5 +875,9 @@ class TomoCLEMNavigator(Navigator):
             return [sorted(list(self.map_items_dict[map_type].keys()))]
 
         if map_type == 'view':
-            assignment_info = self._assign_view_maps_to_mmm_maps(self.map_items_dict['view'])
+            assignment_info = self._assign_maps_to_mmm_maps(self.map_items_dict['view'])
             return [[sorted(assignment_info[k]) for k in self.key_hierarchy['mmm'][0]]]
+
+        if map_type == 'tgt':
+            assignment_info = self._assign_maps_to_mmm_maps(self.map_items_dict['tgt'])
+            return [[[sorted(assignment_info[k])] for k in self.key_hierarchy['mmm'][0]]]
