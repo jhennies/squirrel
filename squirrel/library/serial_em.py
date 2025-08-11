@@ -4,16 +4,17 @@ from pathlib import Path
 # ______________________________________________________________________________________________________________________
 # Functions of the original linkmaps workflow
 
-def navigator_file_to_dict(filepath):
+def get_unique_key(base_key, existing_keys):
+    """Generate a unique key by appending -1, -2, etc. if necessary."""
+    if base_key not in existing_keys:
+        return base_key
+    i = 1
+    while f"{base_key}-{i}" in existing_keys:
+        i += 1
+    return f"{base_key}-{i}"
 
-    def get_unique_key(base_key, existing_keys):
-        """Generate a unique key by appending -1, -2, etc. if necessary."""
-        if base_key not in existing_keys:
-            return base_key
-        i = 1
-        while f"{base_key}-{i}" in existing_keys:
-            i += 1
-        return f"{base_key}-{i}"
+
+def navigator_file_to_dict(filepath):
 
     import re
 
@@ -56,6 +57,64 @@ def navigator_file_to_dict(filepath):
 
     data['items'] = items
     return data
+
+
+def extend_navigator_dict(filepath, nav_dict):
+
+    def _get_base_key(key):
+        return re.sub(r'^(.*)-(0|[1-9]\d*)$', r'\1', key)
+
+    def _get_items_with_base_key(d, base_key):
+        """Yield all (full_key, item) pairs in d that share the same base_key."""
+        for k, v in d.items():
+            if _get_base_key(k) == base_key:
+                yield k, v
+
+    import re
+    from copy import deepcopy
+
+    out_dict = deepcopy(nav_dict)
+
+    extend_dict = navigator_file_to_dict(filepath)
+
+    assert extend_dict['AdocVersion'] == nav_dict['AdocVersion'], "AdocVersions do not match! Not sure if this is bad, but I'll not allow it"
+
+    all_base_keys = list(np.unique([_get_base_key(x) for x in nav_dict['items'].keys()]))
+
+    for key, nav_item in extend_dict['items'].items():
+
+        clean_key = _get_base_key(key)
+
+        if clean_key in all_base_keys:
+            # Compare MapID to ALL items with the same base_key
+            existing_items = list(_get_items_with_base_key(nav_dict['items'], clean_key))
+            same_mapid = any(item['MapID'] == nav_item['MapID'] for _, item in existing_items)
+
+            if not same_mapid:
+                # Make a unique key for the new item
+                unique_key = get_unique_key(clean_key, out_dict['items'])
+                out_dict['items'][unique_key] = nav_item
+                print('Added new item with existing base key:')
+                print(f'key = {key}, clean_key = {clean_key}, unique_key = {unique_key}')
+            else:
+                print('Item exists, not adding it:')
+                print(f'key = {key}, clean_key = {clean_key}')
+                # MapID matches an existing one → check MapFile if present
+                if 'MapFile' in nav_item:
+                    # Find the item with matching MapID and compare MapFile
+                    for _, item in existing_items:
+                        if item['MapID'] == nav_item['MapID']:
+                            assert item['MapFile'] == nav_item['MapFile']
+                            break
+
+        else:
+            print('Added new item:')
+            print(f'key = {key}, clean_key = {clean_key}')
+            out_dict['items'][clean_key] = nav_item
+            if not clean_key in all_base_keys:
+                all_base_keys.append(clean_key)
+
+    return out_dict
 
 
 def get_map_items_by_map_file(nav_dict, endswith='_search.mrc'):
@@ -386,7 +445,7 @@ def get_contrast_limits_from_map(
 class Navigator:
 
     def __init__(
-            self, filepath,
+            self, filepaths,
             map_types: list[str] = None,
             map_hierarchy: list[str] = None,
             search_strings: dict[str, str] = None,
@@ -402,8 +461,7 @@ class Navigator:
         assert len(self.search_strings) == len(self.map_types), 'Number of search strings must match number of map types'
         assert len(self.map_binnings) == len(self.map_types), 'Number of map binnings must match number of map types'
 
-        self.filepath = Path(filepath)
-        self.nav_dict = navigator_file_to_dict(filepath)
+        self.filepath, self.all_filepaths, self.nav_dict = self._nav_filepaths_to_dict(filepaths)
 
         # It is important to add the items like this because some items might depend on the earlier added ones being
         #   present already
@@ -423,6 +481,20 @@ class Navigator:
         self._build_key_hierarchy()
 
         self._count = [0] * len(self.map_types)
+
+    @staticmethod
+    def _nav_filepaths_to_dict(nav_filepaths):
+        if type(nav_filepaths) == str:
+            return Path(nav_filepaths), [], navigator_file_to_dict(nav_filepaths)
+
+        all_filepaths = [Path(fp) for fp in nav_filepaths]
+        filepath = all_filepaths[0]
+
+        nav_dict = navigator_file_to_dict(filepath)
+        for fp in all_filepaths[1:]:
+            nav_dict = extend_navigator_dict(fp, nav_dict)
+
+        return filepath, all_filepaths, nav_dict
 
     @staticmethod
     def _sort_key(item):
