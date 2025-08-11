@@ -72,11 +72,24 @@ conda environment:
 ```
 conda activate squirrel-env
 
-compress_tif_stack -h
-h5_to_tif -h
-mib_to_tif -h
-normalize_slices -h
-tif_merge -h
+sq-conversion-cast_dtype -h
+sq-mobie-export_rois_with_mobie_table -h
+sq-serialem-parse_navigator_file -h
+sq-stack-clahe_on_stack -h
+sq-stack-estimate_crop_xy -h
+sq-stack-invert_slices -h
+sq-conversion-cast_segmentation -h
+sq-mobie-init_project -h
+sq-stack-axis_median_filter -h
+sq-stack-compress_tif_stack -h
+sq-stack-filter_2d_workflow -h
+sq-stack-normalize_slices -h
+sq-conversion-n5_to_stack -h
+sq-serialem-create_link_maps -h
+sq-stack-calculator -h
+sq-stack-crop_from_stack -h
+sq-stack-get_label_list -h
+sq-stack-tif_nearest_scaling -h
 ```
 
 The -h flag yields the help output describing functions and parameters
