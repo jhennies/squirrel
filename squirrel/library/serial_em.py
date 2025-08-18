@@ -953,3 +953,12 @@ class TomoCLEMNavigator(Navigator):
         if map_type == 'tgt':
             assignment_info = self._assign_maps_to_mmm_maps(self.map_items_dict['tgt'])
             return [[[sorted(assignment_info[k])] for k in self.key_hierarchy['mmm'][0]]]
+
+    def _key_generator(self):
+
+        yields = []
+        for map_type, key, idx_path in super()._key_generator():
+            yields.append([self.lamella_ids[map_type][key], idx_path, map_type, key])
+
+        for lamella_id, idx_path, map_type, key in sorted(yields):
+            yield map_type, key, idx_path, lamella_id

@@ -76,6 +76,8 @@ def normalize_mobie_table_entry_dict(entries, entry_count=None, use_abs_path=Fal
                 v[idx] = _normalize_exclusive(item)
             elif k == 'contrast_limits':
                 v[idx] = _normalize_contrast_limits(item)
+            else:
+                pass
 
         entries[k] = v
 
@@ -141,6 +143,7 @@ def init_mobie_table(
         table_filepath,
         data_map_filepaths,
         use_abs_path=False,
+        allow_any=False,
         verbose=False,
         **entry_kwargs
 ):
@@ -151,8 +154,9 @@ def init_mobie_table(
     if os.path.exists(table_filepath):
         os.remove(table_filepath)
 
-    for k, v in entry_kwargs.items():
-        assert k in MOBIE_TABLE_ENTRY_NAMES, f'{k} not in {MOBIE_TABLE_ENTRY_NAMES}'
+    if not allow_any:
+        for k, v in entry_kwargs.items():
+            assert k in MOBIE_TABLE_ENTRY_NAMES, f'{k} not in {MOBIE_TABLE_ENTRY_NAMES}'
 
     entries = dict(
             uri=data_map_filepaths,
