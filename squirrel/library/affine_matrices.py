@@ -412,6 +412,14 @@ class AffineMatrix:
             filepath=None,
             pivot=None
     ):
+        """
+
+        :param parameters:
+        :param elastix_parameters: Supply Elastix parameters in the format [transform: str, transform_parameters: list]
+            or as SimpleITK.SimpleITK.ParameterMap
+        :param filepath:
+        :param pivot:
+        """
         self._parameters = None
         self._ndim = None
         self._pivot = None
@@ -443,6 +451,11 @@ class AffineMatrix:
         self.set_from_parameters(parameters, pivot=self.get_pivot())
 
     def set_from_elastix(self, parameters, pivot=None):
+        import SimpleITK as sitk
+        if type(parameters) == sitk.SimpleITK.ParameterMap:
+            parameters = [parameters['Transform'][0], parameters['TransformParameters']]
+            if parameters[0] == 'TranslationTransform':
+                parameters[0] = 'translation'
         assert isinstance(parameters[0], str), \
             'Elastix parameters must be in the format: ["transform", [parameters, ...]]'
         assert parameters[0] in ['translation', 'rigid', 'SimilarityTransform', 'affine']

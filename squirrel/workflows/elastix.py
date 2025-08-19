@@ -190,7 +190,8 @@ def slice_wise_stack_to_stack_alignment_workflow(
         number_of_spatial_samples=None,
         maximum_number_of_iterations=None,
         number_of_resolutions=None,
-        pre_fix_big_jumps=False,
+        initialize_offsets_method=None,
+        initialize_offsets_kwargs=None,
         z_range=None,
         verbose=False
 ):
@@ -230,7 +231,8 @@ def slice_wise_stack_to_stack_alignment_workflow(
         maximum_number_of_iterations=maximum_number_of_iterations,
         number_of_resolutions=number_of_resolutions,
         return_result_image=True,
-        pre_fix_big_jumps=pre_fix_big_jumps,
+        initialize_offsets_method=initialize_offsets_method,
+        initialize_offsets_kwargs=initialize_offsets_kwargs,
         verbose=verbose
     )
 
@@ -248,8 +250,8 @@ def elastix_stack_alignment_workflow(
         number_of_spatial_samples=None,
         maximum_number_of_iterations=None,
         number_of_resolutions=None,
-        pre_fix_big_jumps=False,
-        pre_fix_iou_thresh=0.5,
+        initialize_offsets_method=None,
+        initialize_offsets_kwargs=None,
         gaussian_sigma=0.,
         use_clahe=False,
         use_edges=False,
@@ -310,8 +312,8 @@ def elastix_stack_alignment_workflow(
                 number_of_spatial_samples=number_of_spatial_samples,
                 maximum_number_of_iterations=maximum_number_of_iterations,
                 number_of_resolutions=number_of_resolutions,
-                pre_fix_big_jumps=pre_fix_big_jumps,
-                pre_fix_iou_thresh=pre_fix_iou_thresh,
+                initialize_offsets_method=initialize_offsets_method,
+                initialize_offsets_kwargs=initialize_offsets_kwargs,
                 parameter_map=parameter_map,
                 return_result_image=False,
                 params_to_origin=True,
@@ -437,7 +439,6 @@ def stack_alignment_validation_workflow(
                         # number_of_spatial_samples=256,
                         # maximum_number_of_iterations=256,
                         # number_of_resolutions=1,
-                        pre_fix_big_jumps=False,
                         return_result_image=True,
                         params_to_origin=True,
                         gaussian_sigma=2.0,

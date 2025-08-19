@@ -277,11 +277,27 @@ def elastix_stack_alignment():
                         help='Elastix parameter')
     # parser.add_argument('--extended_output', action='store_true',
     #                     help='Increase information content of the output')
-    parser.add_argument('--pre_fix_big_jumps', action='store_true',
-                        help='Determines big jumps and fixes them using cross-correlation')
-    parser.add_argument('--pre_fix_iou_thresh', type=float, default=0.5,
-                        help='If the intersection over union of non-background areas of two adjacent sliced exceeds'
-                             'this treshold, the big jump prefix is computed')
+    parser.add_argument('--initialize_offsets_method', type=str, default=None,
+                        help='Method to solve big jumps: ["xcorr", "init_elx"]\n'
+                             '  "xcorr": Big jumps are detected by the intersection over union of the data in adjacent '
+                             'slices. \n'
+                             '      Correction is performed by cross-correlation\n'
+                             '  "init_elx": Using a highly binned version of the data, initial shifts are performed '
+                             '(grid). \n'
+                             '      The shifted moving image is used as input for elastix registration and the '
+                             'resulting alignment measured by Mutual Information (MI). \n'
+                             '      When MI < -1 is reached or all positions of the grid are tested, the best offset '
+                             'is used to initialize the alignment')
+    parser.add_argument('--initialize_offsets_kwargs', type=str, nargs='+', default=(),
+                        help='Arguments for the respective initialization method. Syntax: "key:value"\n'
+                             '  defaults for the respective method:\n'
+                             '      "xcorr":\n'
+                             '          iou_thresh:0.5\n'
+                             '      "init_elx:\n'
+                             '          binning:32\n'
+                             '          spacing:256\n'
+                             '          elx_binning:4\n'
+                             '          elx_max_iters:32')
     parser.add_argument('--gaussian_sigma', type=float, default=0.,
                         help='Perform a gaussian filter before registration')
     parser.add_argument('--use_clahe', action='store_true',
@@ -311,8 +327,8 @@ def elastix_stack_alignment():
     number_of_spatial_samples = args.number_of_spatial_samples
     maximum_number_of_iterations = args.maximum_number_of_iterations
     number_of_resolutions = args.number_of_resolutions
-    pre_fix_big_jumps = args.pre_fix_big_jumps
-    pre_fix_iou_thresh = args.pre_fix_iou_thresh
+    initialize_offsets_method = args.initialize_offsets_method
+    initialize_offsets_kwargs = args.initialize_offsets_kwargs
     gaussian_sigma = args.gaussian_sigma
     use_clahe = args.use_clahe
     use_edges = args.use_edges
@@ -322,6 +338,18 @@ def elastix_stack_alignment():
     determine_bounds = args.determine_bounds
     debug = args.debug
     verbose = args.verbose
+
+    def convert_value(v):
+        try:
+            return int(v)
+        except ValueError:
+            try:
+                return float(v)
+            except ValueError:
+                return v
+    initialize_offsets_kwargs = {
+        k: convert_value(v) for k, v in (item.split(':', 1) for item in initialize_offsets_kwargs)
+    }
 
     from squirrel.workflows.elastix import elastix_stack_alignment_workflow
 
@@ -335,8 +363,8 @@ def elastix_stack_alignment():
         number_of_spatial_samples=number_of_spatial_samples,
         maximum_number_of_iterations=maximum_number_of_iterations,
         number_of_resolutions=number_of_resolutions,
-        pre_fix_big_jumps=pre_fix_big_jumps,
-        pre_fix_iou_thresh=pre_fix_iou_thresh,
+        initialize_offsets_method=initialize_offsets_method,
+        initialize_offsets_kwargs=initialize_offsets_kwargs,
         gaussian_sigma=gaussian_sigma,
         use_clahe=use_clahe,
         use_edges=use_edges,

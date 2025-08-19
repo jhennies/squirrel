@@ -200,7 +200,6 @@ def amst_workflow(
         out_dir=None,
         auto_mask=None if auto_mask_off else 'non-zero',
         return_result_image=True,
-        pre_fix_big_jumps=False,
         parameter_map=elastix_parameters,
         median_radius=pre_smooth_median_radius,
         gaussian_sigma=gaussian_sigma,
