@@ -240,6 +240,68 @@ def slice_wise_stack_to_stack_alignment_workflow(
     write_h5_container(out_filepath, np.array(result_volume), key='data', append=False)
 
 
+def _elastix_one_slice(
+        idx,
+        z_slice_moving,
+        z_slice_fixed,
+        z_range,
+        determine_bounds,
+        transform,
+        auto_mask,
+        number_of_spatial_samples,
+        maximum_number_of_iterations,
+        number_of_resolutions,
+        initialize_offsets_method,
+        initialize_offsets_kwargs,
+        parameter_map,
+        gaussian_sigma,
+        use_clahe,
+        use_edges,
+        verbose=False,
+        debug=False, out_filepath=None, quiet=False
+):
+
+    from squirrel.library.elastix import register_with_elastix
+    from squirrel.library.affine_matrices import AffineMatrix
+
+    if not quiet:
+        print(f'idx = {idx} / {z_range[1]}')
+
+    if idx == 0:
+        result_matrix = AffineMatrix([1., 0., 0., 0., 1., 0.], pivot=[0., 0.])
+    else:
+
+        result_matrix, _ = register_with_elastix(
+            z_slice_fixed,
+            z_slice_moving,
+            transform=transform,
+            automatic_transform_initialization=False,
+            auto_mask=auto_mask,
+            number_of_spatial_samples=number_of_spatial_samples,
+            maximum_number_of_iterations=maximum_number_of_iterations,
+            number_of_resolutions=number_of_resolutions,
+            initialize_offsets_method=initialize_offsets_method,
+            initialize_offsets_kwargs=initialize_offsets_kwargs,
+            parameter_map=parameter_map,
+            return_result_image=False,
+            params_to_origin=True,
+            gaussian_sigma=gaussian_sigma,
+            use_clahe=use_clahe,
+            use_edges=use_edges,
+            verbose=verbose,
+            debug_dirpath=None if not debug else '{}.debug/{:05d}'.format(os.path.splitext(out_filepath)[0], idx),
+            n_workers=1
+        )
+
+    # FIXME: This is already performed inside register_with_elastix if auto_mask is on
+    bounds = None
+    if determine_bounds:
+        from ..library.image import get_bounds
+        bounds = get_bounds(z_slice_moving, return_ints=True)
+
+    return result_matrix, bounds
+
+
 def elastix_stack_alignment_workflow(
         stack,
         out_filepath,
@@ -263,6 +325,7 @@ def elastix_stack_alignment_workflow(
         parameter_map=None,
         quiet=False,
         overwrite=False,
+        n_workers=os.cpu_count(),
         verbose=False,
         debug=False
 ):
@@ -272,8 +335,7 @@ def elastix_stack_alignment_workflow(
         return
 
     from ..library.io import load_data_handle
-    from ..library.elastix import register_with_elastix
-    from ..library.affine_matrices import AffineMatrix, AffineStack
+    from ..library.affine_matrices import AffineStack
     from ..library.data import norm_z_range
 
     stack, stack_size = load_data_handle(stack, key=key, pattern=pattern)
@@ -283,56 +345,88 @@ def elastix_stack_alignment_workflow(
 
     z_range = norm_z_range(z_range, stack_size[0])
 
-    for idx in range(*z_range, z_step):
-        if not quiet:
-            print(f'idx = {idx} / {z_range[1]}')
+    if n_workers == 1:
+        for idx in range(*z_range, z_step):
+            z_slice_moving = None
+            z_slice_fixed = None
+            if idx > 0:
+                if average_for_z_step:
+                    z_slice_moving = np.mean(stack[idx: idx + z_step], axis=0).astype('uint8')
+                    z_slice_fixed = np.mean(stack[idx - z_step: idx], axis=0).astype('uint8')
+                else:
+                    z_slice_moving = stack[idx]
+                    z_slice_fixed = stack[idx - z_step]
 
-        if average_for_z_step:
-            z_slice_moving = np.mean(stack[idx: idx + z_step], axis=0).astype('uint8')
-        else:
-            z_slice_moving = stack[idx]
-
-        if idx == 0:
-            transforms.append(AffineMatrix([1., 0., 0., 0., 1., 0.], pivot=[0., 0.]))
-        else:
-
-            if average_for_z_step:
-
-                z_slice_fixed = np.mean(stack[idx - z_step: idx], axis=0).astype('uint8')
-            else:
-
-                z_slice_fixed = stack[idx - z_step]
-
-            result_matrix, _ = register_with_elastix(
-                z_slice_fixed,
+            result_matrix, this_bounds = _elastix_one_slice(
+                idx,
                 z_slice_moving,
-                transform=transform,
-                automatic_transform_initialization=False,
-                auto_mask=auto_mask,
-                number_of_spatial_samples=number_of_spatial_samples,
-                maximum_number_of_iterations=maximum_number_of_iterations,
-                number_of_resolutions=number_of_resolutions,
-                initialize_offsets_method=initialize_offsets_method,
-                initialize_offsets_kwargs=initialize_offsets_kwargs,
-                parameter_map=parameter_map,
-                return_result_image=False,
-                params_to_origin=True,
-                gaussian_sigma=gaussian_sigma,
-                use_clahe=use_clahe,
-                use_edges=use_edges,
+                z_slice_fixed,
+                z_range,
+                determine_bounds,
+                transform,
+                auto_mask,
+                number_of_spatial_samples,
+                maximum_number_of_iterations,
+                number_of_resolutions,
+                initialize_offsets_method,
+                initialize_offsets_kwargs,
+                parameter_map,
+                gaussian_sigma,
+                use_clahe,
+                use_edges,
                 verbose=verbose,
-                debug_dirpath=None if not debug else '{}.debug/{:05d}'.format(os.path.splitext(out_filepath)[0], idx)
+                debug=debug, out_filepath=out_filepath, quiet=quiet
             )
-            transforms.append(result_matrix)
 
-        # FIXME: This is already performed inside register_with_elastix if auto_mask is on
-        if determine_bounds:
-            from ..library.image import get_bounds
-            bounds.append(get_bounds(z_slice_moving, return_ints=True))
+            transforms.append(result_matrix)
+            if determine_bounds:
+                bounds.append(this_bounds)
+
+    else:
+        print(f'Elastix alignment with {n_workers} workers...')
+        from multiprocessing import Pool
+        with Pool(processes=n_workers) as p:
+            tasks = []
+            for idx in range(*z_range, z_step):
+                z_slice_moving = None
+                z_slice_fixed = None
+                if idx > 0:
+                    if average_for_z_step:
+                        z_slice_moving = np.mean(stack[idx: idx + z_step], axis=0).astype('uint8')
+                        z_slice_fixed = np.mean(stack[idx - z_step: idx], axis=0).astype('uint8')
+                    else:
+                        z_slice_moving = stack[idx]
+                        z_slice_fixed = stack[idx - z_step]
+                tasks.append(
+                    p.apply_async(
+                        _elastix_one_slice, (
+                            idx,
+                            z_slice_moving,
+                            z_slice_fixed,
+                            z_range,
+                            determine_bounds,
+                            transform,
+                            auto_mask,
+                            number_of_spatial_samples,
+                            maximum_number_of_iterations,
+                            number_of_resolutions,
+                            initialize_offsets_method,
+                            initialize_offsets_kwargs,
+                            parameter_map,
+                            gaussian_sigma,
+                            use_clahe,
+                            use_edges,
+                        ), dict(verbose=verbose, debug=debug, out_filepath=out_filepath, quiet=quiet)
+                    )
+                )
+            results = [task.get() for task in tasks]
+
+        for result_matrix, this_bounds in results:
+            transforms.append(result_matrix)
+            if determine_bounds:
+                bounds.append(this_bounds)
 
     if z_step > 1:
-        # transforms = transforms.get_sequenced_stack()
-        # transforms = transforms.get_interpolated(z_step)
         transforms.set_meta('z_step', z_step)
         if apply_z_step:
             transforms = transforms.get_sequenced_stack()

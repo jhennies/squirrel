@@ -239,6 +239,7 @@ def initialize_offsets(
         spacing=256,
         elx_binning=4,
         elx_max_iters=32,
+        mi_thresh=-0.8,
         debug_dir=None,
         n_workers=1,
         verbose=False
@@ -384,7 +385,7 @@ def initialize_offsets(
             best_transform_params = this_offset * AffineMatrix(elastix_parameters=this_transform_params)
 
         result_matrix[tuple(((offset - min_offsets) / spacing).astype(int))] = mi_fixed_vs_registered
-        if mi_fixed_vs_registered < -0.8:
+        if mi_fixed_vs_registered < mi_thresh:
             break
         # if distance > 32:
         #     break
@@ -706,6 +707,7 @@ def register_with_elastix(
                 spacing=256 if 'spacing' not in initialize_offsets_kwargs else initialize_offsets_kwargs['spacing'],
                 elx_binning=4 if 'elx_binning' not in initialize_offsets_kwargs else initialize_offsets_kwargs['elx_binning'],
                 elx_max_iters=32 if 'elx_max_iters' not in initialize_offsets_kwargs else initialize_offsets_kwargs['elx_max_iters'],
+                mi_thresh=-0.8 if 'mi_thresh' not in initialize_offsets_kwargs else initialize_offsets_kwargs['mi_thresh'],
                 debug_dir=debug_dirpath
             )
         else:

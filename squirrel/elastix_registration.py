@@ -1,3 +1,5 @@
+import os
+
 
 def register_z_chunks():
 
@@ -286,8 +288,8 @@ def elastix_stack_alignment():
                              '(grid). \n'
                              '      The shifted moving image is used as input for elastix registration and the '
                              'resulting alignment measured by Mutual Information (MI). \n'
-                             '      When MI < -1 is reached or all positions of the grid are tested, the best offset '
-                             'is used to initialize the alignment')
+                             '      When MI < mi_thresh is reached or all positions of the grid are tested, the best '
+                             'offset is used to initialize the alignment')
     parser.add_argument('--initialize_offsets_kwargs', type=str, nargs='+', default=(),
                         help='Arguments for the respective initialization method. Syntax: "key:value"\n'
                              '  defaults for the respective method:\n'
@@ -297,7 +299,8 @@ def elastix_stack_alignment():
                              '          binning:32\n'
                              '          spacing:256\n'
                              '          elx_binning:4\n'
-                             '          elx_max_iters:32')
+                             '          elx_max_iters:32\n'
+                             '          mi_thresh:-0.8')
     parser.add_argument('--gaussian_sigma', type=float, default=0.,
                         help='Perform a gaussian filter before registration')
     parser.add_argument('--use_clahe', action='store_true',
@@ -313,6 +316,8 @@ def elastix_stack_alignment():
     parser.add_argument('--determine_bounds', action='store_true',
                         help='Appends the bounding box of data within each slice to the results metadata. '
                              'Useful for auto-padding later on')
+    parser.add_argument('--n_workers', type=int, default=os.cpu_count(),
+                        help='The number of cores to use for processing')
     parser.add_argument('--debug', action='store_true',
                         help='Saves intermediate files for debugging')
     parser.add_argument('-v', '--verbose', action='store_true')
@@ -336,6 +341,7 @@ def elastix_stack_alignment():
     z_range = args.z_range
     z_step = args.z_step
     determine_bounds = args.determine_bounds
+    n_workers = args.n_workers
     debug = args.debug
     verbose = args.verbose
 
@@ -372,6 +378,7 @@ def elastix_stack_alignment():
         z_range=z_range,
         z_step=z_step,
         determine_bounds=determine_bounds,
+        n_workers=n_workers,
         debug=debug,
         verbose=verbose
     )
