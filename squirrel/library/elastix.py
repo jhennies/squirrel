@@ -506,6 +506,7 @@ def register_with_elastix(
         crop_to_bounds_off=False,
         n_workers=os.cpu_count(),
         normalize_images=True,
+        result_to_disk='',
         debug_dirpath=None,
         verbose=False
 ):
@@ -751,8 +752,14 @@ def register_with_elastix(
                 print(f'result_matrix.get_pivot() = {result_matrix.get_pivot()}')
             result_matrix.shift_pivot_to_origin()
 
+        if result_to_disk:
+            result_matrix.to_file(result_to_disk)
+            return result_to_disk
         return result_matrix, result_image
 
+    if result_to_disk:
+        sitk.WriteParameterFile(elastix_transform_param_map, result_to_disk)
+        return result_to_disk
     # Return the elastix parameters for non-rigid registration
     return elastix_transform_param_map, result_image
 
@@ -853,6 +860,7 @@ def slice_wise_stack_to_stack_alignment(
         parameter_map=None,
         crop_to_bounds_off=False,
         normalize_images=False,
+        n_workers=os.cpu_count(),
         quiet=False,
         verbose=False
 ):
@@ -866,36 +874,97 @@ def slice_wise_stack_to_stack_alignment(
         raise ValueError(f'Invalid transform: {transform}')
     result_stack = []
 
-    for zidx, z_slice_moving in enumerate(moving_stack):
-        if not quiet:
-            print(f'{zidx} / {len(moving_stack) - 1}')
-        z_slice_fixed = fixed_stack[zidx]
+    if n_workers == 1:
+        for zidx, z_slice_moving in enumerate(moving_stack):
+            if not quiet:
+                print(f'{zidx} / {len(moving_stack) - 1}')
+            z_slice_fixed = fixed_stack[zidx]
 
-        result_matrix, result_image = register_with_elastix(
-            z_slice_fixed, z_slice_moving,
-            transform=transform,
-            automatic_transform_initialization=automatic_transform_initialization,
-            out_dir=out_dir,
-            auto_mask=auto_mask,
-            number_of_spatial_samples=number_of_spatial_samples,
-            maximum_number_of_iterations=maximum_number_of_iterations,
-            number_of_resolutions=number_of_resolutions,
-            return_result_image=return_result_image,
-            initialize_offsets_method=initialize_offsets_method,
-            initialize_offsets_kwargs=initialize_offsets_kwargs,
-            parameter_map=parameter_map,
-            median_radius=median_radius,
-            gaussian_sigma=gaussian_sigma,
-            crop_to_bounds_off=crop_to_bounds_off,
-            normalize_images=normalize_images,
-            verbose=verbose
-        )
-        if transform != 'bspline':
-            result_matrix.shift_pivot_to_origin()
+            result_matrix, result_image = register_with_elastix(
+                z_slice_fixed, z_slice_moving,
+                transform=transform,
+                automatic_transform_initialization=automatic_transform_initialization,
+                out_dir=out_dir,
+                auto_mask=auto_mask,
+                number_of_spatial_samples=number_of_spatial_samples,
+                maximum_number_of_iterations=maximum_number_of_iterations,
+                number_of_resolutions=number_of_resolutions,
+                return_result_image=return_result_image,
+                initialize_offsets_method=initialize_offsets_method,
+                initialize_offsets_kwargs=initialize_offsets_kwargs,
+                parameter_map=parameter_map,
+                median_radius=median_radius,
+                gaussian_sigma=gaussian_sigma,
+                crop_to_bounds_off=crop_to_bounds_off,
+                normalize_images=normalize_images,
+                verbose=verbose
+            )
+            if transform != 'bspline':
+                result_matrix.shift_pivot_to_origin()
 
-        if result_image is not None:
-            result_stack.append(result_image)
-        result_transforms.append(result_matrix)
+            if result_image is not None:
+                result_stack.append(result_image)
+            result_transforms.append(result_matrix)
+
+    else:
+
+        import SimpleITK as sitk
+
+        parameter_map_filepath = './tmp-elx-parameters.txt'
+        if parameter_map is not None:
+            sitk.WriteParameterFile(parameter_map, parameter_map_filepath)
+
+        from multiprocessing import Pool
+        with Pool(processes=n_workers) as p:
+            tasks = []
+            for zidx, z_slice_moving in enumerate(moving_stack):
+                # if not quiet:
+                #     print(f'{zidx} / {len(moving_stack) - 1}')
+                results_filepath = f'./tmp-elx-result-{zidx}.txt'
+                z_slice_fixed = fixed_stack[zidx]
+                tasks.append(p.apply_async(
+                    register_with_elastix, (
+                        z_slice_fixed, z_slice_moving
+                    ),
+                    dict(
+                        transform=transform,
+                        automatic_transform_initialization=automatic_transform_initialization,
+                        out_dir=out_dir,
+                        auto_mask=auto_mask,
+                        number_of_spatial_samples=number_of_spatial_samples,
+                        maximum_number_of_iterations=maximum_number_of_iterations,
+                        number_of_resolutions=number_of_resolutions,
+                        return_result_image=return_result_image,
+                        initialize_offsets_method=initialize_offsets_method,
+                        initialize_offsets_kwargs=initialize_offsets_kwargs,
+                        parameter_map=parameter_map_filepath,
+                        median_radius=median_radius,
+                        gaussian_sigma=gaussian_sigma,
+                        crop_to_bounds_off=crop_to_bounds_off,
+                        normalize_images=normalize_images,
+                        result_to_disk=results_filepath if type(result_transforms) == ElastixStack else '',
+                        verbose=verbose
+                    )
+                ))
+
+            results = []
+            for tidx, task in enumerate(tasks):
+                results.append(task.get())
+                print(f'{tidx} / {len(tasks) - 1}')
+            # results = [task.get() for task in tasks]
+
+        if type(result_transforms) == ElastixStack:
+            for result_filepath in results:
+                result_matrix = sitk.ReadParameterFile(result_filepath)
+                result_transforms.append(result_matrix)
+                os.remove(result_filepath)
+        else:
+            for result_matrix, result_image in results:
+                result_matrix.shift_pivot_to_origin()
+                if result_image is not None:
+                    result_stack.append(result_image)
+                result_transforms.append(result_matrix)
+        os.remove(parameter_map_filepath)
 
     return result_transforms, result_stack
 
@@ -1175,6 +1244,7 @@ class ElastixMultiStepStack:
 
 
 if __name__ == '__main__':
+
     # a = [1, 2, 3, 4, 5, 6]
     # print(f'a = {a}')
     # b = affine_to_c(a)

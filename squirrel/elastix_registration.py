@@ -209,8 +209,10 @@ def amst():
                         help='Filepath of an elastix parameter file; default=None')
     parser.add_argument('--crop_to_bounds_off', action='store_true',
                         help='Switches off automated cropping to image bounds')
-    parser.add_argument('--debug', action='store_true',
-                        help='Writes elastix registration input images to disk')
+    parser.add_argument('--n_workers', type=int, default=1,
+                        help='The number of cores to use for processing')
+    # parser.add_argument('--debug', action='store_true',
+    #                     help='Writes elastix registration input images to disk')
     parser.add_argument('-v', '--verbose', action='store_true')
 
     args = parser.parse_args()
@@ -226,7 +228,8 @@ def amst():
     z_range = args.z_range
     elastix_parameter_filepath = args.elastix_parameter_filepath
     crop_to_bounds_off = args.crop_to_bounds_off
-    debug = args.debug
+    n_workers = args.n_workers
+    # debug = args.debug
     verbose = args.verbose
 
     from squirrel.workflows.amst import amst_workflow
@@ -244,7 +247,8 @@ def amst():
         z_range=z_range,
         elastix_parameters=elastix_parameter_filepath,
         crop_to_bounds_off=crop_to_bounds_off,
-        debug=debug,
+        n_workers=n_workers,
+        # debug=debug,
         verbose=verbose
     )
 

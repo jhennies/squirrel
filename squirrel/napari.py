@@ -1,5 +1,5 @@
 
-def main():
+def view():
 
     # ----------------------------------------------------
     import argparse
@@ -53,4 +53,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    view()
