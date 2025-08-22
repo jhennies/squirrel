@@ -1,3 +1,4 @@
+import os
 
 import numpy as np
 
@@ -125,6 +126,7 @@ def amst_workflow(
         gaussian_sigma=0.,
         elastix_parameters=None,
         crop_to_bounds_off=False,
+        n_workers=os.cpu_count(),
         quiet=False,
         try_again=False,
         verbose=False
@@ -162,8 +164,8 @@ def amst_workflow(
 
     # Load pre-alignment
 
-    from ..library.io import load_data_handle
-    from ..library.data import norm_z_range
+    from squirrel.library.io import load_data_handle
+    from squirrel.library.data import norm_z_range
 
     handle, stack_shape = load_data_handle(pre_aligned_stack, key=pre_align_key, pattern=pre_align_pattern)
 
@@ -192,7 +194,7 @@ def amst_workflow(
     # FIXME this should be derived from the input parameter (switching off for now)
     pre_smooth_median_radius = 0.
 
-    from ..library.elastix import slice_wise_stack_to_stack_alignment
+    from squirrel.library.elastix import slice_wise_stack_to_stack_alignment
     result_transforms, _ = slice_wise_stack_to_stack_alignment(
         pre_align_stack, mst,
         transform=transform,
@@ -200,12 +202,12 @@ def amst_workflow(
         out_dir=None,
         auto_mask=None if auto_mask_off else 'non-zero',
         return_result_image=True,
-        pre_fix_big_jumps=False,
         parameter_map=elastix_parameters,
         median_radius=pre_smooth_median_radius,
         gaussian_sigma=gaussian_sigma,
         crop_to_bounds_off=crop_to_bounds_off,
         normalize_images=False,  # Do not normalize since the images come from the same source
+        n_workers=n_workers,
         quiet=quiet,
         verbose=verbose
     )
@@ -215,3 +217,13 @@ def amst_workflow(
     #     f.create_dataset('data', data=np.clip(np.array(result_stack), 0, 255).astype('uint8'), compression='gzip')
 
     result_transforms.to_file(out_filepath)
+
+
+if __name__ == '__main__':
+
+    amst_workflow(
+        '/media/julian/Data/projects/hennies/amst_devel/helmstaedter/images.h5',
+        '/media/julian/Data/projects/hennies/amst_devel/helmstaedter/amst_align/amst-transforms',
+        transform='bspline',
+        n_workers=16
+    )

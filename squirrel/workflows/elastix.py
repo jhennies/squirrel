@@ -73,6 +73,70 @@ def elastix3d(
         )
 
 
+def register_with_elastix_workflow(
+        moving_filepath,
+        fixed_filepath,
+        out_filepath,
+        out_img_filepath=None,
+        transform='affine',
+        auto_mask=None,
+        number_of_spatial_samples=None,
+        maximum_number_of_iterations=None,
+        number_of_resolutions=None,
+        initialize_offsets_method=None,
+        initialize_offsets_kwargs=None,
+        gaussian_sigma=0.,
+        use_clahe=False,
+        use_edges=False,
+        parameter_map=None,
+        debug_dirpath=None,
+        n_workers=os.cpu_count(),
+        verbose=False
+):
+
+    from squirrel.library.elastix import register_with_elastix
+
+    if not os.path.exists(out_filepath):
+
+        transform, _ = register_with_elastix(
+            fixed_filepath,
+            moving_filepath,
+            transform=transform,
+            automatic_transform_initialization=False,
+            out_dir=None,
+            params_to_origin=True,
+            auto_mask=auto_mask,
+            number_of_spatial_samples=number_of_spatial_samples,
+            maximum_number_of_iterations=maximum_number_of_iterations,
+            number_of_resolutions=number_of_resolutions,
+            return_result_image=False,
+            initialize_offsets_method=initialize_offsets_method,
+            initialize_offsets_kwargs=initialize_offsets_kwargs,
+            parameter_map=parameter_map,
+            gaussian_sigma=gaussian_sigma,
+            use_edges=use_edges,
+            use_clahe=use_clahe,
+            crop_to_bounds_off=False,
+            n_workers=n_workers,
+            normalize_images=True,
+            result_to_disk='',
+            debug_dirpath=debug_dirpath,
+            verbose=verbose
+        )
+
+        transform.to_file(out_filepath)
+
+    else:
+        from squirrel.library.affine_matrices import AffineMatrix
+        transform = AffineMatrix(filepath=out_filepath)
+
+    if out_img_filepath:
+        from squirrel.library.elastix import apply_transforms_on_image
+        registered_img = apply_transforms_on_image(moving_filepath, [transform], n_workers=n_workers, verbose=verbose)
+        from tifffile import imwrite
+        imwrite(out_img_filepath, registered_img)
+
+
 def register_z_chunks(
         moving_filepath,
         fixed_filepath,
@@ -190,7 +254,8 @@ def slice_wise_stack_to_stack_alignment_workflow(
         number_of_spatial_samples=None,
         maximum_number_of_iterations=None,
         number_of_resolutions=None,
-        pre_fix_big_jumps=False,
+        initialize_offsets_method=None,
+        initialize_offsets_kwargs=None,
         z_range=None,
         verbose=False
 ):
@@ -230,12 +295,75 @@ def slice_wise_stack_to_stack_alignment_workflow(
         maximum_number_of_iterations=maximum_number_of_iterations,
         number_of_resolutions=number_of_resolutions,
         return_result_image=True,
-        pre_fix_big_jumps=pre_fix_big_jumps,
+        initialize_offsets_method=initialize_offsets_method,
+        initialize_offsets_kwargs=initialize_offsets_kwargs,
         verbose=verbose
     )
 
     result_transforms.to_file(out_basename + '.json')
     write_h5_container(out_filepath, np.array(result_volume), key='data', append=False)
+
+
+def _elastix_one_slice(
+        idx,
+        z_slice_moving,
+        z_slice_fixed,
+        z_range,
+        determine_bounds,
+        transform,
+        auto_mask,
+        number_of_spatial_samples,
+        maximum_number_of_iterations,
+        number_of_resolutions,
+        initialize_offsets_method,
+        initialize_offsets_kwargs,
+        parameter_map,
+        gaussian_sigma,
+        use_clahe,
+        use_edges,
+        verbose=False,
+        debug=False, out_filepath=None, quiet=False
+):
+
+    from squirrel.library.elastix import register_with_elastix
+    from squirrel.library.affine_matrices import AffineMatrix
+
+    if not quiet:
+        print(f'idx = {idx} / {z_range[1]}')
+
+    if idx == 0:
+        result_matrix = AffineMatrix([1., 0., 0., 0., 1., 0.], pivot=[0., 0.])
+    else:
+
+        result_matrix, _ = register_with_elastix(
+            z_slice_fixed,
+            z_slice_moving,
+            transform=transform,
+            automatic_transform_initialization=False,
+            auto_mask=auto_mask,
+            number_of_spatial_samples=number_of_spatial_samples,
+            maximum_number_of_iterations=maximum_number_of_iterations,
+            number_of_resolutions=number_of_resolutions,
+            initialize_offsets_method=initialize_offsets_method,
+            initialize_offsets_kwargs=initialize_offsets_kwargs,
+            parameter_map=parameter_map,
+            return_result_image=False,
+            params_to_origin=True,
+            gaussian_sigma=gaussian_sigma,
+            use_clahe=use_clahe,
+            use_edges=use_edges,
+            verbose=verbose,
+            debug_dirpath=None if not debug else '{}.debug/{:05d}'.format(os.path.splitext(out_filepath)[0], idx),
+            n_workers=1
+        )
+
+    # FIXME: This is already performed inside register_with_elastix if auto_mask is on
+    bounds = None
+    if determine_bounds:
+        from squirrel.library.image import get_bounds
+        bounds = get_bounds(z_slice_moving, return_ints=True)
+
+    return result_matrix, bounds
 
 
 def elastix_stack_alignment_workflow(
@@ -248,8 +376,8 @@ def elastix_stack_alignment_workflow(
         number_of_spatial_samples=None,
         maximum_number_of_iterations=None,
         number_of_resolutions=None,
-        pre_fix_big_jumps=False,
-        pre_fix_iou_thresh=0.5,
+        initialize_offsets_method=None,
+        initialize_offsets_kwargs=None,
         gaussian_sigma=0.,
         use_clahe=False,
         use_edges=False,
@@ -261,6 +389,7 @@ def elastix_stack_alignment_workflow(
         parameter_map=None,
         quiet=False,
         overwrite=False,
+        n_workers=os.cpu_count(),
         verbose=False,
         debug=False
 ):
@@ -269,10 +398,9 @@ def elastix_stack_alignment_workflow(
         print(f'Target file exists: {out_filepath}\nSkipping elastix stack alignment workflow ...')
         return
 
-    from ..library.io import load_data_handle
-    from ..library.elastix import register_with_elastix
-    from ..library.affine_matrices import AffineMatrix, AffineStack
-    from ..library.data import norm_z_range
+    from squirrel.library.io import load_data_handle
+    from squirrel.library.affine_matrices import AffineStack
+    from squirrel.library.data import norm_z_range
 
     stack, stack_size = load_data_handle(stack, key=key, pattern=pattern)
 
@@ -281,56 +409,88 @@ def elastix_stack_alignment_workflow(
 
     z_range = norm_z_range(z_range, stack_size[0])
 
-    for idx in range(*z_range, z_step):
-        if not quiet:
-            print(f'idx = {idx} / {z_range[1]}')
-
-        if average_for_z_step:
-            z_slice_moving = np.mean(stack[idx: idx + z_step], axis=0).astype('uint8')
-        else:
-            z_slice_moving = stack[idx]
-
-        if idx == 0:
-            transforms.append(AffineMatrix([1., 0., 0., 0., 1., 0.], pivot=[0., 0.]))
-        else:
-
+    if n_workers == 1:
+        for idx in range(*z_range, z_step):
+            z_slice_fixed = None
             if average_for_z_step:
-
-                z_slice_fixed = np.mean(stack[idx - z_step: idx], axis=0).astype('uint8')
+                z_slice_moving = np.mean(stack[idx: idx + z_step], axis=0).astype('uint8')
+                if idx > 0:
+                    z_slice_fixed = np.mean(stack[idx - z_step: idx], axis=0).astype('uint8')
             else:
+                z_slice_moving = stack[idx]
+                if idx > 0:
+                    z_slice_fixed = stack[idx - z_step]
 
-                z_slice_fixed = stack[idx - z_step]
-
-            result_matrix, _ = register_with_elastix(
-                z_slice_fixed,
+            result_matrix, this_bounds = _elastix_one_slice(
+                idx,
                 z_slice_moving,
-                transform=transform,
-                automatic_transform_initialization=False,
-                auto_mask=auto_mask,
-                number_of_spatial_samples=number_of_spatial_samples,
-                maximum_number_of_iterations=maximum_number_of_iterations,
-                number_of_resolutions=number_of_resolutions,
-                pre_fix_big_jumps=pre_fix_big_jumps,
-                pre_fix_iou_thresh=pre_fix_iou_thresh,
-                parameter_map=parameter_map,
-                return_result_image=False,
-                params_to_origin=True,
-                gaussian_sigma=gaussian_sigma,
-                use_clahe=use_clahe,
-                use_edges=use_edges,
+                z_slice_fixed,
+                z_range,
+                determine_bounds,
+                transform,
+                auto_mask,
+                number_of_spatial_samples,
+                maximum_number_of_iterations,
+                number_of_resolutions,
+                initialize_offsets_method,
+                initialize_offsets_kwargs,
+                parameter_map,
+                gaussian_sigma,
+                use_clahe,
+                use_edges,
                 verbose=verbose,
-                debug_dirpath=None if not debug else '{}.debug/{:05d}'.format(os.path.splitext(out_filepath)[0], idx)
+                debug=debug, out_filepath=out_filepath, quiet=quiet
             )
-            transforms.append(result_matrix)
 
-        # FIXME: This is already performed inside register_with_elastix if auto_mask is on
-        if determine_bounds:
-            from ..library.image import get_bounds
-            bounds.append(get_bounds(z_slice_moving, return_ints=True))
+            transforms.append(result_matrix)
+            if determine_bounds:
+                bounds.append(this_bounds)
+
+    else:
+        print(f'Elastix alignment with {n_workers} workers...')
+        from multiprocessing import Pool
+        with Pool(processes=n_workers) as p:
+            tasks = []
+            for idx in range(*z_range, z_step):
+                z_slice_fixed = None
+                if average_for_z_step:
+                    z_slice_moving = np.mean(stack[idx: idx + z_step], axis=0).astype('uint8')
+                    if idx > 0:
+                        z_slice_fixed = np.mean(stack[idx - z_step: idx], axis=0).astype('uint8')
+                else:
+                    z_slice_moving = stack[idx]
+                    if idx > 0:
+                        z_slice_fixed = stack[idx - z_step]
+                tasks.append(
+                    p.apply_async(
+                        _elastix_one_slice, (
+                            idx,
+                            z_slice_moving,
+                            z_slice_fixed,
+                            z_range,
+                            determine_bounds,
+                            transform,
+                            auto_mask,
+                            number_of_spatial_samples,
+                            maximum_number_of_iterations,
+                            number_of_resolutions,
+                            initialize_offsets_method,
+                            initialize_offsets_kwargs,
+                            parameter_map,
+                            gaussian_sigma,
+                            use_clahe,
+                            use_edges,
+                        ), dict(verbose=verbose, debug=debug, out_filepath=out_filepath, quiet=quiet)
+                    )
+                )
+            results = [task.get() for task in tasks]
+
+        for result_matrix, this_bounds in results:
+            transforms.append(result_matrix)
+            if determine_bounds:
+                bounds.append(this_bounds)
 
     if z_step > 1:
-        # transforms = transforms.get_sequenced_stack()
-        # transforms = transforms.get_interpolated(z_step)
         transforms.set_meta('z_step', z_step)
         if apply_z_step:
             transforms = transforms.get_sequenced_stack()
@@ -437,7 +597,6 @@ def stack_alignment_validation_workflow(
                         # number_of_spatial_samples=256,
                         # maximum_number_of_iterations=256,
                         # number_of_resolutions=1,
-                        pre_fix_big_jumps=False,
                         return_result_image=True,
                         params_to_origin=True,
                         gaussian_sigma=2.0,
@@ -552,9 +711,11 @@ def apply_multi_step_stack_alignment_workflow(
     emss = ElastixMultiStepStack(stacks=stacks, image_shape=target_image_shape)
 
     result_volume = emss.apply_on_image_stack(
-        image_stack_h,
+        image_stack_h if n_workers == 1 else image_stack,
         target_image_shape=target_image_shape,
         z_range=z_range,
+        key=key,
+        pattern=pattern,
         n_workers=n_workers,
         quiet=quiet,
         verbose=verbose
@@ -621,16 +782,51 @@ if __name__ == '__main__':
     # )
 
     apply_multi_step_stack_alignment_workflow(
-        '/media/julian/Data/projects/hennies/amst_devel/hela-tm.ome.zarr/',
-        ['/media/julian/Data/projects/hennies/amst_devel/amst-elastic-transforms-01/'],
-        '/media/julian/Data/projects/hennies/amst_devel/amst-elastic-transforms-01.h5',
-        key='s0',
+        '/media/julian/Data/projects/hennies/amst_devel/amst2-test-auto-init/tiffs',
+        ['/media/julian/Data/projects/hennies/amst_devel/amst2-test-auto-init/result.json'],
+        '/media/julian/Data/projects/hennies/amst_devel/amst2-test-auto-init/result',
         auto_pad=False,
         target_image_shape=None,
         z_range=None,
-        n_workers=1,
+        n_workers=16,
         quiet=False,
         verbose=False,
     )
 
+    # elastix_stack_alignment_workflow(
+    #     '/media/julian/Data/projects/woller/problem-area2/subsample',
+    #     '/media/julian/Data/projects/woller/problem-area2/test-align-elastix-sbs/tmp-transforms.json',
+    #     auto_mask='non-zero',
+    #     maximum_number_of_iterations=256,
+    #     number_of_resolutions=2,
+    #     initialize_offsets_method='init_elx',
+    #     gaussian_sigma=2,
+    #     determine_bounds=True,
+    #     n_workers=1
+    # )
 
+    # register_with_elastix_workflow(
+    #     '/media/julian/Data/projects/schneider/DAPI_R17-2-bin_xy4_z2.tif',
+    #     '/media/julian/Data/projects/schneider/Dapi_R1-2-bin_xy4_z2.tif',
+    #     '/media/julian/Data/projects/schneider/transform-init_elx4.json',
+    #     out_img_filepath='/media/julian/Data/projects/schneider/registered-inti_elx4.tif',
+    #     transform='translation',
+    #     auto_mask='non-zero',
+    #     number_of_spatial_samples=None,
+    #     maximum_number_of_iterations=None,
+    #     number_of_resolutions=2,
+    #     initialize_offsets_method='init_elx',
+    #     initialize_offsets_kwargs=dict(
+    #         spacing=16,
+    #         binning=8,
+    #         elx_binning=1,
+    #         mi_thresh=-3,
+    #     ),
+    #     gaussian_sigma=2.,
+    #     use_clahe=False,
+    #     use_edges=False,
+    #     parameter_map=None,
+    #     n_workers=os.cpu_count(),
+    #     debug_dirpath='/media/julian/Data/projects/schneider/debug',
+    #     verbose=False
+    # )
