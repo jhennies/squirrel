@@ -1357,7 +1357,9 @@ class ElastixMultiStepStack:
 
         else:
 
-            transform_fps = self.to_disk('~/cache/amst2/tmp-transforms')
+            import tempfile
+            cache_dir = tempfile.mkdtemp()
+            transform_fps = self.to_disk(cache_dir)
             from multiprocessing import Pool
             with Pool(processes=n_workers) as p:
                 tasks = [
@@ -1380,7 +1382,7 @@ class ElastixMultiStepStack:
                 result_volume = [task.get() for task in tasks]
 
             from shutil import rmtree
-            rmtree('~/cache/amst2/tmp-transforms')
+            rmtree(cache_dir)
 
         if verbose:
             print(f'result_volume[0].shape = {result_volume[0].shape}')
