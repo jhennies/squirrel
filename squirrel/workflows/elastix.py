@@ -711,9 +711,11 @@ def apply_multi_step_stack_alignment_workflow(
     emss = ElastixMultiStepStack(stacks=stacks, image_shape=target_image_shape)
 
     result_volume = emss.apply_on_image_stack(
-        image_stack_h,
+        image_stack_h if n_workers == 1 else image_stack,
         target_image_shape=target_image_shape,
         z_range=z_range,
+        key=key,
+        pattern=pattern,
         n_workers=n_workers,
         quiet=quiet,
         verbose=verbose
@@ -779,18 +781,17 @@ if __name__ == '__main__':
     #     resolution_yx=[1, 1]
     # )
 
-    # apply_multi_step_stack_alignment_workflow(
-    #     '/media/julian/Data/projects/hennies/amst_devel/hela-tm.ome.zarr/',
-    #     ['/media/julian/Data/projects/hennies/amst_devel/amst-elastic-transforms-01/'],
-    #     '/media/julian/Data/projects/hennies/amst_devel/amst-elastic-transforms-01.h5',
-    #     key='s0',
-    #     auto_pad=False,
-    #     target_image_shape=None,
-    #     z_range=None,
-    #     n_workers=1,
-    #     quiet=False,
-    #     verbose=False,
-    # )
+    apply_multi_step_stack_alignment_workflow(
+        '/media/julian/Data/projects/hennies/amst_devel/amst2-test-auto-init/tiffs',
+        ['/media/julian/Data/projects/hennies/amst_devel/amst2-test-auto-init/result.json'],
+        '/media/julian/Data/projects/hennies/amst_devel/amst2-test-auto-init/result',
+        auto_pad=False,
+        target_image_shape=None,
+        z_range=None,
+        n_workers=16,
+        quiet=False,
+        verbose=False,
+    )
 
     # elastix_stack_alignment_workflow(
     #     '/media/julian/Data/projects/woller/problem-area2/subsample',
@@ -804,28 +805,28 @@ if __name__ == '__main__':
     #     n_workers=1
     # )
 
-    register_with_elastix_workflow(
-        '/media/julian/Data/projects/schneider/DAPI_R17-2-bin_xy4_z2.tif',
-        '/media/julian/Data/projects/schneider/Dapi_R1-2-bin_xy4_z2.tif',
-        '/media/julian/Data/projects/schneider/transform-init_elx4.json',
-        out_img_filepath='/media/julian/Data/projects/schneider/registered-inti_elx4.tif',
-        transform='translation',
-        auto_mask='non-zero',
-        number_of_spatial_samples=None,
-        maximum_number_of_iterations=None,
-        number_of_resolutions=2,
-        initialize_offsets_method='init_elx',
-        initialize_offsets_kwargs=dict(
-            spacing=16,
-            binning=8,
-            elx_binning=1,
-            mi_thresh=-3,
-        ),
-        gaussian_sigma=2.,
-        use_clahe=False,
-        use_edges=False,
-        parameter_map=None,
-        n_workers=os.cpu_count(),
-        debug_dirpath='/media/julian/Data/projects/schneider/debug',
-        verbose=False
-    )
+    # register_with_elastix_workflow(
+    #     '/media/julian/Data/projects/schneider/DAPI_R17-2-bin_xy4_z2.tif',
+    #     '/media/julian/Data/projects/schneider/Dapi_R1-2-bin_xy4_z2.tif',
+    #     '/media/julian/Data/projects/schneider/transform-init_elx4.json',
+    #     out_img_filepath='/media/julian/Data/projects/schneider/registered-inti_elx4.tif',
+    #     transform='translation',
+    #     auto_mask='non-zero',
+    #     number_of_spatial_samples=None,
+    #     maximum_number_of_iterations=None,
+    #     number_of_resolutions=2,
+    #     initialize_offsets_method='init_elx',
+    #     initialize_offsets_kwargs=dict(
+    #         spacing=16,
+    #         binning=8,
+    #         elx_binning=1,
+    #         mi_thresh=-3,
+    #     ),
+    #     gaussian_sigma=2.,
+    #     use_clahe=False,
+    #     use_edges=False,
+    #     parameter_map=None,
+    #     n_workers=os.cpu_count(),
+    #     debug_dirpath='/media/julian/Data/projects/schneider/debug',
+    #     verbose=False
+    # )

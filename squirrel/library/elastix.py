@@ -26,21 +26,10 @@ def apply_transforms_on_image(
             transform = transform.to_elastix_affine(shape=image.shape, return_parameter_map=True)
         txif.AddTransformParameterMap(transform)
     txif.SetMovingImage(sitk.GetImageFromArray(image))
+    # txif.SetNumberOfThreads(n_workers)
     txif.Execute()
     result_final = sitk.GetArrayFromImage(txif.GetResultImage())
     return result_final
-
-    # result = image
-    # for transform in transforms:
-    #     print(f'result.shape = {result.shape}')
-    #     txif = sitk.TransformixImageFilter()
-    #     txif.AddTransformParameterMap(transform)
-    #     txif.SetMovingImage(sitk.GetImageFromArray(result))
-    #     txif.LogToConsoleOff()
-    #     txif.Execute()
-    #     result = sitk.GetArrayFromImage(txif.GetResultImage())
-    #
-    # return result
 
 
 def apply_transforms_on_image_stack_slice(
@@ -50,9 +39,21 @@ def apply_transforms_on_image_stack_slice(
         target_image_shape=None,
         n_slices=None,
         n_workers=os.cpu_count(),
+        key=None,
+        pattern=None,
         quiet=False,
         verbose=False
 ):
+
+    if type(image_stack_h) == str:
+        from squirrel.library.io import load_data_handle
+        image_stack_h, _ = load_data_handle(image_stack_h, key=key, pattern=pattern)
+
+    if type(transforms[0]) == str:
+        import SimpleITK as sitk
+        for idx, transform in enumerate(transforms):
+            transforms[idx] = sitk.ReadParameterFile(transform)
+
     target_image_shape = image_stack_h[0].shape if target_image_shape is None else target_image_shape
     if not quiet or verbose:
         print(f'image_idx = {image_idx} / {n_slices}')
@@ -1315,34 +1316,71 @@ class ElastixMultiStepStack:
             image_stack_h,
             target_image_shape=None,
             z_range=None,
+            key=None,       # Only needed for multiprocessing
+            pattern=None,   # Only needed for multiprocessing
             n_workers=1,
             quiet=False,
             verbose=False
     ):
         from squirrel.library.data import norm_z_range
-        z_range = norm_z_range(z_range, len(image_stack_h))
+        from squirrel.library.io import load_data_handle
+        if type(image_stack_h) == str:
+            h, shape = load_data_handle(image_stack_h, key, pattern)
+            z_range = norm_z_range(z_range, len(h))
+            dtype = h.dtype
+        else:
+            z_range = norm_z_range(z_range, len(image_stack_h))
+            dtype = image_stack_h.dtype
         result_volume = []
-        dtype = image_stack_h.dtype
         max_val = np.iinfo(dtype).max
         assert dtype == 'uint8' or dtype == 'uint16'
 
         if verbose:
             print(f'target_image_shape = {target_image_shape}')
 
-        # if n_workers == 1:
-        #
-        for stack_idx, image_idx in enumerate(range(*z_range)):
+        if n_workers == 1:
 
-            result_volume.append(apply_transforms_on_image_stack_slice(
-                image_stack_h,
-                image_idx,
-                self[stack_idx],
-                target_image_shape=target_image_shape,
-                n_slices=z_range[1],
-                n_workers=1,
-                quiet=quiet,
-                verbose=verbose
-            ))
+            for stack_idx, image_idx in enumerate(range(*z_range)):
+
+                result_volume.append(apply_transforms_on_image_stack_slice(
+                    image_stack_h,
+                    image_idx,
+                    self[stack_idx],
+                    target_image_shape=target_image_shape,
+                    n_slices=z_range[1],
+                    key=key,
+                    pattern=pattern,
+                    n_workers=1,
+                    quiet=quiet,
+                    verbose=verbose
+                ))
+
+        else:
+
+            transform_fps = self.to_disk('./tmp-transforms')
+            from multiprocessing import Pool
+            with Pool(processes=n_workers) as p:
+                tasks = [
+                    p.apply_async(
+                        apply_transforms_on_image_stack_slice, (
+                            image_stack_h, image_idx, transform_fps[stack_idx]
+                        ), dict(
+                            target_image_shape=target_image_shape,
+                            n_slices=z_range[1],
+                            key=key,
+                            pattern=pattern,
+                            n_workers=1,
+                            quiet=quiet,
+                            verbose=verbose
+                        )
+                    )
+                    for stack_idx, image_idx in enumerate(range(*z_range))
+                ]
+
+                result_volume = [task.get() for task in tasks]
+
+            from shutil import rmtree
+            rmtree('./tmp-transforms')
 
         if verbose:
             print(f'result_volume[0].shape = {result_volume[0].shape}')
@@ -1368,6 +1406,21 @@ class ElastixMultiStepStack:
         #         result_volume = [task.result() for task in tasks]
 
         return np.clip(np.array(result_volume), 0, max_val).astype(dtype)
+
+    def to_disk(self, dirpath):
+
+        if not os.path.exists(dirpath):
+            os.makedirs(dirpath, exist_ok=True)
+
+        filepaths = []
+        import SimpleITK as sitk
+        for idx, item in enumerate(self):
+            this_filepaths = []
+            for jdx, transform in enumerate(item):
+                this_filepaths.append(os.path.join(dirpath, '{:05d}_{:02d}.txt'.format(idx, jdx)))
+                sitk.WriteParameterFile(transform, this_filepaths[-1])
+            filepaths.append(this_filepaths)
+        return filepaths
 
 
 if __name__ == '__main__':
