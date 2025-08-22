@@ -59,6 +59,85 @@ def register_z_chunks():
     )
 
 
+def register_with_elastix():
+
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Runs a registration with Elastix',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('moving_filepath', type=str,
+                        help='Input tiff file for the moving image')
+    parser.add_argument('fixed_filepath', type=str,
+                        help='Input tiff file for the fixed image')
+    parser.add_argument('out_filepath', type=str,
+                        help='Output filepath for the transformation (*.json)')
+    parser.add_argument('--key', type=str, default='data',
+                        help='Internal path of the input; default="data"; used if stack is h5 file')
+    parser.add_argument('--transform', type=str, default='translation',
+                        help='The transformation; default="translation"')
+    parser.add_argument('--pattern', type=str, default='*.tif',
+                        help='Used to glob tif files from a tif stack folder; default="*.tif"')
+    parser.add_argument('--auto_mask', type=str, default='None',
+                        help='Automatically generates a mask for fixed and moving image; '
+                             'default=None; ["non-zero", "variance"]')
+    parser.add_argument('--number_of_spatial_samples', type=int, default=None,
+                        help='Elastix parameter')
+    parser.add_argument('--maximum_number_of_iterations', type=int, default=None,
+                        help='Elastix parameter')
+    parser.add_argument('--number_of_resolutions', type=int, default=None,
+                        help='Elastix parameter')
+    # parser.add_argument('--extended_output', action='store_true',
+    #                     help='Increase information content of the output')
+    parser.add_argument('--initialize_offsets_method', type=str, default=None,
+                        help='Method to solve big jumps: ["xcorr", "init_elx"]\n'
+                             '  "xcorr": Big jumps are detected by the intersection over union of the data in adjacent '
+                             'slices. \n'
+                             '      Correction is performed by cross-correlation\n'
+                             '  "init_elx": Using a highly binned version of the data, initial shifts are performed '
+                             '(grid). \n'
+                             '      The shifted moving image is used as input for elastix registration and the '
+                             'resulting alignment measured by Mutual Information (MI). \n'
+                             '      When MI < mi_thresh is reached or all positions of the grid are tested, the best '
+                             'offset is used to initialize the alignment')
+    parser.add_argument('--initialize_offsets_kwargs', type=str, nargs='+', default=(),
+                        help='Arguments for the respective initialization method. Syntax: "key:value"\n'
+                             '  defaults for the respective method:\n'
+                             '      "xcorr":\n'
+                             '          iou_thresh:0.5\n'
+                             '      "init_elx:\n'
+                             '          binning:32\n'
+                             '          spacing:256\n'
+                             '          elx_binning:4\n'
+                             '          elx_max_iters:32\n'
+                             '          mi_thresh:-0.8')
+    parser.add_argument('--gaussian_sigma', type=float, default=0.,
+                        help='Perform a gaussian filter before registration')
+    parser.add_argument('--use_clahe', action='store_true',
+                        help='CLAHE filter before registration')
+    parser.add_argument('--use_edges', action='store_true',
+                        help='Computes edges before registration using a sobel filter')
+    parser.add_argument('--parameter_map', type=str, default=None,
+                        help='Elastix parameter map file')
+    parser.add_argument('--z_range', type=int, nargs=2, default=None,
+                        help='Use certain slices of the stack only; Defaults to the entire stack')
+    parser.add_argument('--z_step', type=int, default=1,
+                        help='Performs an alignment with every n-th slice only.')
+    parser.add_argument('--determine_bounds', action='store_true',
+                        help='Appends the bounding box of data within each slice to the results metadata. '
+                             'Useful for auto-padding later on')
+    parser.add_argument('--n_workers', type=int, default=os.cpu_count(),
+                        help='The number of cores to use for processing')
+    parser.add_argument('--debug', action='store_true',
+                        help='Saves intermediate files for debugging')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    from squirrel.workflows.elastix import register_with_elastix_workflow
+    register_with_elastix_workflow
+
+
 def elastix_on_volume3d():
 
     # ----------------------------------------------------

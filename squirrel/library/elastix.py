@@ -10,13 +10,20 @@ def apply_transforms_on_image(
         verbose=False
 ):
 
+    if type(image) == str:
+        from tifffile import imread
+        image = imread(image)
+
     import SimpleITK as sitk
+    from squirrel.library.affine_matrices import AffineMatrix
 
     txif = sitk.TransformixImageFilter()
     txif.LogToConsoleOff()
     if verbose:
         txif.LogToConsoleOn()
     for transform in transforms[::-1]:
+        if type(transform) == AffineMatrix:
+            transform = transform.to_elastix_affine(shape=image.shape, return_parameter_map=True)
         txif.AddTransformParameterMap(transform)
     txif.SetMovingImage(sitk.GetImageFromArray(image))
     txif.Execute()
@@ -129,13 +136,14 @@ def get_affine_rotation_parameters(euler_angles):
 
 
 def make_auto_mask(image, disk_size=6, method='non-zero', variance_filter_size=3, variance_thresh=10):
-    from skimage.morphology import binary_closing, disk
-    from squirrel.library.scaling import scale_image_nearest
 
     mask = None
     if method == 'non-zero':
         mask = (image > 0).astype('uint8')
     if method == 'variance':
+        if image.ndim == 3:
+            raise NotImplementedError('Variance-based auto-masking only implemented for 2D')
+        from squirrel.library.scaling import scale_image_nearest
         from scipy.ndimage import generic_filter
         mask_t = (generic_filter(scale_image_nearest(image, scale_factors=[0.25, 0.25]), np.var, size=variance_filter_size) > variance_thresh).astype('uint8')
         mask_t = scale_image_nearest(mask_t, scale_factors=[4, 4])
@@ -145,8 +153,16 @@ def make_auto_mask(image, disk_size=6, method='non-zero', variance_filter_size=3
     if mask is None:
         raise ValueError(f'Invalid auto-mask method: {method}')
 
-    footprint = disk(disk_size)
-    mask = binary_closing(mask, footprint).astype('uint8')
+    if image.ndim == 2:
+        from skimage.morphology import binary_closing, disk
+        footprint = disk(disk_size)
+        mask = binary_closing(mask, footprint).astype('uint8')
+    elif image.ndim == 3:
+        from skimage.morphology import binary_closing, ball
+        footprint = ball(disk_size)
+        mask = binary_closing(mask, footprint).astype('uint8')
+    else:
+        raise RuntimeError('Only 2D and 3D images allowed!')
 
     return mask
 
@@ -244,69 +260,151 @@ def initialize_offsets(
         n_workers=1,
         verbose=False
 ):
-
-    def _compute_overlapping_offsets(bin_mask_fixed, bin_mask_moving, spacing=64):
+    def _compute_overlapping_offsets(bin_mask_fixed, bin_mask_moving, spacing=64, iou_thresh=0.25):
         """
-        Find all (dx, dy) offsets where two binary masks overlap,
-        given a grid spacing in pixels.
+        Find all integer offsets where two binary masks overlap,
+        given a grid spacing (in pixels/voxels).
+
+        Works for both 2D and 3D masks.
 
         Parameters
         ----------
         bin_mask_fixed : np.ndarray
-            Binary mask (2D) of the fixed image.
+            Binary mask (2D or 3D) of the fixed image.
         bin_mask_moving : np.ndarray
-            Binary mask (2D) of the moving image (same shape as fixed).
+            Binary mask (2D or 3D) of the moving image (same shape as fixed).
         spacing : int
-            Step size in pixels for the grid.
+            Step size in pixels/voxels for the grid.
+        iou_thresh : float
+            Minimum intersection-over-union (IoU) to keep an offset.
 
         Returns
         -------
         list of tuple
-            List of (dx, dy) integer offsets (in pixels).
+            List of offsets (dx, dy, [dz]) depending on dimension.
+        list of float
+            Corresponding Euclidean distances.
         """
         from squirrel.library.scores import intersection_over_union
 
         assert bin_mask_fixed.shape == bin_mask_moving.shape, "Masks must have same shape"
-        H, W = bin_mask_fixed.shape
+        shape = bin_mask_fixed.shape
+        ndim = bin_mask_fixed.ndim
+
+        # Build ranges of offsets for each dimension
+        offset_ranges = [
+            range(-s + spacing, s, spacing)
+            for s in shape
+        ]
 
         offsets = []
-        # Ranges of shifts in multiples of spacing
-        dx_range = range(-W + spacing, W, spacing)
-        dy_range = range(-H + spacing, H, spacing)
+        for delta in np.ndindex(*[len(r) for r in offset_ranges]):
+            shift = tuple(offset_ranges[d][i] for d, i in enumerate(delta))
 
-        for dy in dy_range:
-            for dx in dx_range:
-                # compute overlap region
-                y0, y1 = max(0, dy), min(H, H + dy)
-                x0, x1 = max(0, dx), min(W, W + dx)
+            # compute slices for fixed and moving masks
+            slices_fixed = []
+            slices_moving = []
+            valid = True
+            for d, sh in enumerate(shift):
+                dim_len = shape[d]
 
-                fy0, fy1 = max(0, -dy), min(H, H - dy)
-                fx0, fx1 = max(0, -dx), min(W, W - dx)
+                f0, f1 = max(0, sh), min(dim_len, dim_len + sh)
+                m0, m1 = max(0, -sh), min(dim_len, dim_len - sh)
 
-                # Extract overlapping submasks
-                sub_fixed = bin_mask_fixed[y0:y1, x0:x1]
-                sub_moving = bin_mask_moving[fy0:fy1, fx0:fx1]
+                if f0 >= f1 or m0 >= m1:  # no overlap
+                    valid = False
+                    break
 
-                iou = intersection_over_union(sub_fixed, sub_moving)
+                slices_fixed.append(slice(f0, f1))
+                slices_moving.append(slice(m0, m1))
 
-                if iou > 0.25:
-                    offsets.append((dx, dy))
-                # if np.any(sub_fixed & sub_moving):
-                #     offsets.append((dx, dy))
+            if not valid:
+                continue
 
-        # Ensure (0,0) is always included
-        if (0, 0) not in offsets:
-            offsets.insert(0, (0, 0))
-        # assert (0, 0) in offsets
+            sub_fixed = bin_mask_fixed[tuple(slices_fixed)]
+            sub_moving = bin_mask_moving[tuple(slices_moving)]
+
+            iou = intersection_over_union(sub_fixed, sub_moving)
+
+            if iou > iou_thresh:
+                offsets.append(shift)
+
+        # Ensure (0,...,0) is always included
+        zero_offset = tuple(0 for _ in range(ndim))
+        if zero_offset not in offsets:
+            offsets.insert(0, zero_offset)
 
         # Compute distances
-        distances = [np.sqrt(dx ** 2 + dy ** 2) for dx, dy in offsets]
+        distances = [np.linalg.norm(off) for off in offsets]
 
         # Sort by distance
         sorted_pairs = sorted(zip(offsets, distances), key=lambda p: p[1])
         offsets, distances = zip(*sorted_pairs)
 
         return list(offsets), list(distances)
+
+    # def _compute_overlapping_offsets(bin_mask_fixed, bin_mask_moving, spacing=64):
+    #     """
+    #     Find all (dx, dy) offsets where two binary masks overlap,
+    #     given a grid spacing in pixels.
+    #
+    #     Parameters
+    #     ----------
+    #     bin_mask_fixed : np.ndarray
+    #         Binary mask (2D) of the fixed image.
+    #     bin_mask_moving : np.ndarray
+    #         Binary mask (2D) of the moving image (same shape as fixed).
+    #     spacing : int
+    #         Step size in pixels for the grid.
+    #
+    #     Returns
+    #     -------
+    #     list of tuple
+    #         List of (dx, dy) integer offsets (in pixels).
+    #     """
+    #     from squirrel.library.scores import intersection_over_union
+    #
+    #     assert bin_mask_fixed.shape == bin_mask_moving.shape, "Masks must have same shape"
+    #     H, W = bin_mask_fixed.shape
+    #
+    #     offsets = []
+    #     # Ranges of shifts in multiples of spacing
+    #     dx_range = range(-W + spacing, W, spacing)
+    #     dy_range = range(-H + spacing, H, spacing)
+    #
+    #     for dy in dy_range:
+    #         for dx in dx_range:
+    #             # compute overlap region
+    #             y0, y1 = max(0, dy), min(H, H + dy)
+    #             x0, x1 = max(0, dx), min(W, W + dx)
+    #
+    #             fy0, fy1 = max(0, -dy), min(H, H - dy)
+    #             fx0, fx1 = max(0, -dx), min(W, W - dx)
+    #
+    #             # Extract overlapping submasks
+    #             sub_fixed = bin_mask_fixed[y0:y1, x0:x1]
+    #             sub_moving = bin_mask_moving[fy0:fy1, fx0:fx1]
+    #
+    #             iou = intersection_over_union(sub_fixed, sub_moving)
+    #
+    #             if iou > 0.25:
+    #                 offsets.append((dx, dy))
+    #             # if np.any(sub_fixed & sub_moving):
+    #             #     offsets.append((dx, dy))
+    #
+    #     # Ensure (0,0) is always included
+    #     if (0, 0) not in offsets:
+    #         offsets.insert(0, (0, 0))
+    #     # assert (0, 0) in offsets
+    #
+    #     # Compute distances
+    #     distances = [np.sqrt(dx ** 2 + dy ** 2) for dx, dy in offsets]
+    #
+    #     # Sort by distance
+    #     sorted_pairs = sorted(zip(offsets, distances), key=lambda p: p[1])
+    #     offsets, distances = zip(*sorted_pairs)
+    #
+    #     return list(offsets), list(distances)
 
     if type(moving_img) == str:
         from tifffile import imread
@@ -315,6 +413,8 @@ def initialize_offsets(
         from tifffile import imread
         fixed_img = imread(fixed_img)
 
+    ndim = moving_img.ndim
+
     moving_img_orig = moving_img.copy()
 
     assert spacing % binning == 0
@@ -322,14 +422,14 @@ def initialize_offsets(
 
     import SimpleITK as sitk
     parameter_map = sitk.GetDefaultParameterMap('translation')
-    parameter_map['ImagePyramidSchedule'] = [str(elx_binning), str(elx_binning)]
+    parameter_map['ImagePyramidSchedule'] = [str(elx_binning)] * ndim
     parameter_map['NumberOfResolutions'] = ["1.000000"]
     parameter_map['ErodeMask'] = ['true']
     parameter_map['MaximumNumberOfIterations'] = [str(elx_max_iters)]
 
     from squirrel.library.scaling import scale_image_nearest
-    moving_img = scale_image_nearest(moving_img, (1/binning, 1/binning))
-    fixed_img = scale_image_nearest(fixed_img, (1/binning, 1/binning))
+    moving_img = scale_image_nearest(moving_img, [1/binning] * ndim)
+    fixed_img = scale_image_nearest(fixed_img, [1/binning] * ndim)
 
     from vigra.filters import gaussianSmoothing
     moving_img = gaussianSmoothing(moving_img.astype('float32'), 1.0).astype('uint16')
@@ -354,10 +454,11 @@ def initialize_offsets(
     for idx, offset in enumerate(offsets):
         # distance = distances[idx]
 
-        this_offset = AffineMatrix(parameters=[1, 0, offset[0], 0, 1, offset[1]])
-        this_offset_elx = this_offset.to_elastix_affine(shape=moving_img.shape, return_parameter_map=True)
-        this_moving_img = apply_transforms_on_image(moving_img, [this_offset_elx])
-        this_moving_mask = apply_transforms_on_image(moving_mask, [this_offset_elx]).astype('uint8')
+        # this_offset = AffineMatrix(parameters=[1, 0, offset[0], 0, 1, offset[1]])
+        this_offset = AffineMatrix(translation=offset)
+        # this_offset_elx = this_offset.to_elastix_affine(shape=moving_img.shape, return_parameter_map=True)
+        this_moving_img = apply_transforms_on_image(moving_img, [this_offset])
+        this_moving_mask = apply_transforms_on_image(moving_mask, [this_offset]).astype('uint8')
         this_mask = this_moving_mask * fixed_mask
 
         try:
@@ -373,7 +474,7 @@ def initialize_offsets(
             )
         except RuntimeError:
             continue
-        registered_img = apply_transforms_on_image(moving_img, [this_offset_elx, this_transform_params])
+        registered_img = apply_transforms_on_image(moving_img, [this_offset, this_transform_params])
 
         mi_fixed_vs_registered = compute_mattes_mi(fixed_img, registered_img, mask=this_mask)
 
@@ -390,6 +491,9 @@ def initialize_offsets(
         # if distance > 32:
         #     break
 
+    if idx == len(offsets) - 1:
+        print(f'Break criterion of score < {mi_thresh} never reached, using position with minimal score')
+
     best_offset_unbinned = np.array(best_offset) * binning
     best_transform_params_unbinned = best_transform_params.get_scaled(binning)
     if verbose:
@@ -403,18 +507,22 @@ def initialize_offsets(
         if not os.path.exists(debug_dir):
             os.mkdir(debug_dir)
         from matplotlib import pyplot as plt
-        plt.imshow((np.array((fixed_img, best_registered_img, best_registered_img)).astype('float32') / fixed_img.max() * 255).astype('uint8').transpose((1, 2, 0)))
-        plt.savefig(os.path.join(debug_dir, 'registered_img_overlay.png'))
-        plt.close()
-        # reg_img = apply_transforms_on_image(
-        #     moving_img,
-        #     transforms=[best_transform_params.to_elastix_affine(shape=moving_img.shape, return_parameter_map=True)]
-        # )
-        # plt.imshow((np.array((fixed_img, reg_img, reg_img)).astype('float32') / fixed_img.max() * 255).astype('uint8').transpose((1, 2, 0)))
-        # plt.savefig(os.path.join(debug_dir, 're-registered_img_overlay.png'))
-        # plt.close()
-        plt.imshow(result_matrix)
-        plt.savefig(os.path.join(debug_dir, 'mi_score_matrix.png'))
+        if ndim == 2:
+            plt.imshow((np.array((fixed_img, best_registered_img, best_registered_img)).astype('float32') / fixed_img.max() * 255).astype('uint8').transpose((1, 2, 0)))
+            plt.savefig(os.path.join(debug_dir, 'registered_img_overlay.png'))
+            plt.close()
+            plt.imshow(result_matrix)
+            plt.savefig(os.path.join(debug_dir, 'mi_score_matrix.png'))
+        if ndim == 3:
+            plt.imshow(
+                (
+                    np.array((fixed_img, best_registered_img, best_registered_img)).astype('float32') / fixed_img.max() * 255
+                ).astype('uint8')[:, int(fixed_img.shape[0] / 2)].transpose((1, 2, 0))
+            )
+            plt.savefig(os.path.join(debug_dir, 'registered_img_overlay.png'))
+            plt.close()
+            plt.imshow(result_matrix[int(result_matrix.shape[0] / 2)])
+            plt.savefig(os.path.join(debug_dir, 'mi_score_matrix.png'))
         plt.close()
 
     print(f'Found initial offset: {best_transform_params_unbinned.get_translation()} -- MI score: {best_score}')
@@ -521,8 +629,6 @@ def register_with_elastix(
         print(f'maximum_number_of_iterations={maximum_number_of_iterations}')
         print(f'number_of_resolutions={number_of_resolutions}')
         print(f'return_result_image={return_result_image}')
-        # print(f'pre_fix_big_jumps={pre_fix_big_jumps}')
-        # print(f'pre_fix_iou_thresh={pre_fix_iou_thresh}')
         print(f'initialize_offsets_method={initialize_offsets_method}')
         print(f'initialize_offsets_kwargs={initialize_offsets_kwargs}')
         print(f'parameter_map={parameter_map}')
@@ -593,21 +699,33 @@ def register_with_elastix(
     # assert transform == parameter_map['Transform'][0]
 
     mask = None
-    bounds_offset = np.array([0., 0.])
+    bounds_offset = np.array([0.] * fixed_image.ndim)
     if crop_to_bounds:
         if verbose:
             print(f'image shape before auto_mask: {fixed_image.shape}')
         from squirrel.library.image import get_bounds
         bounds_fixed = get_bounds(fixed_image, return_ints=True)
         bounds_moving = get_bounds(moving_image, return_ints=True)
-        bounds_total = np.array([
-            min(bounds_moving[0], bounds_fixed[0]),
-            min(bounds_moving[1], bounds_fixed[1]),
-            max(bounds_moving[2], bounds_fixed[2]),
-            max(bounds_moving[3], bounds_fixed[3])
-        ]).astype(int)
-        bounds_offset = bounds_total[:2]
-        bounds = np.s_[bounds_total[0]: bounds_total[2], bounds_total[1]: bounds_total[3]]
+        if fixed_image.ndim == 2:
+            bounds_total = np.array([
+                min(bounds_moving[0], bounds_fixed[0]),
+                min(bounds_moving[1], bounds_fixed[1]),
+                max(bounds_moving[2], bounds_fixed[2]),
+                max(bounds_moving[3], bounds_fixed[3])
+            ]).astype(int)
+            bounds_offset = bounds_total[:2]
+            bounds = np.s_[bounds_total[0]: bounds_total[2], bounds_total[1]: bounds_total[3]]
+        else:
+            bounds_total = np.array([
+                min(bounds_moving[0], bounds_fixed[0]),
+                min(bounds_moving[1], bounds_fixed[1]),
+                min(bounds_moving[2], bounds_fixed[2]),
+                max(bounds_moving[3], bounds_fixed[3]),
+                max(bounds_moving[4], bounds_fixed[4]),
+                max(bounds_moving[5], bounds_fixed[5])
+            ]).astype(int)
+            bounds_offset = bounds_total[:3]
+            bounds = np.s_[bounds_total[0]: bounds_total[3], bounds_total[2]: bounds_total[5]]
         fixed_image = fixed_image[bounds]
         moving_image = moving_image[bounds]
 
@@ -651,9 +769,13 @@ def register_with_elastix(
             imwrite(os.path.join(debug_dirpath, '02-mask.tif'), mask)
         if gaussian_sigma > 0:
             from skimage.morphology import erosion
-            from skimage.morphology import disk
             import math
-            mask = erosion(mask, footprint=disk(int(math.ceil(3 * gaussian_sigma))))
+            if mask.ndim == 2:
+                from skimage.morphology import disk
+                mask = erosion(mask, footprint=disk(int(math.ceil(3 * gaussian_sigma))))
+            else:
+                from skimage.morphology import ball
+                mask = erosion(mask, footprint=ball(int(math.ceil(3 * gaussian_sigma))))
         if use_edges:
             fixed_image[mask == 0] = 0
             moving_image[mask == 0] = 0
@@ -679,7 +801,7 @@ def register_with_elastix(
         if mask is not None:
             imwrite(os.path.join(debug_dirpath, '04-mask-normalized.tif'), mask)
 
-    pre_fix_offsets = np.array((0., 0.))
+    pre_fix_offsets = np.array([0.] * fixed_image.ndim)
     if verbose:
         print(f'Checking whether to run pre-fix for big jumps...')
     # if pre_fix_big_jumps:
@@ -689,7 +811,7 @@ def register_with_elastix(
             print(f'Running initialization to cope with big jumps!')
         assert type(fixed_image) == np.ndarray
         assert type(moving_image) == np.ndarray
-        assert fixed_image.ndim == 2, 'Implemented for 2D images only'
+        # assert fixed_image.ndim == 2, 'Implemented for 2D images only'
         if transform != 'translation':
             raise NotImplementedError('Big jump fixing only implemented for translations!')
         if initialize_offsets_method == 'xcorr':
@@ -735,14 +857,14 @@ def register_with_elastix(
         try:
             pivot = np.array([float(x) for x in elastix_transform_param_map['CenterOfRotationPoint']])[::-1]
         except IndexError:
-            pivot = np.array([0., 0.])
+            pivot = np.array([0.] * fixed_image.ndim)
         pivot += bounds_offset
 
         from squirrel.library.affine_matrices import AffineMatrix
         result_matrix = AffineMatrix(
             elastix_parameters=[transform, [float(x) for x in result_transform_parameters]]
         )
-        result_matrix = result_matrix * AffineMatrix(parameters=[1., 0., pre_fix_offsets[0], 0., 1., pre_fix_offsets[1]])
+        result_matrix = result_matrix * AffineMatrix(translation=pre_fix_offsets)
         result_matrix.set_pivot(pivot)
         # result_matrix = result_matrix * AffineMatrix(parameters=[1., 0., bounds_offset[0], 0., 1., bounds_offset[1]])
 
@@ -971,7 +1093,12 @@ def slice_wise_stack_to_stack_alignment(
 
 def translation_to_c(parameters):
     from ..library.transformation import setup_translation_matrix
-    return setup_translation_matrix([float(x) for x in parameters[::-1]], ndim=2).flatten()
+    ndim = 0
+    if len(parameters) == 2:
+        ndim = 2
+    if len(parameters) == 3:
+        ndim = 3
+    return setup_translation_matrix([float(x) for x in parameters[::-1]], ndim=ndim).flatten()
 
 
 def affine_to_c(parameters):

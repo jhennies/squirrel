@@ -410,6 +410,7 @@ class AffineMatrix:
             parameters=None,
             elastix_parameters=None,
             filepath=None,
+            translation=None,
             pivot=None
     ):
         """
@@ -429,6 +430,8 @@ class AffineMatrix:
             self.set_from_elastix(elastix_parameters, pivot=pivot)
         if filepath is not None:
             self.set_from_file(filepath)
+        if translation is not None:
+            self.set_from_translation(translation, pivot=pivot)
 
     def _validate_parameters(self, parameters):
         parameters_ = np.array(parameters)
@@ -446,6 +449,12 @@ class AffineMatrix:
             self.set_pivot(pivot)
             return
         raise RuntimeError(f'Validation of parameters failed! {parameters}')
+
+    def set_from_translation(self, translation, pivot=None):
+        self.set_from_parameters(
+            np.concatenate([np.eye(len(translation)), np.array([translation]).T], axis=1).flatten(),
+            pivot=pivot
+        )
 
     def update_parameters(self, parameters):
         self.set_from_parameters(parameters, pivot=self.get_pivot())
@@ -555,7 +564,7 @@ class AffineMatrix:
     def get_scaled(self, scale):
         matrix = self.copy()
         matrix.set_translation(matrix.get_translation() * scale)
-        pivot_matrix = AffineMatrix([1., 0., matrix.get_pivot()[0], 0., 1., matrix.get_pivot()[1]])
+        pivot_matrix = AffineMatrix(translation=matrix.get_pivot())
         matrix = matrix * pivot_matrix
         pivot_matrix.set_translation(pivot_matrix.get_translation() * scale)
         return (-pivot_matrix) * matrix
@@ -580,14 +589,11 @@ class AffineMatrix:
     def shift_pivot_to_origin(self):
         matrix = self.get_matrix('Ms')
         pivot = self.get_pivot()
-        offset = pivot - np.dot(matrix[:2, :2], pivot)
-        pivot_matrix = np.array([
-            [1., 0., offset[0]],
-            [0., 1., offset[1]],
-            [0., 0., 1.]
-        ])
-        matrix = np.dot(pivot_matrix, matrix)[:2]
-        self.set_from_parameters(matrix.flatten(), pivot=[0., 0.])
+        offset = pivot - np.dot(matrix[:self._ndim, :self._ndim], pivot)
+        pivot_matrix = np.eye(self._ndim + 1)
+        pivot_matrix[:self._ndim, self._ndim] = offset
+        matrix = np.dot(pivot_matrix, matrix)[:self._ndim]
+        self.set_from_parameters(matrix.flatten(), pivot=[0.] * self._ndim)
 
     def get_dtype(self):
         return self._parameters.dtype
@@ -608,12 +614,12 @@ class AffineMatrix:
         affine_params['NumberOfParameters'] = [str(num_params)]
         affine_params['CenterOfRotationPoint'] = [str(x) for x in self.get_pivot()[::-1]]
         affine_params['Transform'] = ['AffineTransform']
-        affine_params['Spacing'] = ['1', '1']
+        affine_params['Spacing'] = ['1'] * self._ndim
         if shape is not None:
             affine_params['Size'] = [str(x) for x in shape[::-1]]
-        affine_params['Index'] = ['0', '0']
-        affine_params['Origin'] = ['0', '0']
-        affine_params['Direction'] = ['1', '0', '0', '1']
+        affine_params['Index'] = ['0'] * self._ndim
+        affine_params['Origin'] = ['0'] * self._ndim
+        affine_params['Direction'] = [str(x) for x in np.eye(self._ndim).flatten()]
         affine_params['UseDirectionCosines'] = ['true']
 
         return affine_params
@@ -665,8 +671,6 @@ if __name__ == '__main__':
         stk.to_file(fp2)
         stk2 = load_affine_stack_from_multiple_files([fp, fp2], sequence_stack=True)
         print(stk2['C', :])
-
-
 
     if False:
         print('Testing the matrix object')
