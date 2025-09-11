@@ -502,7 +502,6 @@ def elastix_stack_alignment_workflow(
     transforms.to_file(out_filepath)
 
 
-# TODO: write out displacements/errors
 def stack_alignment_validation_workflow(
         stack,
         out_dirpath,
