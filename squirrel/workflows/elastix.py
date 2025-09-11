@@ -502,6 +502,7 @@ def elastix_stack_alignment_workflow(
     transforms.to_file(out_filepath)
 
 
+# TODO: write out displacements/errors
 def stack_alignment_validation_workflow(
         stack,
         out_dirpath,
@@ -540,10 +541,12 @@ def stack_alignment_validation_workflow(
         transforms_dirpath = os.path.join(out_dirpath, 'transforms')
         plot_filepath = os.path.join(out_dirpath, 'plot.pdf')
         image_dirpath = os.path.join(out_dirpath, 'images')
+        errors_filepath = os.path.join(out_dirpath, 'errors.csv')
     else:
         transforms_dirpath = os.path.join(out_dirpath, f'transforms-{out_name}')
         plot_filepath = os.path.join(out_dirpath, f'plot-{out_name}.pdf')
         image_dirpath = os.path.join(out_dirpath, f'images-{out_name}')
+        errors_filepath = os.path.join(out_dirpath, f'errors-{out_name}.csv')
     if not os.path.exists(image_dirpath):
         os.mkdir(image_dirpath)
     if not os.path.exists(transforms_dirpath):
@@ -563,6 +566,8 @@ def stack_alignment_validation_workflow(
     #     from skimage.registration import phase_cross_correlation
     if method == 'sift':
         from squirrel.library.sift2d import register_with_sift2 as register_with_sift
+
+    all_errors = dict()
 
     for roi_idx, roi in enumerate(rois):
 
@@ -651,6 +656,15 @@ def stack_alignment_validation_workflow(
         errors = np.sqrt(translations[:, 0] ** 2 + translations[:, 1] ** 2)
         labels.append('roi-{}-mean={:.2f}-median={:.2f}'.format(roi_idx, np.mean(errors), np.median(errors)))
         plt.plot(errors, label=labels[-1])
+
+        all_errors[f'roi_{roi_idx}'] = dict(
+            translations=translations.tolist(),
+            errors=errors.tolist()
+        )
+
+    import json
+    with open(errors_filepath, 'w') as f:
+        json.dump(all_errors, f, indent=2)
 
     plt.ylim(ymin=0, ymax=y_max)
     plt.legend()
