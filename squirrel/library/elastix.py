@@ -1033,7 +1033,7 @@ def slice_wise_stack_to_stack_alignment(
 
         import SimpleITK as sitk
 
-        parameter_map_filepath = './tmp-elx-parameters.txt'
+        parameter_map_filepath = f'./tmp-elx-parameters-{os.getpid()}.txt'
         if parameter_map is not None:
             sitk.WriteParameterFile(parameter_map, parameter_map_filepath)
 
@@ -1043,7 +1043,7 @@ def slice_wise_stack_to_stack_alignment(
             for zidx, z_slice_moving in enumerate(moving_stack):
                 # if not quiet:
                 #     print(f'{zidx} / {len(moving_stack) - 1}')
-                results_filepath = f'./tmp-elx-result-{zidx}.txt'
+                results_filepath = f'./tmp-elx-result-{zidx}-{os.getpid()}.txt'
                 z_slice_fixed = fixed_stack[zidx]
                 tasks.append(p.apply_async(
                     register_with_elastix, (
