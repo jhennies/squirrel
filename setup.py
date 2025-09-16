@@ -70,7 +70,7 @@ setup(
         ]
     },
     install_requires=[
-        'numpy',
+        'numpy>=2.0,<2.3',
         'h5py',
         'tifffile',
         'scipy',

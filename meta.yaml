@@ -1,5 +1,5 @@
 {% set name = "squirrel" %}
-{% set version = "0.2.4" %}
+{% set version = "0.2.7" %}
 
 package:
   name: "{{ name|lower }}"
@@ -11,13 +11,13 @@ source:
 requirements:
   host:
     - python
-    - numpy
+    - numpy >=2.0,<2.3
     - h5py
     - tifffile
     - scipy
   run:
     - python
-    - numpy
+    - numpy >=2.0,<2.3
     - h5py
     - tifffile
     - scipy
