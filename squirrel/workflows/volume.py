@@ -463,8 +463,9 @@ def estimate_crop_xy_workflow(
     # Save the maximum projection (with bounds?)
     from PIL import Image, ImageDraw
 
-    def _draw_rectangle_on_image(image_array, rectangle, color=(255, 0, 0), alpha=32, width=3,
-                                            output_path='output.png'):
+    def _draw_rectangle_on_image(
+            image_array, rectangle, color=(255, 0, 0), alpha=32, width=3, output_path='output.png'
+    ):
         """
         Draws a semi-transparent rectangle on a grayscale image and saves it as a PNG.
 
@@ -494,10 +495,11 @@ def estimate_crop_xy_workflow(
         print(f"Saved maximum projection to: {output_path}")
 
     if out_image is not None:
-        if os.path.exists(os.path.split(out_image)[0]):
-            out_filepath = out_image
-        else:
-            out_filepath = os.path.join(os.path.split(input_path)[0], out_image)
+        # if os.path.exists(os.path.split(out_image)[0]):
+        #     out_filepath = out_image
+        # else:
+        #     out_filepath = os.path.join(os.path.split(input_path)[0], out_image)
+        out_filepath = out_image
         _draw_rectangle_on_image(
             max_projection,
             bounds,
@@ -514,8 +516,10 @@ def estimate_crop_xy_workflow(
     print('____________________________________')
     print('BOUNDS (X, Y, W, H):')
     print(f"[{', '.join([str(int(x)) for x in bounds])}]")
+    print(f"[{','.join([str(int(x)) for x in bounds])}]")
     print(' '.join([str(int(x)) for x in bounds]))
     print('____________________________________')
+    return bounds
 
 
 def filter_2d_workflow(

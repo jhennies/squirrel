@@ -541,7 +541,7 @@ def estimate_crop_xy():
                         help='File pattern to search for within the input folder; default=None (which is interpreted as "*.tif")')
     parser.add_argument('-pad', '--padding', type=int, default=64,
                         help='Adds a certain amount of buffer to the output bounds')
-    parser.add_argument('-out', '--out_image', type=str, default='max_projection.tif',
+    parser.add_argument('-out', '--out_image', type=str, default='max_projection.png',
                         help='Saves the maximum projection as a tif image; defaults to "max_projection.tif"')
     parser.add_argument('-samples', '--number_of_samples', type=int, default=16,
                         help='The number of slices used to generate the maximum projection; default=16')
