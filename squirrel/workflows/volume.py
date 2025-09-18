@@ -519,7 +519,7 @@ def estimate_crop_xy_workflow(
     print(f"[{','.join([str(int(x)) for x in bounds])}]")
     print(' '.join([str(int(x)) for x in bounds]))
     print('____________________________________')
-    return bounds
+    return [int(x) for x in bounds]
 
 
 def filter_2d_workflow(
