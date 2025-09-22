@@ -502,6 +502,7 @@ def initialize_offsets(
                     fixed_img,
                     this_moving_img,
                     parameter_map,
+                    None,
                     mask=this_moving_mask * fixed_mask,
                     # moving_mask=this_moving_mask,
                     # fixed_mask=fixed_mask,
