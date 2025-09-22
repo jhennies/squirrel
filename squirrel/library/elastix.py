@@ -249,6 +249,90 @@ def compute_mattes_mi(fixed_image, moving_image, bins=50, mask=None, sampling_fr
     return score
 
 
+def initialize_offsets_with_xcorr(
+        moving_img,
+        fixed_img,
+        binning=16,
+        gaussian_sigma=1.0,
+        mi_thresh=-0.6,
+        debug_dir=None,
+        verbose=False
+):
+    if type(moving_img) == str:
+        from tifffile import imread
+        moving_img = imread(moving_img)
+    if type(fixed_img) == str:
+        from tifffile import imread
+        fixed_img = imread(fixed_img)
+
+    ndim = moving_img.ndim
+
+    moving_img_orig = moving_img.copy()
+
+    from squirrel.library.scaling import scale_image_nearest
+    moving_img = scale_image_nearest(moving_img, [1/binning] * ndim)
+    fixed_img = scale_image_nearest(fixed_img, [1/binning] * ndim)
+
+    from vigra.filters import gaussianSmoothing
+    moving_img = gaussianSmoothing(moving_img.astype('float32'), gaussian_sigma).astype('uint16')
+    fixed_img = gaussianSmoothing(fixed_img.astype('float32'), gaussian_sigma).astype('uint16')
+
+    fixed_mask = make_auto_mask(fixed_img, disk_size=6, method='non-zero')
+    moving_mask = make_auto_mask(moving_img, disk_size=6, method='non-zero')
+
+    from skimage.registration import phase_cross_correlation
+    offsets = phase_cross_correlation(
+        fixed_img, moving_img,
+        reference_mask=fixed_mask,
+        moving_mask=moving_mask,
+        upsample_factor=1,
+        normalization=None
+    )[0]
+
+    from scipy.ndimage.interpolation import shift
+    result_image = shift(moving_img, offsets)
+
+    # if verbose:
+    #     print(f'offsets = {offsets}')
+
+    if debug_dir is not None:
+        if not os.path.exists(debug_dir):
+            os.mkdir(debug_dir)
+        from matplotlib import pyplot as plt
+        if ndim == 2:
+            plt.imshow((np.array((fixed_img, result_image, result_image)).astype('float32') / fixed_img.max() * 255).astype('uint8').transpose((1, 2, 0)))
+            plt.savefig(os.path.join(debug_dir, 'registered_img_overlay.png'))
+            plt.close()
+        if ndim == 3:
+            plt.imshow(
+                (
+                    np.array((fixed_img, result_image, result_image)).astype('float32') / fixed_img.max() * 255
+                ).astype('uint8')[:, int(fixed_img.shape[0] / 2)].transpose((1, 2, 0))
+            )
+            plt.savefig(os.path.join(debug_dir, 'registered_img_overlay.png'))
+            plt.close()
+
+    mi_score = compute_mattes_mi(fixed_img, result_image)  #, mask=this_mask)
+    print(f'Found initial offset: {offsets} -- MI score: {mi_score}')
+
+    if mi_score > mi_thresh:
+        print(f'Warning: initialization score is too high!\n'
+              f'   Ignoring the computed initialization offsets and trying without ...')
+        offsets = [0., 0.]
+
+    offsets_unbinned = np.array(offsets) * binning
+
+    if np.all(np.array(offsets) == 0):
+        return -offsets_unbinned, moving_img_orig
+
+    # result_img = apply_transforms_on_image(
+    #     moving_img_orig,
+    #     offsets_unbinned
+    # )
+    result_img = shift(moving_img_orig, -offsets_unbinned)
+    return -offsets_unbinned, result_img
+
+
 def initialize_offsets(
         moving_img,
         fixed_img,
@@ -257,6 +341,7 @@ def initialize_offsets(
         elx_binning=4,
         elx_max_iters=32,
         mi_thresh=-0.8,
+        gaussian_sigma=1.0,
         debug_dir=None,
         n_workers=1,
         verbose=False
@@ -344,69 +429,6 @@ def initialize_offsets(
 
         return list(offsets), list(distances)
 
-    # def _compute_overlapping_offsets(bin_mask_fixed, bin_mask_moving, spacing=64):
-    #     """
-    #     Find all (dx, dy) offsets where two binary masks overlap,
-    #     given a grid spacing in pixels.
-    #
-    #     Parameters
-    #     ----------
-    #     bin_mask_fixed : np.ndarray
-    #         Binary mask (2D) of the fixed image.
-    #     bin_mask_moving : np.ndarray
-    #         Binary mask (2D) of the moving image (same shape as fixed).
-    #     spacing : int
-    #         Step size in pixels for the grid.
-    #
-    #     Returns
-    #     -------
-    #     list of tuple
-    #         List of (dx, dy) integer offsets (in pixels).
-    #     """
-    #     from squirrel.library.scores import intersection_over_union
-    #
-    #     assert bin_mask_fixed.shape == bin_mask_moving.shape, "Masks must have same shape"
-    #     H, W = bin_mask_fixed.shape
-    #
-    #     offsets = []
-    #     # Ranges of shifts in multiples of spacing
-    #     dx_range = range(-W + spacing, W, spacing)
-    #     dy_range = range(-H + spacing, H, spacing)
-    #
-    #     for dy in dy_range:
-    #         for dx in dx_range:
-    #             # compute overlap region
-    #             y0, y1 = max(0, dy), min(H, H + dy)
-    #             x0, x1 = max(0, dx), min(W, W + dx)
-    #
-    #             fy0, fy1 = max(0, -dy), min(H, H - dy)
-    #             fx0, fx1 = max(0, -dx), min(W, W - dx)
-    #
-    #             # Extract overlapping submasks
-    #             sub_fixed = bin_mask_fixed[y0:y1, x0:x1]
-    #             sub_moving = bin_mask_moving[fy0:fy1, fx0:fx1]
-    #
-    #             iou = intersection_over_union(sub_fixed, sub_moving)
-    #
-    #             if iou > 0.25:
-    #                 offsets.append((dx, dy))
-    #             # if np.any(sub_fixed & sub_moving):
-    #             #     offsets.append((dx, dy))
-    #
-    #     # Ensure (0,0) is always included
-    #     if (0, 0) not in offsets:
-    #         offsets.insert(0, (0, 0))
-    #     # assert (0, 0) in offsets
-    #
-    #     # Compute distances
-    #     distances = [np.sqrt(dx ** 2 + dy ** 2) for dx, dy in offsets]
-    #
-    #     # Sort by distance
-    #     sorted_pairs = sorted(zip(offsets, distances), key=lambda p: p[1])
-    #     offsets, distances = zip(*sorted_pairs)
-    #
-    #     return list(offsets), list(distances)
-
     if type(moving_img) == str:
         from tifffile import imread
         moving_img = imread(moving_img)
@@ -433,8 +455,8 @@ def initialize_offsets(
     fixed_img = scale_image_nearest(fixed_img, [1/binning] * ndim)
 
     from vigra.filters import gaussianSmoothing
-    moving_img = gaussianSmoothing(moving_img.astype('float32'), 1.0).astype('uint16')
-    fixed_img = gaussianSmoothing(fixed_img.astype('float32'), 1.0).astype('uint16')
+    moving_img = gaussianSmoothing(moving_img.astype('float32'), gaussian_sigma).astype('uint16')
+    fixed_img = gaussianSmoothing(fixed_img.astype('float32'), gaussian_sigma).astype('uint16')
 
     fixed_mask = make_auto_mask(fixed_img, disk_size=6, method='non-zero')
     moving_mask = make_auto_mask(moving_img, disk_size=6, method='non-zero')
@@ -466,9 +488,10 @@ def initialize_offsets(
             this_transform_params, _ = register(
                 fixed_img,
                 this_moving_img,
-                this_mask,
                 parameter_map,
                 None,
+                moving_mask=this_moving_mask,
+                fixed_mask=fixed_mask,
                 n_workers=n_workers,
                 return_result_image=False,
                 verbose=False
@@ -541,9 +564,11 @@ def initialize_offsets(
 def register(
         fixed_image,
         moving_image,
-        mask,
         parameter_map,
         out_dir,
+        mask=None,
+        moving_mask=None,
+        fixed_mask=None,
         n_workers=1,
         return_result_image=False,
         verbose=False
@@ -571,6 +596,13 @@ def register(
         mask = sitk.GetImageFromArray(mask)
         elastixImageFilter.SetFixedMask(mask)
         elastixImageFilter.SetMovingMask(mask)
+        parameter_map['ErodeMask'] = ['true']
+    if fixed_mask is not None:
+        fixed_mask = sitk.GetImageFromArray(fixed_mask)
+        elastixImageFilter.SetFixedMask(fixed_mask)
+        assert moving_mask is not None
+        moving_mask = sitk.GetImageFromArray(moving_mask)
+        elastixImageFilter.SetMovingMask(moving_mask)
         parameter_map['ErodeMask'] = ['true']
     if out_dir is not None:
         elastixImageFilter.SetOutputDirectory(out_dir)
@@ -699,7 +731,10 @@ def register_with_elastix(
         WriteParameterFile(parameter_map, os.path.join(debug_dirpath, 'elastix_parameters.txt'))
     # assert transform == parameter_map['Transform'][0]
 
-    mask = None
+    # mask = None
+    fixed_mask = None
+    moving_mask = None
+
     bounds_offset = np.array([0.] * fixed_image.ndim)
     if crop_to_bounds:
         if verbose:
@@ -763,20 +798,24 @@ def register_with_elastix(
     if auto_mask is not None:
         fixed_mask = make_auto_mask(fixed_image, disk_size=6, method=auto_mask)
         moving_mask = make_auto_mask(moving_image, disk_size=6, method=auto_mask)
-        mask = fixed_mask * moving_mask
+        # mask = fixed_mask * moving_mask
         if debug_dirpath is not None:
             imwrite(os.path.join(debug_dirpath, '02-mask-from-fixed.tif'), fixed_mask)
             imwrite(os.path.join(debug_dirpath, '02-mask-from-moving.tif'), moving_mask)
-            imwrite(os.path.join(debug_dirpath, '02-mask.tif'), mask)
+            # imwrite(os.path.join(debug_dirpath, '02-mask.tif'), mask)
         if gaussian_sigma > 0:
             from skimage.morphology import erosion
             import math
-            if mask.ndim == 2:
+            if fixed_mask.ndim == 2:
                 from skimage.morphology import disk
-                mask = erosion(mask, footprint=disk(int(math.ceil(3 * gaussian_sigma))))
+                # mask = erosion(mask, footprint=disk(int(math.ceil(3 * gaussian_sigma))))
+                fixed_mask = erosion(fixed_mask, footprint=disk(int(math.ceil(3 * gaussian_sigma))))
+                moving_mask = erosion(moving_mask, footprint=disk(int(math.ceil(3 * gaussian_sigma))))
             else:
                 from skimage.morphology import ball
-                mask = erosion(mask, footprint=ball(int(math.ceil(3 * gaussian_sigma))))
+                # mask = erosion(mask, footprint=ball(int(math.ceil(3 * gaussian_sigma))))
+                fixed_mask = erosion(fixed_mask, footprint=ball(int(math.ceil(3 * gaussian_sigma))))
+                moving_mask = erosion(moving_mask, footprint=ball(int(math.ceil(3 * gaussian_sigma))))
         if use_edges:
             fixed_image[mask == 0] = 0
             moving_image[mask == 0] = 0
@@ -786,21 +825,21 @@ def register_with_elastix(
     if debug_dirpath is not None:
         imwrite(os.path.join(debug_dirpath, '03-fixed-pre-processed.tif'), fixed_image)
         imwrite(os.path.join(debug_dirpath, '03-moving-pre-processed.tif'), moving_image)
-        if mask is not None:
-            imwrite(os.path.join(debug_dirpath, '03-mask-pre-processed.tif'), mask)
+        if fixed_mask is not None:
+            imwrite(os.path.join(debug_dirpath, '03-mask-pre-processed.tif'), fixed_mask)
 
     if normalize_images:
         assert type(fixed_image) == np.ndarray
         assert type(moving_image) == np.ndarray
         from squirrel.library.data import norm_full_range
-        fixed_image = norm_full_range(fixed_image, (0.05, 0.95), ignore_zeros=False, mask=mask, cast_8bit=True)
-        moving_image = norm_full_range(moving_image, (0.05, 0.95), ignore_zeros=False, mask=mask, cast_8bit=True)
+        fixed_image = norm_full_range(fixed_image, (0.05, 0.95), ignore_zeros=False, mask=fixed_mask, cast_8bit=True)
+        moving_image = norm_full_range(moving_image, (0.05, 0.95), ignore_zeros=False, mask=moving_mask, cast_8bit=True)
 
     if debug_dirpath is not None:
         imwrite(os.path.join(debug_dirpath, '04-fixed-normalized.tif'), fixed_image)
         imwrite(os.path.join(debug_dirpath, '04-moving-normalized.tif'), moving_image)
-        if mask is not None:
-            imwrite(os.path.join(debug_dirpath, '04-mask-normalized.tif'), mask)
+        if fixed_mask is not None:
+            imwrite(os.path.join(debug_dirpath, '04-mask-normalized.tif'), fixed_mask)
 
     pre_fix_offsets = np.array([0.] * fixed_image.ndim)
     if verbose:
@@ -824,6 +863,13 @@ def register_with_elastix(
                 # iou_thresh=pre_fix_iou_thresh, verbose=verbose
             )
             pre_fix_offsets = tuple(-np.array(pre_fix_offsets))
+        if initialize_offsets_method == 'init_xcorr':
+            pre_fix_offsets, moving_image = initialize_offsets_with_xcorr(
+                moving_image, fixed_image,
+                binning=16 if 'binning' not in initialize_offsets_kwargs else initialize_offsets_kwargs['binning'],
+                mi_thresh=-0.6 if 'mi_thresh' not in initialize_offsets_kwargs else initialize_offsets_kwargs['mi_thresh'],
+                debug_dir=debug_dirpath
+            )
         elif initialize_offsets_method == 'init_elx':
             pre_fix_offsets, moving_image = initialize_offsets(
                 moving_image, fixed_image,
@@ -832,6 +878,7 @@ def register_with_elastix(
                 elx_binning=4 if 'elx_binning' not in initialize_offsets_kwargs else initialize_offsets_kwargs['elx_binning'],
                 elx_max_iters=32 if 'elx_max_iters' not in initialize_offsets_kwargs else initialize_offsets_kwargs['elx_max_iters'],
                 mi_thresh=-0.8 if 'mi_thresh' not in initialize_offsets_kwargs else initialize_offsets_kwargs['mi_thresh'],
+                gaussian_sigma=1.0 if 'gaussian_sigma' not in initialize_offsets_kwargs else initialize_offsets_kwargs['gaussian_sigma'],
                 debug_dir=debug_dirpath
             )
         else:
@@ -844,9 +891,11 @@ def register_with_elastix(
     elastix_transform_param_map, result_image = register(
         fixed_image,
         moving_image,
-        mask,
+        # mask,
         parameter_map,
         out_dir,
+        fixed_mask=fixed_mask,
+        moving_mask=moving_mask,
         n_workers=n_workers,
         return_result_image=return_result_image,
         verbose=verbose
@@ -1451,8 +1500,10 @@ if __name__ == '__main__':
     # )
 
     from tifffile import imread, imwrite
-    moving_img = imread('/media/julian/Data/projects/hennies/amst_devel/amst2-test-auto-init/tiffs/slice_01927_z=19.4090um.tif')
-    fixed_img = imread('/media/julian/Data/projects/hennies/amst_devel/amst2-test-auto-init/tiffs/slice_01926_z=19.3991um.tif')
+    # moving_img = imread('/media/julian/Data/projects/hennies/amst_devel/amst2-test-auto-init/tiffs/slice_01927_z=19.4090um.tif')
+    # fixed_img = imread('/media/julian/Data/projects/hennies/amst_devel/amst2-test-auto-init/tiffs/slice_01926_z=19.3991um.tif')
+    moving_img = imread('/media/julian/Data/projects/hennies/amst_devel/amst2-hela-join-parts/tiffs/slice_01786.tif')
+    fixed_img = imread('/media/julian/Data/projects/hennies/amst_devel/amst2-hela-join-parts/tiffs/slice_01787.tif')
 
     # if False:
     #     # The old version does not detect the shift and does not pre-fix
@@ -1529,7 +1580,7 @@ if __name__ == '__main__':
     #     plt.imshow(((np.array([fixed_img, result, result]).astype('float32') / fixed_img.max()) * 255).astype(int).transpose([1, 2, 0]))
     #     plt.savefig('/media/julian/Data/tmp/test_elx_register/result_overlay_init_elx_nit128_nr2.png')
     #
-    # if True:
+    # if False:
     #     # The new version with more efficiency
     #     transforms, _ = register_with_elastix(
     #         fixed_image=fixed_img,
@@ -1545,7 +1596,7 @@ if __name__ == '__main__':
     #         gaussian_sigma=2.0,
     #         n_workers=16,
     #         normalize_images=True,
-    #         # debug_dirpath='/media/julian/Data/tmp/test_elx_register',
+    #         debug_dirpath='/media/julian/Data/tmp/test_hela_elx_register',
     #         verbose=False
     #     )
     #
@@ -1553,6 +1604,62 @@ if __name__ == '__main__':
     #
     #     from matplotlib import pyplot as plt
     #     plt.imshow(((np.array([fixed_img, result, result]).astype('float32') / fixed_img.max()) * 255).astype(int).transpose([1, 2, 0]))
-    #     plt.savefig('/media/julian/Data/tmp/test_elx_register/result_overlay_init_elx_nit64_nr1.png')
+    #     plt.savefig('/media/julian/Data/tmp/test_hela_elx_register/result_overlay_init_elx_nit64_nr1.png')
 
+    if True:
+        # The new version with more efficiency
+        transforms, _ = register_with_elastix(
+            fixed_image=fixed_img,
+            moving_image=moving_img,
+            transform='translation',
+            auto_mask='non-zero',
+            maximum_number_of_iterations=256,
+            number_of_resolutions=2,
+            number_of_spatial_samples=2048,
+            return_result_image=False,
+            initialize_offsets_method='init_elx',
+            initialize_offsets_kwargs=dict(
+            #     binning=32,
+            #     elx_binning=8,
+            #     elx_max_iters=32,
+            #     mi_thresh=-0.8,
+                gaussian_sigma=1.0
+            ),
+            gaussian_sigma=2.0,
+            n_workers=16,
+            normalize_images=True,
+            debug_dirpath='/media/julian/Data/tmp/test_hela_elx_register',
+            verbose=False
+        )
 
+        result = apply_transforms_on_image(moving_img, [transforms.to_elastix_affine(shape=moving_img.shape, return_parameter_map=True)])
+
+        from matplotlib import pyplot as plt
+        plt.imshow(((np.array([fixed_img, result, result]).astype('float32') / fixed_img.max()) * 255).astype(int).transpose([1, 2, 0]))
+        plt.savefig('/media/julian/Data/tmp/test_hela_elx_register/result_overlay_init_elx_nit64_nr1.png')
+
+    if False:
+        transforms, _ = register_with_elastix(
+            fixed_image=fixed_img,
+            moving_image=moving_img,
+            transform='translation',
+            auto_mask='non-zero',
+            maximum_number_of_iterations=64,
+            number_of_resolutions=1,
+            return_result_image=False,
+            initialize_offsets_method='init_xcorr',
+            initialize_offsets_kwargs=dict(
+                binning=16,
+                mi_thresh=-0.1
+            ),
+            gaussian_sigma=2.0,
+            n_workers=16,
+            normalize_images=True,
+            debug_dirpath='/media/julian/Data/tmp/test_hela_elx_register_init_xcorr',
+            verbose=False
+        )
+        result = apply_transforms_on_image(moving_img, [transforms.to_elastix_affine(shape=moving_img.shape, return_parameter_map=True)])
+
+        from matplotlib import pyplot as plt
+        plt.imshow(((np.array([fixed_img, result, result]).astype('float32') / fixed_img.max()) * 255).astype(int).transpose([1, 2, 0]))
+        plt.savefig('/media/julian/Data/tmp/test_hela_elx_register_init_xcorr/result_overlay_init_xcorr.png')

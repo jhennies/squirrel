@@ -49,7 +49,7 @@ mamba install -c conda-forge opencv
 
 ### For ome.zarr support
 ```
-mamba install -c conda-forge zarr
+mamba install -c conda-forge zarr=2
 ```
 
 ### For faster filters or morphological operations
