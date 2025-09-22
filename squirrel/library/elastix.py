@@ -497,7 +497,20 @@ def initialize_offsets(
                 verbose=False
             )
         except RuntimeError:
-            continue
+            try:
+                this_transform_params, _ = register(
+                    fixed_img,
+                    this_moving_img,
+                    parameter_map,
+                    mask=this_moving_mask * fixed_mask,
+                    # moving_mask=this_moving_mask,
+                    # fixed_mask=fixed_mask,
+                    n_workers=n_workers,
+                    return_result_image=False,
+                    verbose=False
+                )
+            except RuntimeError:
+                continue
         registered_img = apply_transforms_on_image(moving_img, [this_offset, this_transform_params])
 
         mi_fixed_vs_registered = compute_mattes_mi(fixed_img, registered_img, mask=this_mask)
@@ -725,7 +738,7 @@ def register_with_elastix(
         parameter_map = ReadParameterFile(parameter_map)
     if transform is None:
         assert parameter_map is not None,  'Either parameter_map or transform must be specified!'
-        transform = parameter_map['Transform'][0]
+        transform = 'translation' if parameter_map['Transform'][0] == 'TranslationTransform' else parameter_map
     if debug_dirpath is not None:
         from SimpleITK import WriteParameterFile
         WriteParameterFile(parameter_map, os.path.join(debug_dirpath, 'elastix_parameters.txt'))
@@ -852,8 +865,8 @@ def register_with_elastix(
         assert type(fixed_image) == np.ndarray
         assert type(moving_image) == np.ndarray
         # assert fixed_image.ndim == 2, 'Implemented for 2D images only'
-        if transform != 'translation':
-            raise NotImplementedError('Big jump fixing only implemented for translations!')
+        if transform == 'bspline':
+            raise NotImplementedError('Big jump fixing not implemented for bspline transformation!')
         if initialize_offsets_method == 'xcorr':
             pre_fix_offsets, moving_image = big_jump_pre_fix(
                 moving_orig, fixed_orig,
@@ -863,7 +876,7 @@ def register_with_elastix(
                 # iou_thresh=pre_fix_iou_thresh, verbose=verbose
             )
             pre_fix_offsets = tuple(-np.array(pre_fix_offsets))
-        if initialize_offsets_method == 'init_xcorr':
+        elif initialize_offsets_method == 'init_xcorr':
             pre_fix_offsets, moving_image = initialize_offsets_with_xcorr(
                 moving_image, fixed_image,
                 binning=16 if 'binning' not in initialize_offsets_kwargs else initialize_offsets_kwargs['binning'],
@@ -1500,10 +1513,10 @@ if __name__ == '__main__':
     # )
 
     from tifffile import imread, imwrite
-    # moving_img = imread('/media/julian/Data/projects/hennies/amst_devel/amst2-test-auto-init/tiffs/slice_01927_z=19.4090um.tif')
-    # fixed_img = imread('/media/julian/Data/projects/hennies/amst_devel/amst2-test-auto-init/tiffs/slice_01926_z=19.3991um.tif')
-    moving_img = imread('/media/julian/Data/projects/hennies/amst_devel/amst2-hela-join-parts/tiffs/slice_01786.tif')
-    fixed_img = imread('/media/julian/Data/projects/hennies/amst_devel/amst2-hela-join-parts/tiffs/slice_01787.tif')
+    moving_img = imread('/media/julian/Data/projects/hennies/amst_devel/amst2-test-auto-init/tiffs/slice_01927_z=19.4090um.tif')
+    fixed_img = imread('/media/julian/Data/projects/hennies/amst_devel/amst2-test-auto-init/tiffs/slice_01926_z=19.3991um.tif')
+    # moving_img = imread('/media/julian/Data/projects/hennies/amst_devel/amst2-hela-join-parts/tiffs/slice_01786.tif')
+    # fixed_img = imread('/media/julian/Data/projects/hennies/amst_devel/amst2-hela-join-parts/tiffs/slice_01787.tif')
 
     # if False:
     #     # The old version does not detect the shift and does not pre-fix
@@ -1607,17 +1620,24 @@ if __name__ == '__main__':
     #     plt.savefig('/media/julian/Data/tmp/test_hela_elx_register/result_overlay_init_elx_nit64_nr1.png')
 
     if True:
+
+        import SimpleITK as sitk
+        parameter_map = sitk.GetDefaultParameterMap('translation')
+        parameter_map['MaximumStepLength'] = ['20']
+        parameter_map['UseAdaptiveStepSize'] = ['true']
+
         # The new version with more efficiency
         transforms, _ = register_with_elastix(
             fixed_image=fixed_img,
             moving_image=moving_img,
-            transform='translation',
+            # transform='translation',
             auto_mask='non-zero',
             maximum_number_of_iterations=256,
             number_of_resolutions=2,
             number_of_spatial_samples=2048,
             return_result_image=False,
             initialize_offsets_method='init_elx',
+            # initialize_offsets_method=None,
             initialize_offsets_kwargs=dict(
             #     binning=32,
             #     elx_binning=8,
@@ -1625,10 +1645,11 @@ if __name__ == '__main__':
             #     mi_thresh=-0.8,
                 gaussian_sigma=1.0
             ),
+            parameter_map=parameter_map,
             gaussian_sigma=2.0,
             n_workers=16,
             normalize_images=True,
-            debug_dirpath='/media/julian/Data/tmp/test_hela_elx_register',
+            debug_dirpath='/media/julian/Data/tmp/test_platy_elx_register',
             verbose=False
         )
 
@@ -1636,7 +1657,7 @@ if __name__ == '__main__':
 
         from matplotlib import pyplot as plt
         plt.imshow(((np.array([fixed_img, result, result]).astype('float32') / fixed_img.max()) * 255).astype(int).transpose([1, 2, 0]))
-        plt.savefig('/media/julian/Data/tmp/test_hela_elx_register/result_overlay_init_elx_nit64_nr1.png')
+        plt.savefig('/media/julian/Data/tmp/test_platy_elx_register/result_overlay_init_elx_nit64_nr1.png')
 
     if False:
         transforms, _ = register_with_elastix(
@@ -1663,3 +1684,5 @@ if __name__ == '__main__':
         from matplotlib import pyplot as plt
         plt.imshow(((np.array([fixed_img, result, result]).astype('float32') / fixed_img.max()) * 255).astype(int).transpose([1, 2, 0]))
         plt.savefig('/media/julian/Data/tmp/test_hela_elx_register_init_xcorr/result_overlay_init_xcorr.png')
+
+
