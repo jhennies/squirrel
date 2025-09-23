@@ -376,8 +376,8 @@ def cast_dtype_workflow(
         input_path,
         target_path,
         label_mapping=None,
-        key=None,
-        pattern=None,
+        input_key=None,
+        input_pattern=None,
         target_key=None,
         target_dtype='uint8',
         z_batch_size=1,
@@ -389,7 +389,7 @@ def cast_dtype_workflow(
         print(f'input_path = {input_path}')
         print(f'target_path = {target_path}')
         print(f'type(label_mapping) = {type(label_mapping)}')
-        print(f'key = {key}')
+        print(f'key = {input_key}')
         print(f'target_key = {target_key}')
         print(f'target_dtype = {target_dtype}')
         print(f'z_batch_size = {z_batch_size}')
@@ -402,7 +402,7 @@ def cast_dtype_workflow(
         assert type(label_mapping) == dict
 
     from squirrel.library.io import load_data_handle, get_filetype
-    h, shape = load_data_handle(input_path, key, pattern)
+    h, shape = load_data_handle(input_path, input_key, input_pattern)
 
     ft = get_filetype(target_path)
     if ft != 'dir':

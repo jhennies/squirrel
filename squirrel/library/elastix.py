@@ -514,6 +514,7 @@ def initialize_offsets(
                 continue
         registered_img = apply_transforms_on_image(moving_img, [this_offset, this_transform_params])
 
+        # FIXME compute this without mask?
         mi_fixed_vs_registered = compute_mattes_mi(fixed_img, registered_img, mask=this_mask)
 
         if mi_fixed_vs_registered < best_score:
