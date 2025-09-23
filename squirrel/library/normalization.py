@@ -41,7 +41,9 @@ def normalize_slices(
         n_workers=1
 ):
     # FIXME implement for other data types
-    assert stack.dtype == 'uint8', f'Normalization only implemented for uint8 data, found {stack.dtype}'
+    # assert stack.dtype == 'uint8', f'Normalization only implemented for uint8 data, found {stack.dtype}'
+    if stack.dtype != 'uint8':
+        print('Warning: Normalization will convert the dtype to uint8! ')
 
     from squirrel.library.data import norm_z_range
     stack_shape = stack.shape
