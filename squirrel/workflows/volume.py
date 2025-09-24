@@ -57,7 +57,7 @@ def crop_from_stack_workflow(
         roi=None,
         key='data',
         pattern='*.tif',
-        out_slice_offset=None,
+        out_slice_offset=0,
         reslice_sample=False,
         verbose=False
 ):
