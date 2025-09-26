@@ -877,7 +877,7 @@ def register_with_elastix(
 
     # Return an affine matrix object for any rigid or affine transformation
     print(f'Finalizing output transformation ...')
-    if transform != 'bspline':
+    if transform not in ['bspline', 'BSplineTransform']:
         result_matrix = _finalize_result_transform_parameters(elastix_transform_param_map, bounds_offset)
 
         if result_to_disk:
