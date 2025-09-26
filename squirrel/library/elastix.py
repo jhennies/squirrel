@@ -835,7 +835,7 @@ def register_with_elastix(
     print('Cropping data ...')
     bounds_offset = np.array([0.] * fixed_image.ndim)
     crop_to_bounds = auto_mask is not None
-    if crop_to_bounds_off or transform == 'bspline':
+    if crop_to_bounds_off or transform in ['bspline', 'BSplineTransform']:
         crop_to_bounds = False
     if crop_to_bounds:
         fixed_image, moving_image, bounds_offset = _crop_to_bounds(fixed_image, moving_image)
