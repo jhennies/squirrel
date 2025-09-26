@@ -473,6 +473,7 @@ def initialize_offsets(
 
     try:
         best_offset_unbinned = np.array(best_offset) * binning
+        best_transform_params_unbinned = best_transform_params.get_scaled(binning)
     except UnboundLocalError:
         from tifffile import imwrite
         crash_dir = os.path.join(os.getcwd(), 'crash')
@@ -480,7 +481,6 @@ def initialize_offsets(
         imwrite(os.path.join(crash_dir, 'fixed.tif'), fixed_img)
         print(f'Written crashing data to {crash_dir}')
         raise
-    best_transform_params_unbinned = best_transform_params.get_scaled(binning)
     if verbose:
         print(f'best_score = {best_score}')
         print(f'best_offset = {best_offset}')
