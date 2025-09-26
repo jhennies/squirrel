@@ -447,8 +447,9 @@ def initialize_offsets(
                 this_moving_img,
                 parameter_map,
                 None,
-                moving_mask=this_moving_mask,
-                fixed_mask=fixed_mask,
+                mask=this_mask,
+                # moving_mask=this_moving_mask,
+                # fixed_mask=fixed_mask,
                 n_workers=n_workers,
                 return_result_image=False,
                 verbose=False
