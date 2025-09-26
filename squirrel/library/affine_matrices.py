@@ -467,7 +467,7 @@ class AffineMatrix:
                 parameters[0] = 'translation'
         assert isinstance(parameters[0], str), \
             'Elastix parameters must be in the format: ["transform", [parameters, ...]]'
-        assert parameters[0] in ['translation', 'rigid', 'SimilarityTransform', 'affine']
+        assert parameters[0] in ['translation', 'TranslationTransform', 'rigid', 'SimilarityTransform', 'affine']
         from ..library.elastix import elastix_to_c
         parameters = elastix_to_c(*parameters)
         self.set_from_parameters(parameters, pivot=pivot)
