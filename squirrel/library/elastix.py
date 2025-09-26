@@ -432,6 +432,8 @@ def initialize_offsets(
     best_registered_img = None
     best_offset = [0, 0]
 
+    best_transform_params = None
+
     for idx, offset in enumerate(offsets):
 
         this_offset = AffineMatrix(translation=offset)
@@ -471,10 +473,7 @@ def initialize_offsets(
     if idx == len(offsets) - 1:
         print(f'Break criterion of score < {mi_thresh} never reached, using position with minimal score')
 
-    try:
-        best_offset_unbinned = np.array(best_offset) * binning
-        best_transform_params_unbinned = best_transform_params.get_scaled(binning)
-    except:
+    if best_transform_params is None:
         from tifffile import imwrite
         import random
         crash_dir = os.path.join(os.getcwd(), f'crash_{random.randint(0, 9999)}')
@@ -483,7 +482,11 @@ def initialize_offsets(
         imwrite(os.path.join(crash_dir, 'moving.tif'), moving_img)
         imwrite(os.path.join(crash_dir, 'fixed.tif'), fixed_img)
         print(f'Written crashing data to {crash_dir}')
-        raise
+        raise RuntimeError('Initialization failed!')
+
+    best_offset_unbinned = np.array(best_offset) * binning
+    best_transform_params_unbinned = best_transform_params.get_scaled(binning)
+
     if verbose:
         print(f'best_score = {best_score}')
         print(f'best_offset = {best_offset}')
