@@ -476,7 +476,10 @@ def initialize_offsets(
         best_transform_params_unbinned = best_transform_params.get_scaled(binning)
     except UnboundLocalError:
         from tifffile import imwrite
-        crash_dir = os.path.join(os.getcwd(), 'crash')
+        import random
+        crash_dir = os.path.join(os.getcwd(), f'crash_{random.randint(0, 9999)}')
+        if not os.path.exists(crash_dir):
+            os.mkdir(crash_dir)
         imwrite(os.path.join(crash_dir, 'moving.tif'), moving_img)
         imwrite(os.path.join(crash_dir, 'fixed.tif'), fixed_img)
         print(f'Written crashing data to {crash_dir}')
