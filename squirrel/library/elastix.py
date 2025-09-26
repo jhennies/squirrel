@@ -471,7 +471,15 @@ def initialize_offsets(
     if idx == len(offsets) - 1:
         print(f'Break criterion of score < {mi_thresh} never reached, using position with minimal score')
 
-    best_offset_unbinned = np.array(best_offset) * binning
+    try:
+        best_offset_unbinned = np.array(best_offset) * binning
+    except UnboundLocalError:
+        from tifffile import imwrite
+        crash_dir = os.path.join(os.getcwd(), 'crash')
+        imwrite(os.path.join(crash_dir, 'moving.tif'), moving_img)
+        imwrite(os.path.join(crash_dir, 'fixed.tif'), fixed_img)
+        print(f'Written crashing data to {crash_dir}')
+        raise
     best_transform_params_unbinned = best_transform_params.get_scaled(binning)
     if verbose:
         print(f'best_score = {best_score}')
