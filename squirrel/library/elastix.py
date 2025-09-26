@@ -474,7 +474,7 @@ def initialize_offsets(
     try:
         best_offset_unbinned = np.array(best_offset) * binning
         best_transform_params_unbinned = best_transform_params.get_scaled(binning)
-    except UnboundLocalError:
+    except:
         from tifffile import imwrite
         import random
         crash_dir = os.path.join(os.getcwd(), f'crash_{random.randint(0, 9999)}')
