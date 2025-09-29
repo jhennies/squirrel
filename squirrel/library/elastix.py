@@ -924,8 +924,6 @@ def slice_wise_stack_to_stack_alignment(
         raise ValueError(f'Invalid transform: {transform}')
     result_stack = []
 
-    import uuid
-
     if n_workers == 1:
         for zidx, z_slice_moving in enumerate(moving_stack):
             if not quiet:
@@ -961,9 +959,14 @@ def slice_wise_stack_to_stack_alignment(
     else:
 
         import SimpleITK as sitk
+        import tempfile
 
         # parameter_map_filepath = f'./tmp-elx-parameters-{os.getpid()}.txt'
-        parameter_map_filepath = f'./tmp-elx-parameters-{uuid.uuid4().hex}'
+        # parameter_map_filepath = f'./tmp-elx-parameters-{uuid.uuid4().hex}'
+        fd, parameter_map_filepath = tempfile.mkstemp(
+            prefix=f"tmp-elx-parameters-", suffix='.txt', dir='./'
+        )
+        os.close(fd)
         if parameter_map is not None:
             sitk.WriteParameterFile(parameter_map, parameter_map_filepath)
 
@@ -974,7 +977,10 @@ def slice_wise_stack_to_stack_alignment(
                 # if not quiet:
                 #     print(f'{zidx} / {len(moving_stack) - 1}')
                 # results_filepath = f'./tmp-elx-result-{zidx}-{os.getpid()}.txt'
-                results_filepath = f'./tmp-elx-result-{zidx}-{uuid.uuid4().hex}.txt'
+                # results_filepath = f'./tmp-elx-result-{zidx}-{uuid.uuid4().hex}.txt'
+                fd, results_filepath = tempfile.mkstemp(
+                    prefix=f"tmp-elx-result-{zidx}-", suffix='.txt', dir='./'
+                )
                 z_slice_fixed = fixed_stack[zidx]
                 tasks.append(p.apply_async(
                     register_with_elastix, (
