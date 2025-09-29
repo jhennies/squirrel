@@ -981,6 +981,7 @@ def slice_wise_stack_to_stack_alignment(
                 fd, results_filepath = tempfile.mkstemp(
                     prefix=f"tmp-elx-result-{zidx}-", suffix='.txt', dir='./'
                 )
+                os.close(fd)
                 z_slice_fixed = fixed_stack[zidx]
                 tasks.append(p.apply_async(
                     register_with_elastix, (
