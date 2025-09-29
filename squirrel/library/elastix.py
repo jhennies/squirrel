@@ -918,11 +918,13 @@ def slice_wise_stack_to_stack_alignment(
     if transform in ['translation', 'affine']:
         from ..library.affine_matrices import AffineStack
         result_transforms = AffineStack(is_sequenced=True, pivot=[0., 0.])
-    elif transform == 'bspline':
+    elif transform in ['bspline', 'BSplineTransform']:
         result_transforms = ElastixStack()
     else:
         raise ValueError(f'Invalid transform: {transform}')
     result_stack = []
+
+    import uuid
 
     if n_workers == 1:
         for zidx, z_slice_moving in enumerate(moving_stack):
@@ -949,7 +951,7 @@ def slice_wise_stack_to_stack_alignment(
                 normalize_images=normalize_images,
                 verbose=verbose
             )
-            if transform != 'bspline':
+            if transform not in ['bspline', 'BSplineTransform']:
                 result_matrix.shift_pivot_to_origin()
 
             if result_image is not None:
@@ -960,7 +962,8 @@ def slice_wise_stack_to_stack_alignment(
 
         import SimpleITK as sitk
 
-        parameter_map_filepath = f'./tmp-elx-parameters-{os.getpid()}.txt'
+        # parameter_map_filepath = f'./tmp-elx-parameters-{os.getpid()}.txt'
+        parameter_map_filepath = f'./tmp-elx-parameters-{uuid.uuid4().hex}'
         if parameter_map is not None:
             sitk.WriteParameterFile(parameter_map, parameter_map_filepath)
 
@@ -970,7 +973,8 @@ def slice_wise_stack_to_stack_alignment(
             for zidx, z_slice_moving in enumerate(moving_stack):
                 # if not quiet:
                 #     print(f'{zidx} / {len(moving_stack) - 1}')
-                results_filepath = f'./tmp-elx-result-{zidx}-{os.getpid()}.txt'
+                # results_filepath = f'./tmp-elx-result-{zidx}-{os.getpid()}.txt'
+                results_filepath = f'./tmp-elx-result-{zidx}-{uuid.uuid4().hex}.txt'
                 z_slice_fixed = fixed_stack[zidx]
                 tasks.append(p.apply_async(
                     register_with_elastix, (
