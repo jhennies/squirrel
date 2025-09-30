@@ -1,4 +1,47 @@
+import os
+
 import numpy as np
+
+
+def adjust_greyscale_workflow(
+        in_path,
+        out_path,
+        in_pattern='*.tif',
+        in_key=None,
+        out_key=None,
+        greys_in=None,
+        greys_out=None,
+        dtype_out='uint8',
+        n_workers=os.cpu_count(),
+        verbose=False
+):
+
+    if verbose:
+        print(f'in_path = {in_path}')
+        print(f'out_path = {out_path}')
+        print(f'in_pattern = {in_pattern}')
+        print(f'in_key = {in_key}')
+        print(f'out_key = {out_key}')
+        print(f'greys_in = {greys_in}')
+        print(f'greys_out = {greys_out}')
+        print(f'dtype_out = {dtype_out}')
+        print(f'n_workers = {n_workers}')
+
+    from squirrel.library.io import load_data_handle, write_stack
+    # from ..library.data import norm_z_range
+    stack_handle, stack_shape = load_data_handle(in_path, in_key, in_pattern)
+
+    from squirrel.library.normalization import adjust_greyscale
+    result = adjust_greyscale(
+        stack_handle,
+        z_range=None,
+        greys_in=greys_in,
+        greys_out=greys_out,
+        cast_dtype=dtype_out,
+        n_workers=n_workers
+    )
+
+    write_stack(out_path, result, key=out_key)
 
 
 def normalize_slices_workflow(

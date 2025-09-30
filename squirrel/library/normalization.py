@@ -14,20 +14,22 @@ def _get_quantiles(array, quantiles=(0.1, 0.9), threshold=(1, 254), dilate_backg
 
 
 def _normalize(pixels, alow, ahigh, qlow, qhigh):
+    max_val = np.iinfo(pixels.dtype).max
     pixels = pixels.astype('float64')
     pixels -= qlow
     pixels /= qhigh - qlow
     pixels *= ahigh - alow
     pixels += alow
     pixels[pixels < 0] = 0
-    pixels[pixels > 255] = 255
-    pixels = np.round(pixels).astype('uint8')
+    pixels[pixels > max_val] = max_val
+    pixels = np.round(pixels / max_val * 255).astype('uint8')
     return pixels
 
 
 def _apply_quantiles(image, quantiles=(0.1, 0.9), anchors=(0.2, 0.8), dilate_background=0):
-    qlow, qhigh = _get_quantiles(image, quantiles, dilate_background=dilate_background)
-    alow, ahigh = np.array(anchors) * 255
+    threshold = (1, np.iinfo(image.dtype).max - 1)
+    qlow, qhigh = _get_quantiles(image, quantiles, threshold=threshold, dilate_background=dilate_background)
+    alow, ahigh = np.array(anchors) * np.iinfo(image.dtype).max
     image = _normalize(image, alow, ahigh, qlow, qhigh)
     return image
 
@@ -41,7 +43,9 @@ def normalize_slices(
         n_workers=1
 ):
     # FIXME implement for other data types
-    assert stack.dtype == 'uint8', f'Normalization only implemented for uint8 data, found {stack.dtype}'
+    # assert stack.dtype == 'uint8', f'Normalization only implemented for uint8 data, found {stack.dtype}'
+    if stack.dtype != 'uint8':
+        print('Warning: Normalization will convert the dtype to uint8! ')
 
     from squirrel.library.data import norm_z_range
     stack_shape = stack.shape
@@ -63,6 +67,62 @@ def normalize_slices(
             for idx in range(*z_range):
                 img = stack[idx]
                 tasks.append(p.apply_async(_apply_quantiles, (img, quantiles, anchors, dilate_background)))
+            result_stack = [task.get() for task in tasks]
+
+    return np.array(result_stack)
+
+
+def _adjust_greyscale_in_image(
+        img,
+        greys_in=None,
+        greys_out=None,
+        cast_dtype='uint8'
+):
+
+    if greys_in is None:
+        greys_in = [np.min(img), np.max(img)]
+    if greys_out is None:
+        greys_out = [np.iinfo(cast_dtype).min, np.iinfo(cast_dtype).max]
+
+    img = img.astype('float32')
+    img -= greys_in[0]
+    img /= greys_in[1] - greys_in[0]
+    img *= greys_out[1] - greys_in[0]
+    img += greys_out[0]
+    img[img < 0] = 0
+    img[img > np.iinfo(cast_dtype).max] = np.iinfo(cast_dtype).max
+    return img.astype(cast_dtype)
+
+
+def adjust_greyscale(
+        stack,
+        z_range=None,
+        greys_in=None,
+        greys_out=None,
+        cast_dtype='uint8',
+        n_workers=1
+):
+
+    from squirrel.library.data import norm_z_range
+    stack_shape = stack.shape
+    z_range = norm_z_range(z_range, stack_shape[0])
+
+    if n_workers == 1:
+
+        result_stack = []
+        for idx in range(*z_range):
+            img = stack[idx]
+            result_stack.append(_adjust_greyscale_in_image(img, greys_in, greys_out, cast_dtype))
+
+    else:
+        print(f'Running with {n_workers} CPUs')
+        from multiprocessing import Pool
+
+        with Pool(processes=n_workers) as p:
+            tasks = []
+            for idx in range(*z_range):
+                img = stack[idx]
+                tasks.append(p.apply_async(_adjust_greyscale_in_image, (img, greys_in, greys_out, cast_dtype)))
             result_stack = [task.get() for task in tasks]
 
     return np.array(result_stack)
@@ -144,3 +204,16 @@ def clahe_on_slices(
             result_stack = [task.get() for task in tasks]
 
     return np.array(result_stack)
+
+
+if __name__ == '__main__':
+    from squirrel.library.io import load_data_handle
+    h, _ = load_data_handle('/media/julian/Data/tmp/tmp_hela_16bit_3slices/')
+    normalize_slices(
+            h,
+            dilate_background=0,
+            quantiles=(0.1, 0.9),
+            anchors=(0.2, 0.8),
+            z_range=None,
+            n_workers=1
+    )

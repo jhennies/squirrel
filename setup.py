@@ -58,6 +58,7 @@ setup(
             'sq-stack-tif_nearest_scaling = squirrel.stack_operations:tif_nearest_scaling',
             'sq-stack-invert_slices = squirrel.stack_operations:invert_slices',
             'sq-stack-normalize_slices = squirrel.stack_operations:normalize_slices',
+            'sq-stack-adjust_greyscale = squirrel.stack_operations:adjust_greyscale',
             'sq-stack-compress_tif_stack = squirrel.stack_operations:compress_tif_stack',
             'sq-stack-crop_from_stack = squirrel.stack_operations:crop_from_stack',
             'sq-stack-calculator = squirrel.stack_operations:stack_calculator',

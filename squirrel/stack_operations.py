@@ -111,6 +111,67 @@ def normalize_slices():
     )
 
 
+def adjust_greyscale():
+
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Normalizes slices within a tif stack or h5 dataset',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('in_path', type=str,
+                        help='Input folder containing a tif stack or filepath of h5 container')
+    parser.add_argument('out_path', type=str,
+                        help='Output folder for tif stack or filepath for h5 container where the results will '
+                             'be written to')
+    parser.add_argument('--in_pattern', type=str, default='*.tif',
+                        help='File patter to search for within the input folder; default = "*.tif"; used if in_path is '
+                             'tif stack')
+    parser.add_argument('--in_key', type=str, default=None,
+                        help='Internal path of the input dataset; default="data" in_path is h5 filepath')
+    parser.add_argument('--out_key', type=str, default='data',
+                        help='Internal path of the output dataset; default="data"; used if out_path is h5 filepath')
+    parser.add_argument('--greys_in', nargs=2, type=int, default=None,
+                        help='Two grey levels of the input which will be mapped to greys_out; '
+                             'default=None, minimum and maximum value within each slices will be used')
+    parser.add_argument('--greys_out', nargs=2, type=int, default=None,
+                        help='Two grey levels of the output; '
+                             'default=None, 0 and maximum of the target data type will be used')
+    parser.add_argument('--dtype_out', type=str, default='uint8',
+                        help='Data type of the output. ')
+    parser.add_argument('--n_workers', type=int, default=1,
+                        help='The number of cores to use for processing')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    in_path = args.in_path
+    out_path = args.out_path
+    in_pattern = args.in_pattern
+    in_key = args.in_key
+    out_key = args.out_key
+    greys_in = args.greys_in
+    greys_out = args.greys_out
+    dtype_out = args.dtype_out
+    n_workers = args.n_workers
+    verbose = args.verbose
+
+    from squirrel.workflows.normalization import adjust_greyscale_workflow
+
+    adjust_greyscale_workflow(
+        in_path,
+        out_path,
+        in_pattern=in_pattern,
+        in_key=in_key,
+        out_key=out_key,
+        greys_in=greys_in,
+        greys_out=greys_out,
+        dtype_out=dtype_out,
+        n_workers=n_workers,
+        verbose=verbose
+    )
+
+
 def clahe_on_stack():
 
     # ----------------------------------------------------
@@ -541,7 +602,7 @@ def estimate_crop_xy():
                         help='File pattern to search for within the input folder; default=None (which is interpreted as "*.tif")')
     parser.add_argument('-pad', '--padding', type=int, default=64,
                         help='Adds a certain amount of buffer to the output bounds')
-    parser.add_argument('-out', '--out_image', type=str, default='max_projection.tif',
+    parser.add_argument('-out', '--out_image', type=str, default='max_projection.png',
                         help='Saves the maximum projection as a tif image; defaults to "max_projection.tif"')
     parser.add_argument('-samples', '--number_of_samples', type=int, default=16,
                         help='The number of slices used to generate the maximum projection; default=16')
