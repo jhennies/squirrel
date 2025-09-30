@@ -17,6 +17,8 @@ def apply_transforms_on_image(
     import SimpleITK as sitk
     from squirrel.library.affine_matrices import AffineMatrix
 
+    sitk.ProcessObject.SetGlobalDefaultNumberOfThreads(n_workers)
+
     txif = sitk.TransformixImageFilter()
     txif.LogToConsoleOff()
     if verbose:
@@ -26,7 +28,6 @@ def apply_transforms_on_image(
             transform = transform.to_elastix_affine(shape=image.shape, return_parameter_map=True)
         txif.AddTransformParameterMap(transform)
     txif.SetMovingImage(sitk.GetImageFromArray(image))
-    # txif.SetNumberOfThreads(n_workers)
     txif.Execute()
     result_final = sitk.GetArrayFromImage(txif.GetResultImage())
     iinfo = np.iinfo(image.dtype)

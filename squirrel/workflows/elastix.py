@@ -801,7 +801,7 @@ if __name__ == '__main__':
         auto_pad=False,
         target_image_shape=None,
         z_range=None,
-        n_workers=16,
+        n_workers=4,
         quiet=False,
         verbose=False,
     )
