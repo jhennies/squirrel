@@ -6,6 +6,27 @@ from squirrel.library.io import get_file_list, read_tif_slice, write_tif_slice
 import numpy as np
 
 
+def convert_workflow(
+        input_path,
+        output_path,
+        stack_pattern=None,
+        stack_key=None,
+        verbose=False
+):
+
+    if verbose:
+        print(f'input_path = {input_path}')
+        print(f'output_path = {output_path}')
+        print(f'stack_pattern = {stack_pattern}')
+        print(f'stack_key = {stack_key}')
+
+    from squirrel.library.io import load_data_handle
+    from squirrel.library.io import write_stack
+
+    data, _ = load_data_handle(input_path, pattern=stack_pattern, key=stack_key)
+    write_stack(output_path, data[:])
+
+
 def h5_to_tif_workflow(
         h5_file,
         h5_key,

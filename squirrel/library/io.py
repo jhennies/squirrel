@@ -1,8 +1,6 @@
 
 import os
 
-import h5py
-from h5py import File
 from tifffile import imwrite, imread
 import numpy as np
 from glob import glob
@@ -25,6 +23,8 @@ def make_directory(directory, exist_ok=False, not_found_ok=False):
 
 def load_h5_container(filepath, key, axes_order='zyx', invert=False):
 
+    from h5py import File
+
     with File(filepath, mode='r') as f:
         data = f[key][:]
 
@@ -45,10 +45,20 @@ def load_h5_container(filepath, key, axes_order='zyx', invert=False):
 def write_h5_container(filepath, data, key='data', append=False):
     # TODO add test
 
+    from h5py import File
+
     mode = 'a' if append else 'w'
 
     with File(filepath, mode=mode) as f:
         f.create_dataset(key, data=data, compression='gzip')
+
+
+def write_n5_container(filepath, data, key='data'):
+
+    from z5py import File
+
+    with File(filepath, mode='w') as f:
+        f.create_dataset(key, data=data, compression='gzip', chunks=(1, 1024, 1024))
 
 
 def write_tif_stack(data, out_folder, id_offset=0, slice_name='slice_{:04d}.tif'):
@@ -277,6 +287,9 @@ def write_stack(path, data, key='data'):
         return
     if filetype == 'dir':
         write_tif_stack(data, path)
+        return
+    if filetype == 'n5':
+        write_n5_container(path, data, key=key)
         return
     raise ValueError(f'Invalid filetype={filetype} of target path={path}')
 
