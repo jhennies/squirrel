@@ -664,6 +664,8 @@ def register_with_elastix(
         return pmap, transform
 
     def _load_image(img):
+        if verbose:
+            print(f'type(img) = {type(img)}')
         if type(img) == str:
             from tifffile import imread
             img = imread(img)
@@ -857,12 +859,13 @@ def register_with_elastix(
     print('Applying initialization ...')
     if not all(pre_fix_offsets.get_translation() == 0):
         moving_image = apply_transforms_on_image(moving_image, [pre_fix_offsets])
-        moving_mask = apply_transforms_on_image(moving_mask, [pre_fix_offsets])
+        if moving_mask is not None:
+            moving_mask = apply_transforms_on_image(moving_mask, [pre_fix_offsets])
     _debug_step(fixed_image, moving_image, '04-after-init')
 
     # Run registration
     print(f'Running registration ...')
-    mask = (moving_mask * fixed_mask).astype('uint8')
+    mask = (moving_mask * fixed_mask).astype('uint8') if moving_mask is not None else None
     elastix_transform_param_map, result_image = register(
         fixed_image,
         moving_image,

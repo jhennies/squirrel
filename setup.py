@@ -35,6 +35,7 @@ setup(
             'sq-conversion-h5_to_tif = squirrel.conversions:h5_to_tif',
             'sq-conversion-mib_to_tif = squirrel.conversions:mib_to_tif',
             'sq-conversion-convert = squirrel.conversions:convert',
+            'sq-elastix-register_with_elastix = squirrel.elastix_registration:register_with_elastix',
             'sq-elastix-stack_alignment = squirrel.elastix_registration:elastix_stack_alignment',
             'sq-elastix-amst = squirrel.elastix_registration:amst',
             'sq-elastix-stack_alignment_validation = squirrel.elastix_registration:stack_alignment_validation',
