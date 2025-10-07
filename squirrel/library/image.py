@@ -77,6 +77,21 @@ def apply_auto_pad(transforms, stack_shape, stack_bounds, extra_padding=0):
     return transforms, stack_shape
 
 
+def assert_equal_shape(im1, im2):
+    # Compute target shape as elementwise max
+    new_shape = tuple(max(s1, s2) for s1, s2 in zip(im1.shape, im2.shape))
+
+    # Pad each image as needed
+    def pad_to_shape(im, target_shape):
+        pad_width = [(0, t - s) for s, t in zip(im.shape, target_shape)]
+        return np.pad(im, pad_width, mode='constant', constant_values=0)
+
+    im1_padded = pad_to_shape(im1, new_shape)
+    im2_padded = pad_to_shape(im2, new_shape)
+
+    return im1_padded, im2_padded
+
+
 def image_to_shape(image, shape):
 
     image_shape = np.array(image.shape)

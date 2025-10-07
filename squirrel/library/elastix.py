@@ -816,10 +816,13 @@ def register_with_elastix(
             ])
             imwrite(os.path.join(debug_dirpath, f'{name}-combined.tif'), combined)
 
+    from squirrel.library.image import assert_equal_shape
+
     # The inputs can be string (filepath) or an image. Make sure it's loaded
     print(f'Fetching data ...')
     fixed_image = _load_image(fixed_image)
     moving_image = _load_image(moving_image)
+    fixed_image, moving_image = assert_equal_shape(fixed_image, moving_image)
     assert moving_image.dtype == fixed_image.dtype, \
         f'fixed and moving images must have the same data type: {fixed_image.dtype} != {moving_image.dtype}'
     _debug_step(fixed_image, moving_image, '00-input')
