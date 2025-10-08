@@ -824,12 +824,19 @@ def modify_step_in_sequence_workflow(transform_filepath, out_filepath, idx, affi
     transforms.to_file(out_filepath)
 
 
-def create_affine_sequence_workflow(out_filepath, length, from_transform_file=None, verbose=False):
+def create_affine_sequence_workflow(
+        out_filepath,
+        length,
+        from_transform_file=None,
+        sequenced=False,
+        verbose=False
+):
 
     if verbose:
         print(f'out_filepath = {out_filepath}')
         print(f'length = {length}')
         print(f'from_transform_file = {from_transform_file}')
+        print(f'sequenced = {sequenced}')
 
     from squirrel.library.affine_matrices import AffineStack, AffineMatrix
 
@@ -838,7 +845,7 @@ def create_affine_sequence_workflow(out_filepath, length, from_transform_file=No
     else:
         matrix = AffineMatrix(filepath=from_transform_file)
 
-    transforms = AffineStack(stack=[matrix] * length)
+    transforms = AffineStack(stack=[matrix] * length, is_sequenced=sequenced)
     transforms.to_file(out_filepath)
 
 
