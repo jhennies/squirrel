@@ -259,12 +259,15 @@ def create_affine_sequence():
                         help='The length of the sequence')
     parser.add_argument('--from_transform_file', type=str, default=None,
                         help='A transform file containing one affine transform')
+    parser.add_argument('--sequenced', action='store_true',
+                        help='Sets the sequenced flag of the affine sequence')
     parser.add_argument('-v', '--verbose', action='store_true')
 
     args = parser.parse_args()
     out_filepath = args.out_filepath
     length = args.length
     from_transform_file = args.from_transform_file
+    sequenced = args.sequenced
     verbose = args.verbose
 
     from squirrel.workflows.transformation import create_affine_sequence_workflow
@@ -272,6 +275,7 @@ def create_affine_sequence():
         out_filepath,
         length,
         from_transform_file=from_transform_file,
+        sequenced=sequenced,
         verbose=verbose
     )
 
