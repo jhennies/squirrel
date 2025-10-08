@@ -334,5 +334,37 @@ def apply_z_step():
     stack.to_file(out_filepath)
 
 
+def append_affine_stack():
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Appends one affine stack to another',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('transform_filepaths', nargs=2, type=str,
+                        help='Two input affine stacks')
+    parser.add_argument('out_filepath', type=str,
+                        help='Where the result will be saved')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    transform_filepaths = args.transform_filepaths
+    out_filepath = args.out_filepath
+    verbose = args.verbose
+
+    if verbose:
+        print(f'transform_filepaths = {transform_filepaths}')
+        print(f'out_filepath = {out_filepath}')
+
+    from squirrel.library.affine_matrices import AffineStack
+
+    stack1 = AffineStack(filepath=transform_filepaths[0])
+    stack2 = AffineStack(filepath=transform_filepaths[1])
+
+    stack1.append(stack2)
+    stack1.to_file(out_filepath)
+
+
 if __name__ == '__main__':
     add_translational_drift()

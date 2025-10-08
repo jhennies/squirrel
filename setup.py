@@ -50,6 +50,7 @@ setup(
             'sq-linalg-modify_step_in_sequence = squirrel.linear_algebra:modify_step_in_sequence',
             'sq-linalg-crop_transform_sequence = squirrel.linear_algebra:crop_transform_sequence',
             'sq-linalg-apply_z_step = squirrel.linear_algebra:apply_z_step',
+            'sq-linalg-append_affine_stack = squirrel.linear_algebra:append_affine_stack',
             'sq-mobie-init_project = squirrel.mobie:init_mobie_project',
             'sq-mobie-export_rois_with_mobie_table = squirrel.mobie:export_rois_with_mobie_table',
             'sq-napari-view = squirrel.napari:view',
