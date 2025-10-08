@@ -257,15 +257,23 @@ def create_affine_sequence():
                         help='Where the result will be saved')
     parser.add_argument('length', type=int,
                         help='The length of the sequence')
+    parser.add_argument('--from_transform_file', type=str, default=None,
+                        help='A transform file containing one affine transform')
     parser.add_argument('-v', '--verbose', action='store_true')
 
     args = parser.parse_args()
     out_filepath = args.out_filepath
     length = args.length
+    from_transform_file = args.from_transform_file
     verbose = args.verbose
 
     from squirrel.workflows.transformation import create_affine_sequence_workflow
-    create_affine_sequence_workflow(out_filepath, length, verbose=verbose)
+    create_affine_sequence_workflow(
+        out_filepath,
+        length,
+        from_transform_file=from_transform_file,
+        verbose=verbose
+    )
 
 
 def crop_transform_sequence():

@@ -824,18 +824,22 @@ def modify_step_in_sequence_workflow(transform_filepath, out_filepath, idx, affi
     transforms.to_file(out_filepath)
 
 
-def create_affine_sequence_workflow(out_filepath, length, verbose=False):
+def create_affine_sequence_workflow(out_filepath, length, from_transform_file=None, verbose=False):
 
     if verbose:
         print(f'out_filepath = {out_filepath}')
         print(f'length = {length}')
+        print(f'from_transform_file = {from_transform_file}')
 
-    from ..library.linalg import create_affine_sequence
-    from ..library.transformation import save_transformation_matrices
+    from squirrel.library.affine_matrices import AffineStack, AffineMatrix
 
-    transforms = create_affine_sequence(length)
+    if from_transform_file is None:
+        matrix = AffineMatrix(parameters=np.eye(3)[:2].flatten())
+    else:
+        matrix = AffineMatrix(filepath=from_transform_file)
 
-    save_transformation_matrices(out_filepath, transforms, sequenced=False)
+    transforms = AffineStack(stack=[matrix] * length)
+    transforms.to_file(out_filepath)
 
 
 def apply_auto_pad_workflow(
@@ -884,13 +888,14 @@ def crop_transform_sequence_workflow(transform_filepath, out_filepath, z_range, 
 
 if __name__ == '__main__':
 
-    from squirrel.library.affine_matrices import AffineStack, AffineMatrix
+    # from squirrel.library.affine_matrices import AffineStack, AffineMatrix
+    #
+    # affines = AffineStack(stack = [[1, 0, 0, 0, 1, 0], [1, 0, 0, 0, 1, 0], [1, 0, 0, 0, 1, 0]], is_sequenced=True)
+    #
+    # print(affines['C', :])
+    #
+    # modified_affines = modify_step_in_sequence_workflow(affines, None, 1, [1, 0, 10, 0, 1, 5], return_result=True)
+    #
+    # print(modified_affines['C', :])
 
-    affines = AffineStack(stack = [[1, 0, 0, 0, 1, 0], [1, 0, 0, 0, 1, 0], [1, 0, 0, 0, 1, 0]], is_sequenced=True)
-
-    print(affines['C', :])
-
-    modified_affines = modify_step_in_sequence_workflow(affines, None, 1, [1, 0, 10, 0, 1, 5], return_result=True)
-
-    print(modified_affines['C', :])
-
+    create_affine_sequence_workflow('test.json', 10, None, False)
