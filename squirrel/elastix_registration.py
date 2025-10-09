@@ -74,13 +74,11 @@ def register_with_elastix():
                         help='Input tiff file for the fixed image')
     parser.add_argument('out_filepath', type=str,
                         help='Output filepath for the transformation (*.json)')
-    parser.add_argument('--key', type=str, default='data',
-                        help='Internal path of the input; default="data"; used if stack is h5 file')
+    parser.add_argument('--out_img_filepath', type=str, default=None,
+                        help='Output filepath for transformed image')
     parser.add_argument('--transform', type=str, default='translation',
                         help='The transformation; default="translation"')
-    parser.add_argument('--pattern', type=str, default='*.tif',
-                        help='Used to glob tif files from a tif stack folder; default="*.tif"')
-    parser.add_argument('--auto_mask', type=str, default='None',
+    parser.add_argument('--auto_mask', type=str, default=None,
                         help='Automatically generates a mask for fixed and moving image; '
                              'default=None; ["non-zero", "variance"]')
     parser.add_argument('--number_of_spatial_samples', type=int, default=None,
@@ -89,8 +87,6 @@ def register_with_elastix():
                         help='Elastix parameter')
     parser.add_argument('--number_of_resolutions', type=int, default=None,
                         help='Elastix parameter')
-    # parser.add_argument('--extended_output', action='store_true',
-    #                     help='Increase information content of the output')
     parser.add_argument('--initialize_offsets_method', type=str, default=None,
                         help='Method to solve big jumps: ["xcorr", "init_elx"]\n'
                              '  "xcorr": Big jumps are detected by the intersection over union of the data in adjacent '
@@ -121,21 +117,62 @@ def register_with_elastix():
                         help='Computes edges before registration using a sobel filter')
     parser.add_argument('--parameter_map', type=str, default=None,
                         help='Elastix parameter map file')
-    parser.add_argument('--z_range', type=int, nargs=2, default=None,
-                        help='Use certain slices of the stack only; Defaults to the entire stack')
-    parser.add_argument('--z_step', type=int, default=1,
-                        help='Performs an alignment with every n-th slice only.')
-    parser.add_argument('--determine_bounds', action='store_true',
-                        help='Appends the bounding box of data within each slice to the results metadata. '
-                             'Useful for auto-padding later on')
     parser.add_argument('--n_workers', type=int, default=os.cpu_count(),
                         help='The number of cores to use for processing')
-    parser.add_argument('--debug', action='store_true',
+    parser.add_argument('--debug_dirpath', type=str, default=None,
                         help='Saves intermediate files for debugging')
     parser.add_argument('-v', '--verbose', action='store_true')
 
+    args = parser.parse_args()
+    moving_filepath = args.moving_filepath
+    fixed_filepath = args.fixed_filepath
+    out_filepath = args.out_filepath
+    out_img_filepath = args.out_img_filepath
+    transform = args.transform
+    auto_mask = args.auto_mask
+    number_of_spatial_samples = args.number_of_spatial_samples
+    maximum_number_of_iterations = args.maximum_number_of_iterations
+    number_of_resolutions = args.number_of_resolutions
+    initialize_offsets_method = args.initialize_offsets_method
+    initialize_offsets_kwargs = args.initialize_offsets_kwargs
+    gaussian_sigma = args.gaussian_sigma
+    use_clahe = args.use_clahe
+    use_edges = args.use_edges
+    parameter_map = args.parameter_map
+    debug_dirpath = args.debug_dirpath
+    n_workers = args.n_workers
+    verbose = args.verbose
+
+    if verbose:
+        print(f'initialize_offsets_kwargs = {initialize_offsets_kwargs}')
+
+    from squirrel.library.string_conversion import parse_kwargs_list
+    initialize_offsets_kwargs = parse_kwargs_list(initialize_offsets_kwargs)
+
+    if verbose:
+        print(f'initialize_offsets_kwargs = {initialize_offsets_kwargs}')
+
     from squirrel.workflows.elastix import register_with_elastix_workflow
-    register_with_elastix_workflow
+    register_with_elastix_workflow(
+        moving_filepath,
+        fixed_filepath,
+        out_filepath,
+        out_img_filepath=out_img_filepath,
+        transform=transform,
+        auto_mask=auto_mask,
+        number_of_spatial_samples=number_of_spatial_samples,
+        maximum_number_of_iterations=maximum_number_of_iterations,
+        number_of_resolutions=number_of_resolutions,
+        initialize_offsets_method=initialize_offsets_method,
+        initialize_offsets_kwargs=initialize_offsets_kwargs,
+        gaussian_sigma=gaussian_sigma,
+        use_clahe=use_clahe,
+        use_edges=use_edges,
+        parameter_map=parameter_map,
+        debug_dirpath=debug_dirpath,
+        n_workers=n_workers,
+        verbose=verbose,
+    )
 
 
 def elastix_on_volume3d():
@@ -630,6 +667,46 @@ def apply_multi_step_stack_alignment():
         n_workers=n_workers,
         verbose=verbose
     )
+
+
+# def stitch_parts():
+#
+#     # ----------------------------------------------------
+#     import argparse
+#
+#     parser = argparse.ArgumentParser(
+#         description='Computes the required transform to stitch two parts of a stack',
+#         formatter_class=argparse.RawTextHelpFormatter
+#     )
+#     parser.add_argument('image_stacks', nargs=2, type=str,
+#                         help='Input filepath for the image stacks (h5, n5, ome.zarr or tif stack)')
+#     parser.add_argument('out_filepath', type=str,
+#                         help='Output filepath for the result file (only h5 for now)')
+#     parser.add_argument('--keys', nargs=2, type=str, default=(None, None),
+#                         help='Internal path of the input; default="data"; used if stack is h5 file')
+#     parser.add_argument('--patterns', nargs=2, type=str, default=('*.tif', '*.tif'),
+#                         help='Used to glob tif files from a tif stack folder; default="*.tif"')
+#     parser.add_argument('--n_workers', type=int, default=1,
+#                         help='The number of cores to use for processing')
+#     parser.add_argument('-v', '--verbose', action='store_true')
+#
+#     args = parser.parse_args()
+#     image_stacks = args.image_stacks
+#     out_filepath = args.out_filepath
+#     keys = args.keys
+#     patterns = args.patterns
+#     n_workers = args.n_workers
+#     verbose = args.verbose
+#
+#     from squirrel.workflows.elastix import stitch_parts_workflow
+#     stitch_parts_workflow(
+#         image_stacks,
+#         out_filepath,
+#         keys=keys,
+#         patterns=patterns,
+#         n_workers=n_workers,
+#         verbose=verbose
+#     )
 
 
 if __name__ == '__main__':

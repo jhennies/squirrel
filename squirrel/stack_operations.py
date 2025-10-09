@@ -79,6 +79,8 @@ def normalize_slices():
     parser.add_argument('--anchors', type=float, nargs=2, default=(0.2, 0.8),
                         help='The lower and upper quantiles of the input gray value spectrum are transferred to these '
                              'relative values; default=(0.2, 0.8)')
+    parser.add_argument('--keep_zeros', action='store_true',
+                        help='All zero-value pixels are kept at zero')
     parser.add_argument('--n_workers', type=int, default=1,
                         help='The number of cores to use for processing')
     parser.add_argument('-v', '--verbose', action='store_true')
@@ -92,6 +94,7 @@ def normalize_slices():
     dilate_background = args.dilate_background
     quantiles = args.quantiles
     anchors = args.anchors
+    keep_zeros = args.keep_zeros
     n_workers = args.n_workers
     verbose = args.verbose
 
@@ -106,6 +109,7 @@ def normalize_slices():
         dilate_background=dilate_background,
         quantiles=quantiles,
         anchors=anchors,
+        keep_zeros=keep_zeros,
         n_workers=n_workers,
         verbose=verbose
     )

@@ -13,7 +13,8 @@ def _get_quantiles(array, quantiles=(0.1, 0.9), threshold=(1, 254), dilate_backg
     return np.quantile(array_, quantiles[0]), np.quantile(array_, quantiles[1])
 
 
-def _normalize(pixels, alow, ahigh, qlow, qhigh):
+def _normalize(pixels, alow, ahigh, qlow, qhigh, keep_zeros=False):
+    zeros = None if not keep_zeros else pixels == 0
     max_val = np.iinfo(pixels.dtype).max
     pixels = pixels.astype('float64')
     pixels -= qlow
@@ -23,14 +24,16 @@ def _normalize(pixels, alow, ahigh, qlow, qhigh):
     pixels[pixels < 0] = 0
     pixels[pixels > max_val] = max_val
     pixels = np.round(pixels / max_val * 255).astype('uint8')
+    if keep_zeros:
+        pixels[zeros] = 0
     return pixels
 
 
-def _apply_quantiles(image, quantiles=(0.1, 0.9), anchors=(0.2, 0.8), dilate_background=0):
+def _apply_quantiles(image, quantiles=(0.1, 0.9), anchors=(0.2, 0.8), dilate_background=0, keep_zeros=False):
     threshold = (1, np.iinfo(image.dtype).max - 1)
     qlow, qhigh = _get_quantiles(image, quantiles, threshold=threshold, dilate_background=dilate_background)
     alow, ahigh = np.array(anchors) * np.iinfo(image.dtype).max
-    image = _normalize(image, alow, ahigh, qlow, qhigh)
+    image = _normalize(image, alow, ahigh, qlow, qhigh, keep_zeros=keep_zeros)
     return image
 
 
@@ -39,6 +42,7 @@ def normalize_slices(
         dilate_background=0,
         quantiles=(0.1, 0.9),
         anchors=(0.2, 0.8),
+        keep_zeros=False,
         z_range=None,
         n_workers=1
 ):
@@ -56,7 +60,7 @@ def normalize_slices(
         result_stack = []
         for idx in range(*z_range):
             img = stack[idx]
-            result_stack.append(_apply_quantiles(img, quantiles, anchors, dilate_background))
+            result_stack.append(_apply_quantiles(img, quantiles, anchors, dilate_background, keep_zeros))
 
     else:
         print(f'Running with {n_workers} CPUs')
@@ -66,7 +70,7 @@ def normalize_slices(
             tasks = []
             for idx in range(*z_range):
                 img = stack[idx]
-                tasks.append(p.apply_async(_apply_quantiles, (img, quantiles, anchors, dilate_background)))
+                tasks.append(p.apply_async(_apply_quantiles, (img, quantiles, anchors, dilate_background, keep_zeros)))
             result_stack = [task.get() for task in tasks]
 
     return np.array(result_stack)

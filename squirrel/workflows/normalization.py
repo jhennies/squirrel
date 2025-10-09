@@ -54,6 +54,7 @@ def normalize_slices_workflow(
         quantiles=(0.1, 0.9),
         anchors=(0.2, 0.8),
         z_range=None,
+        keep_zeros=False,
         n_workers=1,
         verbose=False
 ):
@@ -76,6 +77,7 @@ def normalize_slices_workflow(
         dilate_background=dilate_background,
         quantiles=quantiles,
         anchors=anchors,
+        keep_zeros=keep_zeros,
         z_range=z_range,
         n_workers=n_workers
     )

@@ -1,4 +1,40 @@
 
+def convert():
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Converts a dataset from one type to another',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('input_path', type=str,
+                        help='Input stack')
+    parser.add_argument('output_path', type=str,
+                        help='Output path where the results will be written to')
+    parser.add_argument('--stack_pattern', type=str, default='*.tif',
+                        help='File pattern for globbing the input stack; default="*.tif"')
+    parser.add_argument('--stack_key', type=str, default='data',
+                        help='Path within input h5 file; default="data"')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    input_path = args.input_path
+    output_path = args.output_path
+    stack_pattern = args.stack_pattern
+    stack_key = args.stack_key
+    verbose = args.verbose
+
+    from squirrel.workflows.convert import convert_workflow
+
+    convert_workflow(
+        input_path,
+        output_path,
+        stack_pattern=stack_pattern,
+        stack_key=stack_key,
+        verbose=verbose
+    )
+
+
 def h5_to_nii():
 
     # ----------------------------------------------------

@@ -34,6 +34,8 @@ setup(
             'sq-conversion-h5_to_nii = squirrel.conversions:h5_to_nii',
             'sq-conversion-h5_to_tif = squirrel.conversions:h5_to_tif',
             'sq-conversion-mib_to_tif = squirrel.conversions:mib_to_tif',
+            'sq-conversion-convert = squirrel.conversions:convert',
+            'sq-elastix-register_with_elastix = squirrel.elastix_registration:register_with_elastix',
             'sq-elastix-stack_alignment = squirrel.elastix_registration:elastix_stack_alignment',
             'sq-elastix-amst = squirrel.elastix_registration:amst',
             'sq-elastix-stack_alignment_validation = squirrel.elastix_registration:stack_alignment_validation',
@@ -48,6 +50,7 @@ setup(
             'sq-linalg-modify_step_in_sequence = squirrel.linear_algebra:modify_step_in_sequence',
             'sq-linalg-crop_transform_sequence = squirrel.linear_algebra:crop_transform_sequence',
             'sq-linalg-apply_z_step = squirrel.linear_algebra:apply_z_step',
+            'sq-linalg-append_affine_stack = squirrel.linear_algebra:append_affine_stack',
             'sq-mobie-init_project = squirrel.mobie:init_mobie_project',
             'sq-mobie-export_rois_with_mobie_table = squirrel.mobie:export_rois_with_mobie_table',
             'sq-napari-view = squirrel.napari:view',
@@ -71,7 +74,7 @@ setup(
         ]
     },
     install_requires=[
-        'numpy>=2.0,<2.3',
+        'numpy>=1.25,<2.3',
         'h5py',
         'tifffile',
         'scipy',

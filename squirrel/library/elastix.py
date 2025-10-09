@@ -14,7 +14,13 @@ def apply_transforms_on_image(
         from tifffile import imread
         image = imread(image)
 
+    # This is required for multiprocessing to make sure the image is not used elsewhere (creating a deepcopy here)
     import SimpleITK as sitk
+    if isinstance(image, sitk.Image):
+        image = sitk.Image(image)
+    elif isinstance(image, np.ndarray):
+        image = image.copy()
+
     from squirrel.library.affine_matrices import AffineMatrix
 
     sitk.ProcessObject.SetGlobalDefaultNumberOfThreads(n_workers)
@@ -664,6 +670,8 @@ def register_with_elastix(
         return pmap, transform
 
     def _load_image(img):
+        if verbose:
+            print(f'type(img) = {type(img)}')
         if type(img) == str:
             from tifffile import imread
             img = imread(img)
@@ -814,10 +822,13 @@ def register_with_elastix(
             ])
             imwrite(os.path.join(debug_dirpath, f'{name}-combined.tif'), combined)
 
+    from squirrel.library.image import assert_equal_shape
+
     # The inputs can be string (filepath) or an image. Make sure it's loaded
     print(f'Fetching data ...')
     fixed_image = _load_image(fixed_image)
     moving_image = _load_image(moving_image)
+    fixed_image, moving_image = assert_equal_shape(fixed_image, moving_image)
     assert moving_image.dtype == fixed_image.dtype, \
         f'fixed and moving images must have the same data type: {fixed_image.dtype} != {moving_image.dtype}'
     _debug_step(fixed_image, moving_image, '00-input')
@@ -857,12 +868,13 @@ def register_with_elastix(
     print('Applying initialization ...')
     if not all(pre_fix_offsets.get_translation() == 0):
         moving_image = apply_transforms_on_image(moving_image, [pre_fix_offsets])
-        moving_mask = apply_transforms_on_image(moving_mask, [pre_fix_offsets])
+        if moving_mask is not None:
+            moving_mask = apply_transforms_on_image(moving_mask, [pre_fix_offsets])
     _debug_step(fixed_image, moving_image, '04-after-init')
 
     # Run registration
     print(f'Running registration ...')
-    mask = (moving_mask * fixed_mask).astype('uint8')
+    mask = (moving_mask * fixed_mask).astype('uint8') if moving_mask is not None else None
     elastix_transform_param_map, result_image = register(
         fixed_image,
         moving_image,
@@ -948,6 +960,7 @@ def slice_wise_stack_to_stack_alignment(
                 gaussian_sigma=gaussian_sigma,
                 crop_to_bounds_off=crop_to_bounds_off,
                 normalize_images=normalize_images,
+                n_workers=1,
                 verbose=verbose
             )
             if transform not in ['bspline', 'BSplineTransform']:
@@ -1005,6 +1018,7 @@ def slice_wise_stack_to_stack_alignment(
                         crop_to_bounds_off=crop_to_bounds_off,
                         normalize_images=normalize_images,
                         result_to_disk=results_filepath if type(result_transforms) == ElastixStack else '',
+                        n_workers=1,
                         verbose=verbose
                     )
                 ))
