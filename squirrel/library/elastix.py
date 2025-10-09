@@ -14,7 +14,13 @@ def apply_transforms_on_image(
         from tifffile import imread
         image = imread(image)
 
+    # This is required for multiprocessing to make sure the image is not used elsewhere (creating a deepcopy here)
     import SimpleITK as sitk
+    if isinstance(image, sitk.Image):
+        image = sitk.Image(image)
+    elif isinstance(image, np.ndarray):
+        image = image.copy()
+
     from squirrel.library.affine_matrices import AffineMatrix
 
     sitk.ProcessObject.SetGlobalDefaultNumberOfThreads(n_workers)
@@ -954,6 +960,7 @@ def slice_wise_stack_to_stack_alignment(
                 gaussian_sigma=gaussian_sigma,
                 crop_to_bounds_off=crop_to_bounds_off,
                 normalize_images=normalize_images,
+                n_workers=1,
                 verbose=verbose
             )
             if transform not in ['bspline', 'BSplineTransform']:
@@ -1011,6 +1018,7 @@ def slice_wise_stack_to_stack_alignment(
                         crop_to_bounds_off=crop_to_bounds_off,
                         normalize_images=normalize_images,
                         result_to_disk=results_filepath if type(result_transforms) == ElastixStack else '',
+                        n_workers=1,
                         verbose=verbose
                     )
                 ))
