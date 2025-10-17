@@ -441,6 +441,8 @@ def initialize_offsets(
 
     best_transform_params = None
 
+    sitk.ProcessObject.SetGlobalDefaultNumberOfThreads(1)
+
     for idx, offset in enumerate(offsets):
 
         this_offset = AffineMatrix(translation=offset)
