@@ -19,7 +19,7 @@ def apply_transforms_on_image(
     if isinstance(image, sitk.Image):
         image = sitk.Image(image)
     elif isinstance(image, np.ndarray):
-        image = image.copy()
+        image = np.copy(image)
 
     from squirrel.library.affine_matrices import AffineMatrix
 
@@ -441,7 +441,7 @@ def initialize_offsets(
 
     best_transform_params = None
 
-    sitk.ProcessObject.SetGlobalDefaultNumberOfThreads(1)
+    sitk.ProcessObject.SetGlobalDefaultNumberOfThreads(n_workers)
 
     for idx, offset in enumerate(offsets):
 
