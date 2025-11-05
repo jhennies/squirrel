@@ -96,8 +96,11 @@ def _z_smooth(
     if method == 'gaussian':
         from vigra.filters import gaussianSmoothing
         dtype = inp.dtype
-        return gaussianSmoothing(inp.astype('float32'), [median_radius, 0, 0]).astype(dtype)
+        return gaussianSmoothing(inp.astype('float32'), [median_radius, 0, 0], window_size=2.0).astype(dtype)
 
+    if method == 'mean':
+        from scipy.ndimage import uniform_filter
+        return uniform_filter(inp, size=(median_radius * 2 + 1, 1, 1), mode='nearest')
 
 # from h5py import File
 # with File('/media/julian/Data/tmp/raw.h5', mode='r') as f:
