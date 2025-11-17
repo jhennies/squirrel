@@ -814,7 +814,7 @@ def register_with_elastix(
     def _debug_step(fixed, moving, name):
         if debug_dirpath is not None:
             os.makedirs(debug_dirpath, exist_ok=True)
-            from tifffile import imwrite, imsave
+            from tifffile import imwrite
             imwrite(os.path.join(debug_dirpath, f'{name}-fixed.tif'), fixed)
             imwrite(os.path.join(debug_dirpath, f'{name}-moving.tif'), moving)
             combined = np.array([
@@ -886,9 +886,12 @@ def register_with_elastix(
         # fixed_mask=fixed_mask,
         # moving_mask=moving_mask,
         n_workers=n_workers,
-        return_result_image=return_result_image,
+        return_result_image=return_result_image or debug_dirpath is not None,
         verbose=verbose
     )
+
+    if result_image is not None:
+        _debug_step(fixed_image, result_image, '05-final')
 
     # Return an affine matrix object for any rigid or affine transformation
     print(f'Finalizing output transformation ...')

@@ -434,21 +434,79 @@ class AffineMatrix:
             self.set_from_translation(translation, pivot=pivot)
 
     def _validate_parameters(self, parameters):
-        parameters_ = np.array(parameters)
-        if len(parameters_) == 6:
-            self._ndim = 2
-            return True
-        if len(parameters_) == 12:
-            self._ndim = 3
-            return True
-        return False
+        """
+        Accepts any layout of 2D or 3D affine matrices, including flattened homogeneous:
+          - 2D flat: 6 or 9 elements
+          - 2D matrix: 2x3 or 3x3
+          - 3D flat: 12 or 16 elements
+          - 3D matrix: 3x4 or 4x4
+        Returns flattened layout:
+          - 2D -> 6 elements
+          - 3D -> 12 elements
+        """
+        arr = np.array(parameters, dtype=float).squeeze()
+        normalized = None
+        ndim = None
+
+        # ---- Already flattened ----
+        if arr.ndim == 1:
+            if len(arr) == 6:
+                ndim = 2
+                normalized = arr
+            elif len(arr) == 9:  # 2D homogeneous flattened
+                ndim = 2
+                normalized = np.array([
+                    arr[0], arr[1], arr[2],
+                    arr[3], arr[4], arr[5]
+                ])
+            elif len(arr) == 12:
+                ndim = 3
+                normalized = arr
+            elif len(arr) == 16:  # 3D homogeneous flattened
+                ndim = 3
+                normalized = np.array([
+                    arr[0], arr[1], arr[2], arr[3],
+                    arr[4], arr[5], arr[6], arr[7],
+                    arr[8], arr[9], arr[10], arr[11]
+                ])
+
+        # ---- 2D / 3D matrix layouts ----
+        elif arr.ndim == 2:
+            rows, cols = arr.shape
+
+            # 2D affine 2x3
+            if rows == 2 and cols == 3:
+                ndim = 2
+                normalized = arr.flatten()
+
+            # 2D homogeneous 3x3
+            elif rows == 3 and cols == 3:
+                ndim = 2
+                normalized = arr[:2, :].flatten()
+
+            # 3D affine 3x4
+            elif rows == 3 and cols == 4:
+                ndim = 3
+                normalized = arr.flatten()
+
+            # 3D homogeneous 4x4
+            elif rows == 4 and cols == 4:
+                ndim = 3
+                normalized = arr[:3, :].flatten()
+
+        if normalized is None:
+            raise ValueError(
+                f"Invalid affine layout. Expected 2D (6 or 3x3) or 3D (12 or 4x4), got shape {arr.shape}"
+            )
+
+        self._ndim = ndim
+        return normalized
 
     def set_from_parameters(self, parameters, pivot=None):
-        if self._validate_parameters(parameters):
-            self._parameters = np.array(parameters, dtype='float128')
-            self.set_pivot(pivot)
-            return
-        raise RuntimeError(f'Validation of parameters failed! {parameters}')
+        parameters = self._validate_parameters(parameters)
+        self._parameters = np.array(parameters, dtype='float128')
+        self.set_pivot(pivot)
+        return
 
     def set_from_translation(self, translation, pivot=None):
         self.set_from_parameters(
@@ -467,7 +525,7 @@ class AffineMatrix:
                 parameters[0] = 'translation'
         assert isinstance(parameters[0], str), \
             'Elastix parameters must be in the format: ["transform", [parameters, ...]]'
-        assert parameters[0] in ['translation', 'TranslationTransform', 'rigid', 'SimilarityTransform', 'affine'], f'invalid transform: {parameters[0]}'
+        assert parameters[0] in ['translation', 'TranslationTransform', 'rigid', 'SimilarityTransform', 'affine', 'AffineTransform'], f'invalid transform: {parameters[0]}'
         from ..library.elastix import elastix_to_c
         parameters = elastix_to_c(*parameters)
         self.set_from_parameters(parameters, pivot=pivot)
@@ -623,6 +681,67 @@ class AffineMatrix:
         affine_params['UseDirectionCosines'] = ['true']
 
         return affine_params
+
+    def _expand_pivot(self, axis):
+        """Helper: expand 2D pivot into 3D with zero inserted at the given axis."""
+        px, py = self.get_pivot()[:2]
+        if axis == 0:
+            return [0, px, py]
+        elif axis == 1:
+            return [px, 0, py]
+        else:
+            return [px, py, 0]
+
+    def return_3d(self, axis=2):
+        """
+        Converts a 2D affine transform to a 3D transform by embedding
+        it in the plane orthogonal to the specified axis.
+
+        Parameters
+        ----------
+        axis : int, optional
+            Axis along which to introduce the third dimension (default: 2).
+            - axis = 0 → embed in YZ plane
+            - axis = 1 → embed in XZ plane
+            - axis = 2 → embed in XY plane
+
+        Returns
+        -------
+        AffineMatrix
+            New 3D AffineMatrix object (flattened 12-element form).
+        """
+        if self._ndim == 3:
+            return self.copy()
+
+        if self._ndim != 2:
+            raise ValueError("return_3d() only works on 2D affine transforms.")
+
+        if axis not in (0, 1, 2):
+            raise ValueError("axis must be 0, 1, or 2.")
+
+        a00, a01, t0, a10, a11, t1 = self._parameters
+
+        # Start with an identity 3D transform
+        M = np.eye(3, 4)
+
+        if axis == 2:
+            # Default XY plane
+            M[0, 0], M[0, 1], M[0, 3] = a00, a01, t0
+            M[1, 0], M[1, 1], M[1, 3] = a10, a11, t1
+        elif axis == 1:
+            # XZ plane (omit Y)
+            M[0, 0], M[0, 2], M[0, 3] = a00, a01, t0
+            M[2, 0], M[2, 2], M[2, 3] = a10, a11, t1
+        elif axis == 0:
+            # YZ plane (omit X)
+            M[1, 1], M[1, 2], M[1, 3] = a00, a01, t0
+            M[2, 1], M[2, 2], M[2, 3] = a10, a11, t1
+
+        affine_3d = AffineMatrix(
+            parameters=M.flatten(),
+            pivot=self._expand_pivot(axis)
+        )
+        return affine_3d
 
 
 if __name__ == '__main__':
