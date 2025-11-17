@@ -1092,7 +1092,7 @@ def elastix_to_c(transform, parameters):
     func = None
     if transform in ['translation', 'TranslationTransform']:
         func = translation_to_c
-    if transform == 'affine':
+    if transform in ['affine', 'AffineTransform']:
         func = affine_to_c
     if transform == 'rigid':
         func = rigid_to_c
