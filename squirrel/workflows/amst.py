@@ -53,19 +53,20 @@ def get_default_parameters(transform):
         parameter_map['CheckNumberOfSamples'] = ["true"]
         parameter_map['DefaultPixelValue'] = ["0.000000"]
         parameter_map['FinalBSplineInterpolationOrder'] = ["3.000000"]
-        parameter_map['FinalGridSpacingInPhysicalUnits'] = ["512.000000"]
+        parameter_map['FinalGridSpacingInPhysicalUnits'] = ["256"]
         parameter_map['FixedImagePyramid'] = ["FixedRecursiveImagePyramid"]
-        parameter_map['GridSpacingSchedule'] = ["2.803221", "1.988100", "1.410000", "1.000000"]
+        parameter_map['GridSpacingSchedule'] = ["4.0", "3.0", "2.0", "1.0"]
         parameter_map['ImageSampler'] = ["RandomCoordinate"]
         parameter_map['Interpolator'] = ["BSplineInterpolator"]
-        parameter_map['MaximumNumberOfIterations'] = ["512.000000"]
+        parameter_map['MaximumNumberOfIterations'] = ["1024"]
         parameter_map['MaximumNumberOfSamplingAttempts'] = ["8.000000"]
+        parameter_map['MaximumStepLength'] = ["0.5"]
         parameter_map['Metric'] = ["AdvancedMattesMutualInformation"]
         parameter_map['MovingImagePyramid'] = ["MovingRecursiveImagePyramid"]
         parameter_map['NewSamplesEveryIteration'] = ["true"]
         parameter_map['NumberOfResolutions'] = ["4.000000"]
-        parameter_map['NumberOfSamplesForExactGradient'] = ["4096.000000"]
-        parameter_map['NumberOfSpatialSamples'] = ["2048.000000"]
+        parameter_map['NumberOfSamplesForExactGradient'] = ["4096"]
+        parameter_map['NumberOfSpatialSamples'] = ["2048"]
         parameter_map['Optimizer'] = ["AdaptiveStochasticGradientDescent"]
         parameter_map['Registration'] = ["MultiResolutionRegistration"]
         parameter_map['ResampleInterpolator'] = ["FinalBSplineInterpolator"]
@@ -96,8 +97,11 @@ def _z_smooth(
     if method == 'gaussian':
         from vigra.filters import gaussianSmoothing
         dtype = inp.dtype
-        return gaussianSmoothing(inp.astype('float32'), [median_radius, 0, 0]).astype(dtype)
+        return gaussianSmoothing(inp.astype('float32'), [median_radius, 0, 0], window_size=2.0).astype(dtype)
 
+    if method == 'mean':
+        from scipy.ndimage import uniform_filter
+        return uniform_filter(inp, size=(median_radius * 2 + 1, 1, 1), mode='nearest')
 
 # from h5py import File
 # with File('/media/julian/Data/tmp/raw.h5', mode='r') as f:

@@ -19,7 +19,7 @@ def apply_transforms_on_image(
     if isinstance(image, sitk.Image):
         image = sitk.Image(image)
     elif isinstance(image, np.ndarray):
-        image = image.copy()
+        image = np.copy(image)
 
     from squirrel.library.affine_matrices import AffineMatrix
 
@@ -441,6 +441,8 @@ def initialize_offsets(
 
     best_transform_params = None
 
+    sitk.ProcessObject.SetGlobalDefaultNumberOfThreads(n_workers)
+
     for idx, offset in enumerate(offsets):
 
         this_offset = AffineMatrix(translation=offset)
@@ -812,7 +814,7 @@ def register_with_elastix(
     def _debug_step(fixed, moving, name):
         if debug_dirpath is not None:
             os.makedirs(debug_dirpath, exist_ok=True)
-            from tifffile import imwrite, imsave
+            from tifffile import imwrite
             imwrite(os.path.join(debug_dirpath, f'{name}-fixed.tif'), fixed)
             imwrite(os.path.join(debug_dirpath, f'{name}-moving.tif'), moving)
             combined = np.array([
@@ -884,9 +886,12 @@ def register_with_elastix(
         # fixed_mask=fixed_mask,
         # moving_mask=moving_mask,
         n_workers=n_workers,
-        return_result_image=return_result_image,
+        return_result_image=return_result_image or debug_dirpath is not None,
         verbose=verbose
     )
+
+    if result_image is not None:
+        _debug_step(fixed_image, result_image, '05-final')
 
     # Return an affine matrix object for any rigid or affine transformation
     print(f'Finalizing output transformation ...')
@@ -1087,7 +1092,7 @@ def elastix_to_c(transform, parameters):
     func = None
     if transform in ['translation', 'TranslationTransform']:
         func = translation_to_c
-    if transform == 'affine':
+    if transform in ['affine', 'AffineTransform']:
         func = affine_to_c
     if transform == 'rigid':
         func = rigid_to_c
