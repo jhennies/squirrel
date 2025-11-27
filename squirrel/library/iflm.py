@@ -123,7 +123,7 @@ def get_maximum_intensity_projections(parsed_data):
 #     return AffineMatrix(parameters=affine_matrix)
 
 
-def get_affine_transform(image_entry, px_size, image_shape=None):
+def get_affine_transform(image_entry, px_size, image_shape=None, add_sem_shift=True):
     import math
     import numpy as np
     from squirrel.library.affine_matrices import AffineMatrix
@@ -146,8 +146,13 @@ def get_affine_transform(image_entry, px_size, image_shape=None):
     # y = -pos.get("Y", 0.0) * px_size
     x = 0
     y = 0
-    r_deg = pos.get("R", 0.0) - 90 - 10
-
+    # r_deg = pos.get("R", 0.0) - 90 - 1.22
+    # r_deg = pos.get("R", 0.0) - 90 - 12
+    r_deg = math.pi  # Don't know why, but this value does exist in the meta data for the SEM rotation
+    # r_deg = 0
+    # r_deg += 0.3
+    # r_deg = pos.get("R", 0.0)
+    
     # Convert degrees -> radians
     r_rad = math.radians(r_deg)
     cos_r = math.cos(r_rad)
@@ -181,8 +186,80 @@ def get_affine_transform(image_entry, px_size, image_shape=None):
         R = T2 @ R @ T1
 
     # Add stage translation (in world units, not pixels)
-    R[0, 2] += x + pos.get("X", 0.0) * px_size
-    R[1, 2] += y - pos.get("Y", 0.0) * px_size
+    # R[0, 2] += x + pos.get("X", 0.0) * px_size * 1.00 * 0.96 + 5000
+    # R[1, 2] += y - pos.get("Y", 0.0) * px_size * 0.78 * 1.04 - 4500
+
+    # This somewhat works
+    # R[0, 2] += x + pos.get("X", 0.0) * px_size * 0.965 + 5000
+    # R[1, 2] += y - pos.get("Y", 0.0) * px_size * 0.805 - 4500
+
+    at = pos.get("AT", 0.0)
+    # at = at - 0.61078301499847631  # Includint a SEM intitial tilt (?)
+
+    # # This works (almost)
+    # R[0, 2] += x + pos.get("X", 0.0) + 5000
+    # R[1, 2] += y - pos.get("Y", 0.0) * math.cos(math.radians(at)) - 4000
+
+    # # This works (almost)
+    # # x += 780
+    # # y -= 630
+    # R[0, 2] += x + pos.get("X", 0.0) + 0.0035648243954924537 / 9.77506038647343E-07
+    # R[1, 2] += y - pos.get("Y", 0.0) * math.cos(math.radians(at)) - 0.0028335833333333334 / 9.77506038647343E-07 * math.cos(math.radians(0.61078301499847631))
+
+    # Trying to make sense of the xy positioning of the LM
+    x = 0
+    # x += 0.0035648243954924537 * 1000 * 1000 # / 9.77506038647343E-07 * px_size  # * 0.2475
+    # if add_sem_shift:
+    #     x += 0.0034959910577867857 * 1000 * 1000 * 1.275 # / 9.77506038647343E-07 * px_size  # * 0.2475
+    #     print(f'x1 = {x}')
+    #     y -= 0.0028335833333333334 * 1000 * 1000 * 1.235     # x += 0.0035648243954924537 * 1000 * 1000 # / 9.77506038647343E-07 * px_size  # * 0.2475
+    if add_sem_shift:
+        x += 0.0034959910577867857 * 1000 * 1000 # / 9.77506038647343E-07 * px_size  # * 0.2475
+        print(f'x1 = {x}')
+        y -= 0.0028335833333333334 * 1000 * 1000 # / 9.77506038647343E-07 * px_size  # * 0.2475
+
+    def tilted_projection(x, y, at, r):
+        # at, r in radians
+        tx, ty = math.cos(r), math.sin(r)  # tilt-axis unit vector
+        dot = x * tx + y * ty
+        c = math.cos(at)
+        x_prime = c * x + (1 - c) * dot * tx
+        y_prime = c * y + (1 - c) * dot * ty
+        return x_prime, y_prime
+
+    # x = x + pos.get("X", 0.0)
+    # y = y - pos.get("Y", 0.0) * math.cos(math.radians(at))
+    print(f'pos(x) = {pos.get("X", 0.0)}')
+    print(f'pos(y) = {pos.get("Y", 0.0)}')
+    # xx, yy = tilted_projection(pos.get("X", 0.0), pos.get("Y", 0.0), math.radians(at), math.radians(90-pos.get("R", 0.0)))
+    xx, yy = tilted_projection(pos.get("X", 0.0), pos.get("Y", 0.0), math.radians(at), math.radians(0))
+    print(f'xx = {xx}')
+    print(f'yy = {yy}')
+    x += xx
+    y -= yy
+    print(f'x2 = {x}')
+
+    print(f'x = {x}')
+    print(f'y = {y}')
+
+    # y = 0
+
+    # def rotate_point(x, y, angle_deg):
+    #     angle_rad = math.radians(angle_deg)
+    #     x_new = x * math.cos(angle_rad) - y * math.sin(angle_rad)
+    #     y_new = x * math.sin(angle_rad) + y * math.cos(angle_rad)
+    #     return x_new, y_new
+    #
+    # x, y = rotate_point(x, y, -pos.get("R", 0.0))
+
+    R[0, 2] = x
+    R[1, 2] = y
+
+    # # Nope
+    # R[0, 2] += x + pos.get("X", 0.0) * 0.2475
+    # R[1, 2] += y - pos.get("Y", 0.0) * math.cos(math.radians(at)) * 0.2475
+
+    print(math.cos(math.radians(pos.get("AT", 0.0))))
 
     return AffineMatrix(parameters=R)
 
