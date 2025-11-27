@@ -278,7 +278,7 @@ class TiffStack(list):
         return [len(self)] + list(self[0].shape)
 
 
-def write_stack(path, data, key='data'):
+def write_stack(path, data, key='data', id_offset=0):
 
     # if os.path.splitext(path)[1] == '.h5':
     filetype = get_filetype(path)
@@ -286,7 +286,7 @@ def write_stack(path, data, key='data'):
         write_h5_container(path, data, key=key)
         return
     if filetype == 'dir':
-        write_tif_stack(data, path)
+        write_tif_stack(data, path, id_offset=id_offset)
         return
     if filetype == 'n5':
         write_n5_container(path, data, key=key)

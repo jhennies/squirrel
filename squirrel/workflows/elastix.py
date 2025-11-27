@@ -738,7 +738,7 @@ def apply_multi_step_stack_alignment_workflow(
         # from squirrel.library.io import write_h5_container
         from squirrel.library.io import write_stack
         # write_h5_container(out_filepath, result_volume)
-        write_stack(out_filepath, result_volume)
+        write_stack(out_filepath, result_volume, id_offset=z_range[0] if z_range is not None else 0)
         return result_volume
     else:
         return result_volume
