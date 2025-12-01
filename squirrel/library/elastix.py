@@ -1081,23 +1081,58 @@ def affine_to_c(parameters):
 
 
 def rigid_to_c(parameters):
-    print(parameters)
-    parameters = np.array(parameters)
-    ndim = 0
-    if len(parameters) == 6:
+    parameters = np.array(parameters, dtype=float)
+
+    # Determine dimension
+    if len(parameters) == 3:
         ndim = 2
-    if len(parameters) == 12:
+        angle = parameters[0]
+        tx, ty = parameters[1], parameters[2]
+
+        # Build rotation matrix
+        R = np.array([
+            [np.cos(angle), -np.sin(angle)],
+            [np.sin(angle),  np.cos(angle)]
+        ])
+        t = np.array([tx, ty])
+
+    elif len(parameters) == 6:
         ndim = 3
-    assert ndim in [2, 3], f'Invalid parameters: {parameters}'
+        rx, ry, rz = parameters[:3]
+        tx, ty, tz = parameters[3:]
 
-    pr = np.zeros(parameters.shape, dtype=parameters.dtype)
-    pr[:ndim ** 2] = parameters[:ndim ** 2][::-1]
-    pr[ndim ** 2:] = parameters[ndim ** 2:][::-1]
-    param = pr
+        # Rotation matrix from Rodrigues formula
+        theta = np.linalg.norm([rx, ry, rz])
+        if theta < 1e-12:
+            R = np.eye(3)
+        else:
+            k = np.array([rx, ry, rz]) / theta
+            K = np.array([
+                [0, -k[2], k[1]],
+                [k[2], 0, -k[0]],
+                [-k[1], k[0], 0]
+            ])
+            R = np.eye(3) + np.sin(theta)*K + (1-np.cos(theta))*K@K
 
-    pr = np.reshape(param[: ndim ** 2], (ndim, ndim), order='C')
-    pr = np.concatenate([pr, np.array([param[ndim ** 2:]]).swapaxes(0, 1)], axis=1)
-    return pr.flatten()
+        t = np.array([tx, ty, tz])
+
+    else:
+        raise ValueError("Invalid rigid parameter length")
+
+    # Build affine-like flattened parameters (matrix then translation)
+    param = np.concatenate([R.flatten(order='C'), t])
+
+    # Apply the SAME reordering as affine_to_c()
+    pr = np.zeros_like(param)
+    pr[:ndim**2] = param[:ndim**2][::-1]
+    pr[ndim**2:] = param[ndim**2:][::-1]
+
+    # Reshape back into final affine vector, like affine_to_c()
+    R_c = np.reshape(pr[:ndim**2], (ndim, ndim), order='C')
+    T_c = pr[ndim**2:]
+
+    full = np.concatenate([R_c, T_c[:, None]], axis=1)
+    return full.flatten()
 
 
 def similarity_to_c(parameters):
