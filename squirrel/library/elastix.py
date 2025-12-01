@@ -1094,7 +1094,7 @@ def elastix_to_c(transform, parameters):
         func = translation_to_c
     if transform in ['affine', 'AffineTransform']:
         func = affine_to_c
-    if transform == 'rigid':
+    if transform in ['rigid', 'EulerTransform']:
         func = rigid_to_c
     if transform == 'SimilarityTransform':
         func = similarity_to_c
