@@ -1081,7 +1081,23 @@ def affine_to_c(parameters):
 
 
 def rigid_to_c(parameters):
-    raise NotImplementedError
+    print(parameters)
+    parameters = np.array(parameters)
+    ndim = 0
+    if len(parameters) == 6:
+        ndim = 2
+    if len(parameters) == 12:
+        ndim = 3
+    assert ndim in [2, 3], f'Invalid parameters: {parameters}'
+
+    pr = np.zeros(parameters.shape, dtype=parameters.dtype)
+    pr[:ndim ** 2] = parameters[:ndim ** 2][::-1]
+    pr[ndim ** 2:] = parameters[ndim ** 2:][::-1]
+    param = pr
+
+    pr = np.reshape(param[: ndim ** 2], (ndim, ndim), order='C')
+    pr = np.concatenate([pr, np.array([param[ndim ** 2:]]).swapaxes(0, 1)], axis=1)
+    return pr.flatten()
 
 
 def similarity_to_c(parameters):
