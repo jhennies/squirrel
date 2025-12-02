@@ -3,6 +3,45 @@ import os
 import numpy as np
 
 
+def get_elastix_parameter_map(
+        transform=None,
+        microscopy_preset=None
+):
+    from SimpleITK import GetDefaultParameterMap
+    if microscopy_preset is None:
+        assert transform is not None
+        return GetDefaultParameterMap(transform if transform != 'SimilarityTransform' else 'rigid')
+
+    if microscopy_preset == 'fibsem':
+        if transform is None:
+            pmap = GetDefaultParameterMap('translation')
+        else:
+            pmap = GetDefaultParameterMap(transform if transform != 'SimilarityTransform' else 'rigid')
+        pmap['NumberOfSpatialSamples'] = ('2048',)
+        pmap['NumberOfResolutions'] = ('4',)
+        pmap['NumberOfSpatialSamples'] = ('2048',)
+        pmap['NumberOfSamplesForExactGradient'] = ('4096',)
+        pmap['MaximumNumberOfIterations'] = ('512',)
+        pmap['MaximumStepLength'] = ('8',)
+        pmap['MinimumStepLength'] = ('4', '2', '1', '1')
+        return pmap
+
+    if microscopy_preset == 'array-tomography':
+        if transform is None:
+            pmap = GetDefaultParameterMap('rigid')
+        else:
+            pmap = GetDefaultParameterMap(transform if transform != 'SimilarityTransform' else 'rigid')
+        pmap['NumberOfSpatialSamples'] = ('2048',)
+        pmap['NumberOfResolutions'] = ('4',)
+        pmap['NumberOfSpatialSamples'] = ('4096',)
+        pmap['NumberOfSamplesForExactGradient'] = ('8192',)
+        pmap['MaximumNumberOfIterations'] = ('2048',)
+        pmap['MaximumStepLength'] = ('8',)
+        pmap['MinimumStepLength'] = ('4', '2', '1', '1')
+        return pmap
+    raise ValueError(f'Invalid value for transform = {transform} or microscopy_preset = {microscopy_preset}')
+
+
 def apply_transforms_on_image(
         image,
         transforms,
@@ -156,8 +195,12 @@ def make_auto_mask(image, disk_size=6, method='non-zero', variance_filter_size=3
         from scipy.ndimage import generic_filter
         mask_t = (generic_filter(scale_image_nearest(image, scale_factors=[0.25, 0.25]), np.var, size=variance_filter_size) > variance_thresh).astype('uint8')
         mask_t = scale_image_nearest(mask_t, scale_factors=[4, 4])
+        print(f'mask_t.shape = {mask_t.shape}')
+        print(f'image.shape = {image.shape}')
         mask = np.zeros(image.shape, dtype='uint8')
-        mask[:mask_t.shape[0], :mask_t.shape[1]] = mask_t
+        stops = [min(mask_t.shape[0], mask.shape[0]), min(mask_t.shape[1], mask.shape[1])]
+        print(f'stops = {stops}')
+        mask[:stops[0], :stops[1]] = mask_t[:stops[0], :stops[1]]
         mask[image == 0] = 0
     if mask is None:
         raise ValueError(f'Invalid auto-mask method: {method}')
@@ -618,6 +661,7 @@ def register_with_elastix(
         n_workers=os.cpu_count(),
         normalize_images=True,
         result_to_disk='',
+        microscopy_preset=None,
         debug_dirpath=None,
         verbose=False
 ):
@@ -650,7 +694,8 @@ def register_with_elastix(
         if pmap is None:
             assert transform is not None, 'Either parameter_map or transform must be specified!'
             # Set the parameters
-            pmap = sitk.GetDefaultParameterMap(transform if transform != 'SimilarityTransform' else 'rigid')
+            # pmap = sitk.GetDefaultParameterMap(transform if transform != 'SimilarityTransform' else 'rigid')
+            pmap = get_elastix_parameter_map(transform=transform, microscopy_preset=microscopy_preset)
             pmap['AutomaticTransformInitialization'] = ['true' if automatic_transform_initialization else 'false']
             if number_of_spatial_samples is not None:
                 pmap['NumberOfSpatialSamples'] = (str(number_of_spatial_samples),)

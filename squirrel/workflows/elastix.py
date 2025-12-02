@@ -79,6 +79,7 @@ def register_with_elastix_workflow(
         out_filepath,
         out_img_filepath=None,
         transform='affine',
+        microscopy_preset=None,
         auto_mask=None,
         number_of_spatial_samples=None,
         maximum_number_of_iterations=None,
@@ -120,6 +121,7 @@ def register_with_elastix_workflow(
             n_workers=n_workers,
             normalize_images=True,
             result_to_disk='',
+            microscopy_preset=microscopy_preset,
             debug_dirpath=debug_dirpath,
             verbose=verbose
         )
@@ -794,17 +796,17 @@ if __name__ == '__main__':
     #     resolution_yx=[1, 1]
     # )
 
-    apply_multi_step_stack_alignment_workflow(
-        '/media/julian/Data/projects/hennies/amst_devel/amst2-test-auto-init/tiffs',
-        ['/media/julian/Data/projects/hennies/amst_devel/amst2-test-auto-init/result.json'],
-        '/media/julian/Data/projects/hennies/amst_devel/amst2-test-auto-init/result',
-        auto_pad=False,
-        target_image_shape=None,
-        z_range=None,
-        n_workers=4,
-        quiet=False,
-        verbose=False,
-    )
+    # apply_multi_step_stack_alignment_workflow(
+    #     '/media/julian/Data/projects/hennies/amst_devel/amst2-test-auto-init/tiffs',
+    #     ['/media/julian/Data/projects/hennies/amst_devel/amst2-test-auto-init/result.json'],
+    #     '/media/julian/Data/projects/hennies/amst_devel/amst2-test-auto-init/result',
+    #     auto_pad=False,
+    #     target_image_shape=None,
+    #     z_range=None,
+    #     n_workers=4,
+    #     quiet=False,
+    #     verbose=False,
+    # )
 
     # elastix_stack_alignment_workflow(
     #     '/media/julian/Data/projects/woller/problem-area2/subsample',
@@ -843,3 +845,66 @@ if __name__ == '__main__':
     #     debug_dirpath='/media/julian/Data/projects/schneider/debug',
     #     verbose=False
     # )
+
+    # register_with_elastix_workflow(
+    #     '/media/julian/Data/tmp/amst2-rigid-test/slice_0092.tif',
+    #     '/media/julian/Data/tmp/amst2-rigid-test/slice_0091.tif',
+    #     '/media/julian/Data/tmp/amst2-rigid-test/transform.json',
+    #     out_img_filepath='/media/julian/Data/tmp/amst2-rigid-test/slice_0092_reg.tif',
+    #     transform='rigid',
+    #     auto_mask='non-zero',
+    #     number_of_spatial_samples=4096,
+    #     maximum_number_of_iterations=2046,
+    #     number_of_resolutions=4,
+    #     initialize_offsets_method='none',
+    #     initialize_offsets_kwargs=dict(
+    #         spacing=16,
+    #         binning=8,
+    #         elx_binning=1,
+    #         mi_thresh=-3,
+    #     ),
+    #     gaussian_sigma=2.,
+    #     use_clahe=False,
+    #     use_edges=False,
+    #     parameter_map=None,
+    #     n_workers=os.cpu_count(),
+    #     debug_dirpath='/media/julian/Data/projects/schneider/debug',
+    #     verbose=False
+    # )
+
+    from SimpleITK import GetDefaultParameterMap
+    pmap = GetDefaultParameterMap('rigid')
+    pmap['NumberOfSpatialSamples'] = ('2048',)
+    pmap['NumberOfResolutions'] = ('4',)
+    pmap['NumberOfSpatialSamples'] = ('4096',)
+    pmap['NumberOfSamplesForExactGradient'] = ('8192',)
+    pmap['MaximumNumberOfIterations'] = ('2048',)
+    pmap['MaximumStepLength'] = ('8',)
+    pmap['MinimumStepLength'] = ('4', '2', '1', '1')
+
+    register_with_elastix_workflow(
+        '/media/julian/Data/tmp/amst2-rigid-test/slice_0092.tif',
+        '/media/julian/Data/tmp/amst2-rigid-test/slice_0091.tif',
+        '/media/julian/Data/tmp/amst2-rigid-test/transform.json',
+        out_img_filepath='/media/julian/Data/tmp/amst2-rigid-test/slice_0092_reg.tif',
+        transform='rigid',
+        auto_mask='non-zero',
+        # number_of_spatial_samples=4096,
+        # maximum_number_of_iterations=2048,
+        # number_of_resolutions=6,
+        initialize_offsets_method='none',
+        initialize_offsets_kwargs=dict(
+            # spacing=16,
+            # binning=8,
+            # elx_binning=1,
+            # mi_thresh=-3,
+        ),
+        microscopy_preset='array-tomography',
+        gaussian_sigma=2.,
+        use_clahe=False,
+        use_edges=False,
+        parameter_map=None,
+        n_workers=os.cpu_count(),
+        debug_dirpath='/media/julian/Data/projects/schneider/debug',
+        verbose=False
+    )
