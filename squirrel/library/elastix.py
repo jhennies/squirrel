@@ -31,13 +31,25 @@ def get_elastix_parameter_map(
             pmap = GetDefaultParameterMap('rigid')
         else:
             pmap = GetDefaultParameterMap(transform if transform != 'SimilarityTransform' else 'rigid')
-        pmap['NumberOfSpatialSamples'] = ('2048',)
         pmap['NumberOfResolutions'] = ('4',)
         pmap['NumberOfSpatialSamples'] = ('4096',)
         pmap['NumberOfSamplesForExactGradient'] = ('8192',)
         pmap['MaximumNumberOfIterations'] = ('2048',)
         pmap['MaximumStepLength'] = ('8',)
-        pmap['MinimumStepLength'] = ('4', '2', '1', '1')
+        pmap['MinimumStepLength'] = ('4', '2', '1', '0.1')
+        return pmap
+
+    if microscopy_preset == 'array-tomography2':
+        if transform is None:
+            pmap = GetDefaultParameterMap('rigid')
+        else:
+            pmap = GetDefaultParameterMap(transform if transform != 'SimilarityTransform' else 'rigid')
+        pmap['NumberOfResolutions'] = ('4',)
+        pmap['NumberOfSpatialSamples'] = ('8192',)
+        pmap['NumberOfSamplesForExactGradient'] = ('8192',)
+        pmap['MaximumNumberOfIterations'] = ('2048',)
+        pmap['MaximumStepLength'] = ('16',)
+        pmap['MinimumStepLength'] = ('8', '4', '1', '0.1')
         return pmap
     raise ValueError(f'Invalid value for transform = {transform} or microscopy_preset = {microscopy_preset}')
 
@@ -667,32 +679,37 @@ def register_with_elastix(
 ):
 
     if verbose:
+        print('++++++++++++++++++')
         print('Running register_with_elastix with:')
-        print(f'automatic_transform_initialization={automatic_transform_initialization}')
-        print(f'out_dir={out_dir}')
-        print(f'params_to_origin={params_to_origin}')
-        print(f'auto_mask={auto_mask}')
-        print(f'number_of_spatial_samples={number_of_spatial_samples}')
-        print(f'maximum_number_of_iterations={maximum_number_of_iterations}')
-        print(f'number_of_resolutions={number_of_resolutions}')
-        print(f'return_result_image={return_result_image}')
-        print(f'initialize_offsets_method={initialize_offsets_method}')
-        print(f'initialize_offsets_kwargs={initialize_offsets_kwargs}')
-        print(f'parameter_map={parameter_map}')
-        print(f'median_radius={median_radius}')
-        print(f'gaussian_sigma={gaussian_sigma}')
-        print(f'use_edges={use_edges}')
-        print(f'use_clahe={use_clahe}')
-        print(f'crop_to_bounds_off={crop_to_bounds_off}')
-        print(f'n_workers={n_workers}')
-        print(f'normalize_images={normalize_images}')
+        print(f'transform = {transform}')
+        print(f'automatic_transform_initialization = {automatic_transform_initialization}')
+        print(f'out_dir = {out_dir}')
+        print(f'params_to_origin = {params_to_origin}')
+        print(f'auto_mask = {auto_mask}')
+        print(f'number_of_spatial_samples = {number_of_spatial_samples}')
+        print(f'maximum_number_of_iterations = {maximum_number_of_iterations}')
+        print(f'number_of_resolutions = {number_of_resolutions}')
+        print(f'return_result_image = {return_result_image}')
+        print(f'initialize_offsets_method = {initialize_offsets_method}')
+        print(f'initialize_offsets_kwargs = {initialize_offsets_kwargs}')
+        print(f'parameter_map = {parameter_map}')
+        print(f'median_radius = {median_radius}')
+        print(f'gaussian_sigma = {gaussian_sigma}')
+        print(f'use_edges = {use_edges}')
+        print(f'use_clahe = {use_clahe}')
+        print(f'crop_to_bounds_off = {crop_to_bounds_off}')
+        print(f'n_workers = {n_workers}')
+        print(f'normalize_images = {normalize_images}')
+        print(f'result_to_disk = {result_to_disk}')
+        print(f'microscopy_preset = {microscopy_preset}')
         print(f'debug_dirpath = {debug_dirpath}')
+        print('++++++++++++++++++')
 
     import SimpleITK as sitk
 
     def _normalize_parameter_map(pmap, transform):
         if pmap is None:
-            assert transform is not None, 'Either parameter_map or transform must be specified!'
+            assert transform is not None or microscopy_preset is not None, 'Either parameter_map or transform must be specified!'
             # Set the parameters
             # pmap = sitk.GetDefaultParameterMap(transform if transform != 'SimilarityTransform' else 'rigid')
             pmap = get_elastix_parameter_map(transform=transform, microscopy_preset=microscopy_preset)
@@ -889,6 +906,12 @@ def register_with_elastix(
         from SimpleITK import WriteParameterFile
         WriteParameterFile(parameter_map, os.path.join(debug_dirpath, 'elastix_parameters.txt'))
     assert transform == parameter_map['Transform'][0]
+    if verbose:
+        print('====================================')
+        print(f'microscopy_preset: {microscopy_preset}')
+        for k, v in parameter_map.items():
+            print(f'{k}: {v}')
+        print('====================================')
 
     # Crop the input images to their joint bounding box (saves memory and speeds up processing below)
     print('Cropping data ...')

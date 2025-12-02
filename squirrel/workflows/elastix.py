@@ -95,6 +95,29 @@ def register_with_elastix_workflow(
         verbose=False
 ):
 
+    if verbose:
+        print('+++++++++++++++++++++++++++')
+        print('register_with_elastix_workflow parameters:')
+        print(f'moving_filepath = {moving_filepath}')
+        print(f'fixed_filepath = {fixed_filepath}')
+        print(f'out_filepath = {out_filepath}')
+        print(f'out_img_filepath = {out_img_filepath}')
+        print(f'transform = {transform}')
+        print(f'microscopy_preset = {microscopy_preset}')
+        print(f'auto_mask = {auto_mask}')
+        print(f'number_of_spatial_samples = {number_of_spatial_samples}')
+        print(f'maximum_number_of_iterations = {maximum_number_of_iterations}')
+        print(f'number_of_resolutions = {number_of_resolutions}')
+        print(f'initialize_offsets_method = {initialize_offsets_method}')
+        print(f'initialize_offsets_kwargs = {initialize_offsets_kwargs}')
+        print(f'gaussian_sigma = {gaussian_sigma}')
+        print(f'use_clahe = {use_clahe}')
+        print(f'use_edges = {use_edges}')
+        print(f'parameter_map = {parameter_map}')
+        print(f'debug_dirpath = {debug_dirpath}')
+        print(f'n_workers = {n_workers}')
+        print('+++++++++++++++++++++++++++')
+
     from squirrel.library.elastix import register_with_elastix
 
     if not os.path.exists(out_filepath):
@@ -877,21 +900,21 @@ if __name__ == '__main__':
     #     verbose=False
     # )
 
-    from SimpleITK import GetDefaultParameterMap
-    pmap = GetDefaultParameterMap('rigid')
-    pmap['NumberOfSpatialSamples'] = ('2048',)
-    pmap['NumberOfResolutions'] = ('4',)
-    pmap['NumberOfSpatialSamples'] = ('4096',)
-    pmap['NumberOfSamplesForExactGradient'] = ('8192',)
-    pmap['MaximumNumberOfIterations'] = ('2048',)
-    pmap['MaximumStepLength'] = ('8',)
-    pmap['MinimumStepLength'] = ('4', '2', '1', '1')
+    # from SimpleITK import GetDefaultParameterMap
+    # pmap = GetDefaultParameterMap('rigid')
+    # pmap['NumberOfSpatialSamples'] = ('2048',)
+    # pmap['NumberOfResolutions'] = ('4',)
+    # pmap['NumberOfSpatialSamples'] = ('4096',)
+    # pmap['NumberOfSamplesForExactGradient'] = ('8192',)
+    # pmap['MaximumNumberOfIterations'] = ('2048',)
+    # pmap['MaximumStepLength'] = ('8',)
+    # pmap['MinimumStepLength'] = ('4', '2', '1', '1')
 
     register_with_elastix_workflow(
+        '/media/julian/Data/tmp/amst2-rigid-test/slice_0093.tif',
         '/media/julian/Data/tmp/amst2-rigid-test/slice_0092.tif',
-        '/media/julian/Data/tmp/amst2-rigid-test/slice_0091.tif',
         '/media/julian/Data/tmp/amst2-rigid-test/transform.json',
-        out_img_filepath='/media/julian/Data/tmp/amst2-rigid-test/slice_0092_reg.tif',
+        out_img_filepath='/media/julian/Data/tmp/amst2-rigid-test/slice_0093_reg.tif',
         transform='rigid',
         auto_mask='non-zero',
         # number_of_spatial_samples=4096,
@@ -904,12 +927,12 @@ if __name__ == '__main__':
             # elx_binning=1,
             # mi_thresh=-3,
         ),
-        microscopy_preset='array-tomography',
+        microscopy_preset='array-tomography2',
         gaussian_sigma=2.,
-        use_clahe=False,
+        use_clahe=True,
         use_edges=False,
         parameter_map=None,
         n_workers=os.cpu_count(),
         debug_dirpath='/media/julian/Data/projects/schneider/debug',
-        verbose=False
+        verbose=True
     )
