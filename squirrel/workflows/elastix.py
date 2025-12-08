@@ -627,7 +627,7 @@ def stack_alignment_validation_workflow(
                         z_slice_moving,
                         transform='translation',
                         automatic_transform_initialization=False,
-                        auto_mask=False,
+                        auto_mask=None,
                         # number_of_spatial_samples=256,
                         # maximum_number_of_iterations=256,
                         # number_of_resolutions=1,
@@ -647,7 +647,7 @@ def stack_alignment_validation_workflow(
                     # )
                     print(f'shift = {shift}')
                     print(f'diffphase = {diffphase}')
-                    result_matrix = -AffineMatrix(parameters=[1, 0, shift[0], 0, 1, shift[1]])
+                    result_matrix = -AffineMatrix(parameters=[1, 0, float(shift[0]), 0, 1, float(shift[1])])
 
                 elif method == 'sift':
                     result_matrix = AffineMatrix(parameters=register_with_sift(

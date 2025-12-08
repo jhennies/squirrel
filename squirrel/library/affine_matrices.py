@@ -411,6 +411,7 @@ class AffineMatrix:
             elastix_parameters=None,
             filepath=None,
             translation=None,
+            rotation=None,
             pivot=None
     ):
         """
@@ -432,6 +433,8 @@ class AffineMatrix:
             self.set_from_file(filepath)
         if translation is not None:
             self.set_from_translation(translation, pivot=pivot)
+        if rotation is not None:
+            self.set_from_rotation(rotation, pivot=pivot)
 
     def _validate_parameters(self, parameters):
         """
@@ -512,6 +515,71 @@ class AffineMatrix:
         self.set_from_parameters(
             np.concatenate([np.eye(len(translation)), np.array([translation]).T], axis=1).flatten(),
             pivot=pivot
+        )
+
+    def set_from_rotation(self, rotation, pivot=None):
+        """
+        Set affine parameters from a rotation.
+        Acceptable inputs:
+          - 2D: single angle (float, radians)
+          - 3D:
+              * 3×3 rotation matrix
+              * iterable of 3 Euler angles in radians, assumed (rx, ry, rz) intrinsic
+        """
+        rot = np.array(rotation, dtype=float)
+
+        # ---------- 2D ROTATION ----------
+        if rot.ndim == 0 or (rot.ndim == 1 and rot.size == 1):
+            # Single angle
+            theta = float(rot)
+            R = np.array([
+                [np.cos(theta), -np.sin(theta)],
+                [np.sin(theta), np.cos(theta)]
+            ])
+            T = np.zeros(2)
+            affine = np.hstack([R, T.reshape(2, 1)])  # 2×3
+            self.set_from_parameters(affine, pivot=pivot)
+            return
+
+        # ---------- 3D ROTATION MATRIX ----------
+        if rot.ndim == 2 and rot.shape == (3, 3):
+            R = rot
+            T = np.zeros(3)
+            affine = np.hstack([R, T.reshape(3, 1)])  # 3×4
+            self.set_from_parameters(affine, pivot=pivot)
+            return
+
+        # ---------- 3D EULER ANGLES ----------
+        if rot.ndim == 1 and rot.size == 3:
+            rx, ry, rz = rot.astype(float)
+
+            # Rotation matrices (intrinsic rotations)
+            Rx = np.array([
+                [1, 0, 0],
+                [0, np.cos(rx), -np.sin(rx)],
+                [0, np.sin(rx), np.cos(rx)]
+            ])
+            Ry = np.array([
+                [np.cos(ry), 0, np.sin(ry)],
+                [0, 1, 0],
+                [-np.sin(ry), 0, np.cos(ry)]
+            ])
+            Rz = np.array([
+                [np.cos(rz), -np.sin(rz), 0],
+                [np.sin(rz), np.cos(rz), 0],
+                [0, 0, 1]
+            ])
+
+            # Final R = Rz * Ry * Rx
+            R = Rz @ Ry @ Rx
+            T = np.zeros(3)
+            affine = np.hstack([R, T.reshape(3, 1)])
+            self.set_from_parameters(affine, pivot=pivot)
+            return
+
+        raise ValueError(
+            "Rotation must be: angle (float), 3×3 matrix, or Euler angles (3-vector). "
+            f"Got shape {rot.shape}"
         )
 
     def update_parameters(self, parameters):
