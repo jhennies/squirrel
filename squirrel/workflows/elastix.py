@@ -682,7 +682,7 @@ def stack_alignment_validation_workflow(
             transforms = AffineStack(filepath=this_transforms_fp)
 
         translations = np.array(transforms.get_translations()) * resolution_yx
-        errors = np.sqrt(translations[:, 0] ** 2 + translations[:, 1] ** 2)
+        errors = np.sqrt(translations[:, 0] ** 2 + translations[:, 1] ** 2).astype(float)
         labels.append('roi-{}-mean={:.2f}-median={:.2f}'.format(roi_idx, np.mean(errors), np.median(errors)))
         plt.plot(errors, label=labels[-1])
 
