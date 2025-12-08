@@ -570,12 +570,12 @@ def stack_alignment_validation_workflow(
         transforms_dirpath = os.path.join(out_dirpath, 'transforms')
         plot_filepath = os.path.join(out_dirpath, 'plot.pdf')
         image_dirpath = os.path.join(out_dirpath, 'images')
-        errors_filepath = os.path.join(out_dirpath, 'errors.csv')
+        errors_filepath = os.path.join(out_dirpath, 'errors.json')
     else:
         transforms_dirpath = os.path.join(out_dirpath, f'transforms-{out_name}')
         plot_filepath = os.path.join(out_dirpath, f'plot-{out_name}.pdf')
         image_dirpath = os.path.join(out_dirpath, f'images-{out_name}')
-        errors_filepath = os.path.join(out_dirpath, f'errors-{out_name}.csv')
+        errors_filepath = os.path.join(out_dirpath, f'errors-{out_name}.json')
     if not os.path.exists(image_dirpath):
         os.mkdir(image_dirpath)
     if not os.path.exists(transforms_dirpath):
