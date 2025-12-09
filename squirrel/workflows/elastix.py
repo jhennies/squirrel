@@ -441,13 +441,16 @@ def elastix_stack_alignment_workflow(
         for idx in range(*z_range, z_step):
             z_slice_fixed = None
             if average_for_z_step:
-                z_slice_moving = np.mean(stack[idx: idx + z_step], axis=0).astype('uint8')
+                z_slice_moving = np.mean(stack[idx: idx + z_step], axis=0).astype(stack.dtype)
                 if idx > 0:
-                    z_slice_fixed = np.mean(stack[idx - z_step: idx], axis=0).astype('uint8')
+                    z_slice_fixed = np.mean(stack[idx - z_step: idx], axis=0).astype(stack.dtype)
             else:
                 z_slice_moving = stack[idx]
                 if idx > 0:
                     z_slice_fixed = stack[idx - z_step]
+
+            if verbose:
+                print(f'z_slice_moving.dtype = {z_slice_moving.dtype}')
 
             result_matrix, this_bounds = _elastix_one_slice(
                 idx,
@@ -483,9 +486,9 @@ def elastix_stack_alignment_workflow(
             for idx in range(*z_range, z_step):
                 z_slice_fixed = None
                 if average_for_z_step:
-                    z_slice_moving = np.mean(stack[idx: idx + z_step], axis=0).astype('uint8')
+                    z_slice_moving = np.mean(stack[idx: idx + z_step], axis=0).astype(stack.dtype)
                     if idx > 0:
-                        z_slice_fixed = np.mean(stack[idx - z_step: idx], axis=0).astype('uint8')
+                        z_slice_fixed = np.mean(stack[idx - z_step: idx], axis=0).astype(stack.dtype)
                 else:
                     z_slice_moving = stack[idx]
                     if idx > 0:
