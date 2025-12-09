@@ -23,7 +23,7 @@ def get_elastix_parameter_map(
         pmap['NumberOfSamplesForExactGradient'] = ('4096',)
         pmap['MaximumNumberOfIterations'] = ('512',)
         pmap['MaximumStepLength'] = ('8',)
-        pmap['MinimumStepLength'] = ('4', '2', '1', '1')
+        pmap['MinimumStepLength'] = ('4', '2', '1', '0.1')
         return pmap
 
     if microscopy_preset == 'array-tomography':
@@ -822,10 +822,14 @@ def register_with_elastix(
         from squirrel.library.affine_matrices import AffineMatrix
         offsets = AffineMatrix(translation=[0.] * fixed.ndim)
         if initialize_offsets_method is not None and initialize_offsets_method != 'none':
-            if verbose:
-                print(f'Running initialization to cope with big jumps!')
             assert type(fixed) == np.ndarray
             assert type(moving) == np.ndarray
+            if verbose:
+                print(f'Running initialization to cope with big jumps!')
+                print(f'fixed.dtype = {fixed.dtype}')
+                print(f'moving.dtype = {moving.dtype}')
+                print(f'fixed min / max: {fixed.min()} / {fixed.max()}')
+                print(f'moving min / max: {moving.min()} / {moving.max()}')
             if transform == 'bspline':
                 raise NotImplementedError('Big jump fixing not implemented for bspline transformation!')
             if initialize_offsets_method == 'init_xcorr':
