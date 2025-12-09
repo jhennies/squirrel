@@ -840,6 +840,8 @@ def register_with_elastix(
                     debug_dir=debug_dirpath
                 )
             elif initialize_offsets_method == 'init_elx':
+                if verbose:
+                    print(f'moving.dtype before init_elx = {moving.dtype}')
                 offsets = initialize_offsets(
                     moving, fixed,
                     binning=32 if 'binning' not in kwargs else kwargs['binning'],
