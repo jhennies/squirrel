@@ -79,6 +79,7 @@ def register_with_elastix_workflow(
         out_filepath,
         out_img_filepath=None,
         transform='affine',
+        microscopy_preset=None,
         auto_mask=None,
         number_of_spatial_samples=None,
         maximum_number_of_iterations=None,
@@ -93,6 +94,29 @@ def register_with_elastix_workflow(
         n_workers=os.cpu_count(),
         verbose=False
 ):
+
+    if verbose:
+        print('+++++++++++++++++++++++++++')
+        print('register_with_elastix_workflow parameters:')
+        print(f'moving_filepath = {moving_filepath}')
+        print(f'fixed_filepath = {fixed_filepath}')
+        print(f'out_filepath = {out_filepath}')
+        print(f'out_img_filepath = {out_img_filepath}')
+        print(f'transform = {transform}')
+        print(f'microscopy_preset = {microscopy_preset}')
+        print(f'auto_mask = {auto_mask}')
+        print(f'number_of_spatial_samples = {number_of_spatial_samples}')
+        print(f'maximum_number_of_iterations = {maximum_number_of_iterations}')
+        print(f'number_of_resolutions = {number_of_resolutions}')
+        print(f'initialize_offsets_method = {initialize_offsets_method}')
+        print(f'initialize_offsets_kwargs = {initialize_offsets_kwargs}')
+        print(f'gaussian_sigma = {gaussian_sigma}')
+        print(f'use_clahe = {use_clahe}')
+        print(f'use_edges = {use_edges}')
+        print(f'parameter_map = {parameter_map}')
+        print(f'debug_dirpath = {debug_dirpath}')
+        print(f'n_workers = {n_workers}')
+        print('+++++++++++++++++++++++++++')
 
     from squirrel.library.elastix import register_with_elastix
 
@@ -120,6 +144,7 @@ def register_with_elastix_workflow(
             n_workers=n_workers,
             normalize_images=True,
             result_to_disk='',
+            microscopy_preset=microscopy_preset,
             debug_dirpath=debug_dirpath,
             verbose=verbose
         )
@@ -315,6 +340,7 @@ def _elastix_one_slice(
         number_of_spatial_samples,
         maximum_number_of_iterations,
         number_of_resolutions,
+        microscopy_preset,
         initialize_offsets_method,
         initialize_offsets_kwargs,
         parameter_map,
@@ -344,6 +370,7 @@ def _elastix_one_slice(
             number_of_spatial_samples=number_of_spatial_samples,
             maximum_number_of_iterations=maximum_number_of_iterations,
             number_of_resolutions=number_of_resolutions,
+            microscopy_preset=microscopy_preset,
             initialize_offsets_method=initialize_offsets_method,
             initialize_offsets_kwargs=initialize_offsets_kwargs,
             parameter_map=parameter_map,
@@ -376,6 +403,7 @@ def elastix_stack_alignment_workflow(
         number_of_spatial_samples=None,
         maximum_number_of_iterations=None,
         number_of_resolutions=None,
+        microscopy_preset=None,
         initialize_offsets_method=None,
         initialize_offsets_kwargs=None,
         gaussian_sigma=0.,
@@ -413,13 +441,16 @@ def elastix_stack_alignment_workflow(
         for idx in range(*z_range, z_step):
             z_slice_fixed = None
             if average_for_z_step:
-                z_slice_moving = np.mean(stack[idx: idx + z_step], axis=0).astype('uint8')
+                z_slice_moving = np.mean(stack[idx: idx + z_step], axis=0).astype(stack.dtype)
                 if idx > 0:
-                    z_slice_fixed = np.mean(stack[idx - z_step: idx], axis=0).astype('uint8')
+                    z_slice_fixed = np.mean(stack[idx - z_step: idx], axis=0).astype(stack.dtype)
             else:
                 z_slice_moving = stack[idx]
                 if idx > 0:
                     z_slice_fixed = stack[idx - z_step]
+
+            if verbose:
+                print(f'z_slice_moving.dtype = {z_slice_moving.dtype}')
 
             result_matrix, this_bounds = _elastix_one_slice(
                 idx,
@@ -432,6 +463,7 @@ def elastix_stack_alignment_workflow(
                 number_of_spatial_samples,
                 maximum_number_of_iterations,
                 number_of_resolutions,
+                microscopy_preset,
                 initialize_offsets_method,
                 initialize_offsets_kwargs,
                 parameter_map,
@@ -454,9 +486,9 @@ def elastix_stack_alignment_workflow(
             for idx in range(*z_range, z_step):
                 z_slice_fixed = None
                 if average_for_z_step:
-                    z_slice_moving = np.mean(stack[idx: idx + z_step], axis=0).astype('uint8')
+                    z_slice_moving = np.mean(stack[idx: idx + z_step], axis=0).astype(stack.dtype)
                     if idx > 0:
-                        z_slice_fixed = np.mean(stack[idx - z_step: idx], axis=0).astype('uint8')
+                        z_slice_fixed = np.mean(stack[idx - z_step: idx], axis=0).astype(stack.dtype)
                 else:
                     z_slice_moving = stack[idx]
                     if idx > 0:
@@ -474,6 +506,7 @@ def elastix_stack_alignment_workflow(
                             number_of_spatial_samples,
                             maximum_number_of_iterations,
                             number_of_resolutions,
+                            microscopy_preset,
                             initialize_offsets_method,
                             initialize_offsets_kwargs,
                             parameter_map,
@@ -540,12 +573,12 @@ def stack_alignment_validation_workflow(
         transforms_dirpath = os.path.join(out_dirpath, 'transforms')
         plot_filepath = os.path.join(out_dirpath, 'plot.pdf')
         image_dirpath = os.path.join(out_dirpath, 'images')
-        errors_filepath = os.path.join(out_dirpath, 'errors.csv')
+        errors_filepath = os.path.join(out_dirpath, 'errors.json')
     else:
         transforms_dirpath = os.path.join(out_dirpath, f'transforms-{out_name}')
         plot_filepath = os.path.join(out_dirpath, f'plot-{out_name}.pdf')
         image_dirpath = os.path.join(out_dirpath, f'images-{out_name}')
-        errors_filepath = os.path.join(out_dirpath, f'errors-{out_name}.csv')
+        errors_filepath = os.path.join(out_dirpath, f'errors-{out_name}.json')
     if not os.path.exists(image_dirpath):
         os.mkdir(image_dirpath)
     if not os.path.exists(transforms_dirpath):
@@ -597,7 +630,7 @@ def stack_alignment_validation_workflow(
                         z_slice_moving,
                         transform='translation',
                         automatic_transform_initialization=False,
-                        auto_mask=False,
+                        auto_mask=None,
                         # number_of_spatial_samples=256,
                         # maximum_number_of_iterations=256,
                         # number_of_resolutions=1,
@@ -617,7 +650,7 @@ def stack_alignment_validation_workflow(
                     # )
                     print(f'shift = {shift}')
                     print(f'diffphase = {diffphase}')
-                    result_matrix = -AffineMatrix(parameters=[1, 0, shift[0], 0, 1, shift[1]])
+                    result_matrix = -AffineMatrix(parameters=[1, 0, float(shift[0]), 0, 1, float(shift[1])])
 
                 elif method == 'sift':
                     result_matrix = AffineMatrix(parameters=register_with_sift(
@@ -651,8 +684,8 @@ def stack_alignment_validation_workflow(
         else:
             transforms = AffineStack(filepath=this_transforms_fp)
 
-        translations = np.array(transforms.get_translations()) * resolution_yx
-        errors = np.sqrt(translations[:, 0] ** 2 + translations[:, 1] ** 2)
+        translations = (np.array(transforms.get_translations()) * resolution_yx).astype(float)
+        errors = np.sqrt(translations[:, 0] ** 2 + translations[:, 1] ** 2).astype(float)
         labels.append('roi-{}-mean={:.2f}-median={:.2f}'.format(roi_idx, np.mean(errors), np.median(errors)))
         plt.plot(errors, label=labels[-1])
 
@@ -794,17 +827,17 @@ if __name__ == '__main__':
     #     resolution_yx=[1, 1]
     # )
 
-    apply_multi_step_stack_alignment_workflow(
-        '/media/julian/Data/projects/hennies/amst_devel/amst2-test-auto-init/tiffs',
-        ['/media/julian/Data/projects/hennies/amst_devel/amst2-test-auto-init/result.json'],
-        '/media/julian/Data/projects/hennies/amst_devel/amst2-test-auto-init/result',
-        auto_pad=False,
-        target_image_shape=None,
-        z_range=None,
-        n_workers=4,
-        quiet=False,
-        verbose=False,
-    )
+    # apply_multi_step_stack_alignment_workflow(
+    #     '/media/julian/Data/projects/hennies/amst_devel/amst2-test-auto-init/tiffs',
+    #     ['/media/julian/Data/projects/hennies/amst_devel/amst2-test-auto-init/result.json'],
+    #     '/media/julian/Data/projects/hennies/amst_devel/amst2-test-auto-init/result',
+    #     auto_pad=False,
+    #     target_image_shape=None,
+    #     z_range=None,
+    #     n_workers=4,
+    #     quiet=False,
+    #     verbose=False,
+    # )
 
     # elastix_stack_alignment_workflow(
     #     '/media/julian/Data/projects/woller/problem-area2/subsample',
@@ -843,3 +876,66 @@ if __name__ == '__main__':
     #     debug_dirpath='/media/julian/Data/projects/schneider/debug',
     #     verbose=False
     # )
+
+    # register_with_elastix_workflow(
+    #     '/media/julian/Data/tmp/amst2-rigid-test/slice_0092.tif',
+    #     '/media/julian/Data/tmp/amst2-rigid-test/slice_0091.tif',
+    #     '/media/julian/Data/tmp/amst2-rigid-test/transform.json',
+    #     out_img_filepath='/media/julian/Data/tmp/amst2-rigid-test/slice_0092_reg.tif',
+    #     transform='rigid',
+    #     auto_mask='non-zero',
+    #     number_of_spatial_samples=4096,
+    #     maximum_number_of_iterations=2046,
+    #     number_of_resolutions=4,
+    #     initialize_offsets_method='none',
+    #     initialize_offsets_kwargs=dict(
+    #         spacing=16,
+    #         binning=8,
+    #         elx_binning=1,
+    #         mi_thresh=-3,
+    #     ),
+    #     gaussian_sigma=2.,
+    #     use_clahe=False,
+    #     use_edges=False,
+    #     parameter_map=None,
+    #     n_workers=os.cpu_count(),
+    #     debug_dirpath='/media/julian/Data/projects/schneider/debug',
+    #     verbose=False
+    # )
+
+    # from SimpleITK import GetDefaultParameterMap
+    # pmap = GetDefaultParameterMap('rigid')
+    # pmap['NumberOfSpatialSamples'] = ('2048',)
+    # pmap['NumberOfResolutions'] = ('4',)
+    # pmap['NumberOfSpatialSamples'] = ('4096',)
+    # pmap['NumberOfSamplesForExactGradient'] = ('8192',)
+    # pmap['MaximumNumberOfIterations'] = ('2048',)
+    # pmap['MaximumStepLength'] = ('8',)
+    # pmap['MinimumStepLength'] = ('4', '2', '1', '1')
+
+    register_with_elastix_workflow(
+        '/media/julian/Data/tmp/amst2-rigid-test/slice_0093.tif',
+        '/media/julian/Data/tmp/amst2-rigid-test/slice_0092.tif',
+        '/media/julian/Data/tmp/amst2-rigid-test/transform.json',
+        out_img_filepath='/media/julian/Data/tmp/amst2-rigid-test/slice_0093_reg.tif',
+        transform='rigid',
+        auto_mask='non-zero',
+        # number_of_spatial_samples=4096,
+        # maximum_number_of_iterations=2048,
+        # number_of_resolutions=6,
+        initialize_offsets_method='none',
+        initialize_offsets_kwargs=dict(
+            # spacing=16,
+            # binning=8,
+            # elx_binning=1,
+            # mi_thresh=-3,
+        ),
+        microscopy_preset='array-tomography2',
+        gaussian_sigma=2.,
+        use_clahe=True,
+        use_edges=False,
+        parameter_map=None,
+        n_workers=os.cpu_count(),
+        debug_dirpath='/media/julian/Data/projects/schneider/debug',
+        verbose=True
+    )

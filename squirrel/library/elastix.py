@@ -3,6 +3,57 @@ import os
 import numpy as np
 
 
+def get_elastix_parameter_map(
+        transform=None,
+        microscopy_preset=None
+):
+    from SimpleITK import GetDefaultParameterMap
+    if microscopy_preset is None:
+        assert transform is not None
+        return GetDefaultParameterMap(transform if transform != 'SimilarityTransform' else 'rigid')
+
+    if microscopy_preset == 'fibsem':
+        if transform is None:
+            pmap = GetDefaultParameterMap('translation')
+        else:
+            pmap = GetDefaultParameterMap(transform if transform != 'SimilarityTransform' else 'rigid')
+        pmap['NumberOfSpatialSamples'] = ('2048',)
+        pmap['NumberOfResolutions'] = ('4',)
+        pmap['NumberOfSpatialSamples'] = ('2048',)
+        pmap['NumberOfSamplesForExactGradient'] = ('4096',)
+        pmap['MaximumNumberOfIterations'] = ('512',)
+        pmap['MaximumStepLength'] = ('8',)
+        pmap['MinimumStepLength'] = ('4', '2', '1', '0.1')
+        return pmap
+
+    if microscopy_preset == 'array-tomography':
+        if transform is None:
+            pmap = GetDefaultParameterMap('rigid')
+        else:
+            pmap = GetDefaultParameterMap(transform if transform != 'SimilarityTransform' else 'rigid')
+        pmap['NumberOfResolutions'] = ('4',)
+        pmap['NumberOfSpatialSamples'] = ('4096',)
+        pmap['NumberOfSamplesForExactGradient'] = ('8192',)
+        pmap['MaximumNumberOfIterations'] = ('2048',)
+        pmap['MaximumStepLength'] = ('8',)
+        pmap['MinimumStepLength'] = ('4', '2', '1', '0.1')
+        return pmap
+
+    if microscopy_preset == 'array-tomography2':
+        if transform is None:
+            pmap = GetDefaultParameterMap('rigid')
+        else:
+            pmap = GetDefaultParameterMap(transform if transform != 'SimilarityTransform' else 'rigid')
+        pmap['NumberOfResolutions'] = ('4',)
+        pmap['NumberOfSpatialSamples'] = ('8192',)
+        pmap['NumberOfSamplesForExactGradient'] = ('8192',)
+        pmap['MaximumNumberOfIterations'] = ('2048',)
+        pmap['MaximumStepLength'] = ('16',)
+        pmap['MinimumStepLength'] = ('8', '4', '1', '0.1')
+        return pmap
+    raise ValueError(f'Invalid value for transform = {transform} or microscopy_preset = {microscopy_preset}')
+
+
 def apply_transforms_on_image(
         image,
         transforms,
@@ -156,8 +207,12 @@ def make_auto_mask(image, disk_size=6, method='non-zero', variance_filter_size=3
         from scipy.ndimage import generic_filter
         mask_t = (generic_filter(scale_image_nearest(image, scale_factors=[0.25, 0.25]), np.var, size=variance_filter_size) > variance_thresh).astype('uint8')
         mask_t = scale_image_nearest(mask_t, scale_factors=[4, 4])
+        print(f'mask_t.shape = {mask_t.shape}')
+        print(f'image.shape = {image.shape}')
         mask = np.zeros(image.shape, dtype='uint8')
-        mask[:mask_t.shape[0], :mask_t.shape[1]] = mask_t
+        stops = [min(mask_t.shape[0], mask.shape[0]), min(mask_t.shape[1], mask.shape[1])]
+        print(f'stops = {stops}')
+        mask[:stops[0], :stops[1]] = mask_t[:stops[0], :stops[1]]
         mask[image == 0] = 0
     if mask is None:
         raise ValueError(f'Invalid auto-mask method: {method}')
@@ -618,39 +673,46 @@ def register_with_elastix(
         n_workers=os.cpu_count(),
         normalize_images=True,
         result_to_disk='',
+        microscopy_preset=None,
         debug_dirpath=None,
         verbose=False
 ):
 
     if verbose:
+        print('++++++++++++++++++')
         print('Running register_with_elastix with:')
-        print(f'automatic_transform_initialization={automatic_transform_initialization}')
-        print(f'out_dir={out_dir}')
-        print(f'params_to_origin={params_to_origin}')
-        print(f'auto_mask={auto_mask}')
-        print(f'number_of_spatial_samples={number_of_spatial_samples}')
-        print(f'maximum_number_of_iterations={maximum_number_of_iterations}')
-        print(f'number_of_resolutions={number_of_resolutions}')
-        print(f'return_result_image={return_result_image}')
-        print(f'initialize_offsets_method={initialize_offsets_method}')
-        print(f'initialize_offsets_kwargs={initialize_offsets_kwargs}')
-        print(f'parameter_map={parameter_map}')
-        print(f'median_radius={median_radius}')
-        print(f'gaussian_sigma={gaussian_sigma}')
-        print(f'use_edges={use_edges}')
-        print(f'use_clahe={use_clahe}')
-        print(f'crop_to_bounds_off={crop_to_bounds_off}')
-        print(f'n_workers={n_workers}')
-        print(f'normalize_images={normalize_images}')
+        print(f'transform = {transform}')
+        print(f'automatic_transform_initialization = {automatic_transform_initialization}')
+        print(f'out_dir = {out_dir}')
+        print(f'params_to_origin = {params_to_origin}')
+        print(f'auto_mask = {auto_mask}')
+        print(f'number_of_spatial_samples = {number_of_spatial_samples}')
+        print(f'maximum_number_of_iterations = {maximum_number_of_iterations}')
+        print(f'number_of_resolutions = {number_of_resolutions}')
+        print(f'return_result_image = {return_result_image}')
+        print(f'initialize_offsets_method = {initialize_offsets_method}')
+        print(f'initialize_offsets_kwargs = {initialize_offsets_kwargs}')
+        print(f'parameter_map = {parameter_map}')
+        print(f'median_radius = {median_radius}')
+        print(f'gaussian_sigma = {gaussian_sigma}')
+        print(f'use_edges = {use_edges}')
+        print(f'use_clahe = {use_clahe}')
+        print(f'crop_to_bounds_off = {crop_to_bounds_off}')
+        print(f'n_workers = {n_workers}')
+        print(f'normalize_images = {normalize_images}')
+        print(f'result_to_disk = {result_to_disk}')
+        print(f'microscopy_preset = {microscopy_preset}')
         print(f'debug_dirpath = {debug_dirpath}')
+        print('++++++++++++++++++')
 
     import SimpleITK as sitk
 
     def _normalize_parameter_map(pmap, transform):
         if pmap is None:
-            assert transform is not None, 'Either parameter_map or transform must be specified!'
+            assert transform is not None or microscopy_preset is not None, 'Either parameter_map or transform must be specified!'
             # Set the parameters
-            pmap = sitk.GetDefaultParameterMap(transform if transform != 'SimilarityTransform' else 'rigid')
+            # pmap = sitk.GetDefaultParameterMap(transform if transform != 'SimilarityTransform' else 'rigid')
+            pmap = get_elastix_parameter_map(transform=transform, microscopy_preset=microscopy_preset)
             pmap['AutomaticTransformInitialization'] = ['true' if automatic_transform_initialization else 'false']
             if number_of_spatial_samples is not None:
                 pmap['NumberOfSpatialSamples'] = (str(number_of_spatial_samples),)
@@ -760,10 +822,14 @@ def register_with_elastix(
         from squirrel.library.affine_matrices import AffineMatrix
         offsets = AffineMatrix(translation=[0.] * fixed.ndim)
         if initialize_offsets_method is not None and initialize_offsets_method != 'none':
-            if verbose:
-                print(f'Running initialization to cope with big jumps!')
             assert type(fixed) == np.ndarray
             assert type(moving) == np.ndarray
+            if verbose:
+                print(f'Running initialization to cope with big jumps!')
+                print(f'fixed.dtype = {fixed.dtype}')
+                print(f'moving.dtype = {moving.dtype}')
+                print(f'fixed min / max: {fixed.min()} / {fixed.max()}')
+                print(f'moving min / max: {moving.min()} / {moving.max()}')
             if transform == 'bspline':
                 raise NotImplementedError('Big jump fixing not implemented for bspline transformation!')
             if initialize_offsets_method == 'init_xcorr':
@@ -774,6 +840,8 @@ def register_with_elastix(
                     debug_dir=debug_dirpath
                 )
             elif initialize_offsets_method == 'init_elx':
+                if verbose:
+                    print(f'moving.dtype before init_elx = {moving.dtype}')
                 offsets = initialize_offsets(
                     moving, fixed,
                     binning=32 if 'binning' not in kwargs else kwargs['binning'],
@@ -844,6 +912,12 @@ def register_with_elastix(
         from SimpleITK import WriteParameterFile
         WriteParameterFile(parameter_map, os.path.join(debug_dirpath, 'elastix_parameters.txt'))
     assert transform == parameter_map['Transform'][0]
+    if verbose:
+        print('====================================')
+        print(f'microscopy_preset: {microscopy_preset}')
+        for k, v in parameter_map.items():
+            print(f'{k}: {v}')
+        print('====================================')
 
     # Crop the input images to their joint bounding box (saves memory and speeds up processing below)
     print('Cropping data ...')
@@ -1081,7 +1155,58 @@ def affine_to_c(parameters):
 
 
 def rigid_to_c(parameters):
-    raise NotImplementedError
+    parameters = np.array(parameters, dtype=float)
+
+    # Determine dimension
+    if len(parameters) == 3:
+        ndim = 2
+        angle = parameters[0]
+        tx, ty = parameters[1], parameters[2]
+
+        # Build rotation matrix
+        R = np.array([
+            [np.cos(angle), -np.sin(angle)],
+            [np.sin(angle),  np.cos(angle)]
+        ])
+        t = np.array([tx, ty])
+
+    elif len(parameters) == 6:
+        ndim = 3
+        rx, ry, rz = parameters[:3]
+        tx, ty, tz = parameters[3:]
+
+        # Rotation matrix from Rodrigues formula
+        theta = np.linalg.norm([rx, ry, rz])
+        if theta < 1e-12:
+            R = np.eye(3)
+        else:
+            k = np.array([rx, ry, rz]) / theta
+            K = np.array([
+                [0, -k[2], k[1]],
+                [k[2], 0, -k[0]],
+                [-k[1], k[0], 0]
+            ])
+            R = np.eye(3) + np.sin(theta)*K + (1-np.cos(theta))*K@K
+
+        t = np.array([tx, ty, tz])
+
+    else:
+        raise ValueError("Invalid rigid parameter length")
+
+    # Build affine-like flattened parameters (matrix then translation)
+    param = np.concatenate([R.flatten(order='C'), t])
+
+    # Apply the SAME reordering as affine_to_c()
+    pr = np.zeros_like(param)
+    pr[:ndim**2] = param[:ndim**2][::-1]
+    pr[ndim**2:] = param[ndim**2:][::-1]
+
+    # Reshape back into final affine vector, like affine_to_c()
+    R_c = np.reshape(pr[:ndim**2], (ndim, ndim), order='C')
+    T_c = pr[ndim**2:]
+
+    full = np.concatenate([R_c, T_c[:, None]], axis=1)
+    return full.flatten()
 
 
 def similarity_to_c(parameters):
@@ -1094,7 +1219,7 @@ def elastix_to_c(transform, parameters):
         func = translation_to_c
     if transform in ['affine', 'AffineTransform']:
         func = affine_to_c
-    if transform == 'rigid':
+    if transform in ['rigid', 'EulerTransform']:
         func = rigid_to_c
     if transform == 'SimilarityTransform':
         func = similarity_to_c
