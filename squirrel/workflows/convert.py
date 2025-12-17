@@ -1,5 +1,6 @@
 import os
 
+import squirrel.library.io
 from squirrel.library.io import make_directory, load_h5_container, write_tif_stack
 from squirrel.library.io import get_file_list, read_tif_slice, write_tif_slice
 
@@ -362,20 +363,22 @@ def _relabel_and_write_subvolume(
             return
 
     start_idx = z_range[0]
-    map_func = np.vectorize(mapping.get)
+    map_func = np.vectorize(mapping.get) if mapping is not None else None
 
     relabeled = np.zeros((z_range[1] - z_range[0], data_h.shape[1], data_h.shape[2]), dtype=target_dtype)
-
+    # print(f'type(data_h) = {type(data_h)}')
     for idy in range(0, data_h.shape[1], data_h.chunks[1]):
         for idx in range(0, data_h.shape[2], data_h.chunks[2]):
             print(f'writing chunk idx, idy, idz: {idx}, {idy}, {z_range[0]}')
-            try:
+            if type(data_h) != squirrel.library.io.TiffStack:
                 data = data_h[
                        z_range[0]: z_range[1],
                        idy: idy + data_h.chunks[1],
                        idx: idx + data_h.chunks[2],
                 ]
-            except TypeError:
+            else:
+                # print(f'idx = {idx}; idy = {idy}')
+                # print(f'data_h.chunks = {data_h.chunks}')
                 # For tiff slices it has to be done like this
                 data = data_h[
                     z_range[0]: z_range[1]
@@ -384,9 +387,12 @@ def _relabel_and_write_subvolume(
                     idx: idx + data_h.chunks[2],
                 ]
 
-            # data = data_h[z_range[0]: z_range[1]]
-            this_relabeled = map_func(data).astype(target_dtype)
-            # print(np.unique(this_relabeled))
+            if map_func is not None:
+                # data = data_h[z_range[0]: z_range[1]]
+                this_relabeled = map_func(data).astype(target_dtype)
+                # print(np.unique(this_relabeled))
+            else:
+                this_relabeled = data.astype(target_dtype)
             relabeled[:, idy: idy + data_h.chunks[1], idx: idx + data_h.chunks[2]] = this_relabeled
 
     from squirrel.library.io import write_tif_stack

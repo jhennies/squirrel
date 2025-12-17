@@ -636,6 +636,10 @@ def apply_multi_step_stack_alignment():
                         help='Pre-define a stack shape for the output stack; default=None')
     parser.add_argument('--z_range', type=int, nargs=2, default=None,
                         help='Use certain slices of the stack only; Defaults to the entire stack')
+    parser.add_argument('--resample_interpolator', type=str, default=None,
+                        help='Select the interpolator; Default = None; Examples:\n'
+                             '  "none": evaluates to None -> Default\n'
+                             '  "nearest" / "FinalNearestNeighborInterpolator": nearest interpolation')
     parser.add_argument('--n_workers', type=int, default=1,
                         help='The number of cores to use for processing')
     parser.add_argument('-v', '--verbose', action='store_true')
@@ -649,6 +653,7 @@ def apply_multi_step_stack_alignment():
     auto_pad = args.auto_pad
     target_image_shape = args.target_image_shape
     z_range = args.z_range
+    resample_interpolator = args.resample_interpolator
     n_workers = args.n_workers
     verbose = args.verbose
 
@@ -664,6 +669,7 @@ def apply_multi_step_stack_alignment():
         target_image_shape=target_image_shape,
         z_range=z_range,
         write_result=True,
+        resample_interpolator=resample_interpolator,
         n_workers=n_workers,
         verbose=verbose
     )

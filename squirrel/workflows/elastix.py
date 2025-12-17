@@ -714,6 +714,7 @@ def apply_multi_step_stack_alignment_workflow(
         target_image_shape=None,
         z_range=None,
         start_transform_id=0,
+        resample_interpolator=None,
         n_workers=1,
         quiet=False,
         write_result=False,
@@ -762,6 +763,7 @@ def apply_multi_step_stack_alignment_workflow(
         z_range=z_range,
         key=key,
         pattern=pattern,
+        resample_interpolator=resample_interpolator,
         n_workers=n_workers,
         quiet=quiet,
         verbose=verbose

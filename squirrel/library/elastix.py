@@ -100,6 +100,7 @@ def apply_transforms_on_image_stack_slice(
         n_workers=os.cpu_count(),
         key=None,
         pattern=None,
+        resample_interpolator=None,
         quiet=False,
         verbose=False
 ):
@@ -112,6 +113,10 @@ def apply_transforms_on_image_stack_slice(
         import SimpleITK as sitk
         for idx, transform in enumerate(transforms):
             transforms[idx] = sitk.ReadParameterFile(transform)
+
+    if resample_interpolator is not None:
+        for idx in range(len(transforms)):
+            transforms[idx]['ResampleInterpolator'] = [resample_interpolator]
 
     target_image_shape = image_stack_h[0].shape if target_image_shape is None else target_image_shape
     if not quiet or verbose:
@@ -1276,6 +1281,8 @@ class ElastixStack:
             self._stack = [
                 x.to_elastix_affine(return_parameter_map=True, shape=image_shape) for x in stack
             ]
+            return
+        raise ValueError(f'Invalid transform stack type: {type(stack)}')
 
     def set_from_dir(self, dirpath, pattern):
         from SimpleITK import ReadParameterFile
@@ -1401,10 +1408,14 @@ class ElastixMultiStepStack:
             z_range=None,
             key=None,       # Only needed for multiprocessing
             pattern=None,   # Only needed for multiprocessing
+            resample_interpolator=None,  # If None, the default or the one in the parameter files is used; e.g. "FinalNearestNeighborInterpolator"
             n_workers=1,
             quiet=False,
             verbose=False
     ):
+        if resample_interpolator == 'nearest':
+            resample_interpolator = 'FinalNearestNeighborInterpolator'
+
         from squirrel.library.data import norm_z_range
         from squirrel.library.io import load_data_handle
         if type(image_stack_h) == str:
@@ -1416,7 +1427,7 @@ class ElastixMultiStepStack:
             dtype = image_stack_h.dtype
         result_volume = []
         max_val = np.iinfo(dtype).max
-        assert dtype == 'uint8' or dtype == 'uint16'
+        assert dtype == 'uint8' or dtype == 'uint16' or dtype == 'uint32'
 
         if verbose:
             print(f'target_image_shape = {target_image_shape}')
@@ -1433,6 +1444,7 @@ class ElastixMultiStepStack:
                     n_slices=z_range[1],
                     key=key,
                     pattern=pattern,
+                    resample_interpolator=resample_interpolator,
                     n_workers=1,
                     quiet=quiet,
                     verbose=verbose
@@ -1454,6 +1466,7 @@ class ElastixMultiStepStack:
                             n_slices=z_range[1],
                             key=key,
                             pattern=pattern,
+                            resample_interpolator=resample_interpolator,
                             n_workers=1,
                             quiet=quiet,
                             verbose=verbose
@@ -1533,20 +1546,32 @@ if __name__ == '__main__':
     #     debug_dir='/media/julian/Data/tmp/init_elx_align/'
     # )
 
-    from tifffile import imread, imwrite
-    # moving_img = imread('/media/julian/Data/projects/hennies/amst_devel/amst2-test-auto-init/tiffs/slice_01927_z=19.4090um.tif')
-    # fixed_img = imread('/media/julian/Data/projects/hennies/amst_devel/amst2-test-auto-init/tiffs/slice_01926_z=19.3991um.tif')
-    # moving_img = imread('/media/julian/Data/projects/hennies/amst_devel/amst2-hela-join-parts/tiffs/slice_01786.tif')
-    # fixed_img = imread('/media/julian/Data/projects/hennies/amst_devel/amst2-hela-join-parts/tiffs/slice_01787.tif')
+    # from tifffile import imread, imwrite
+    # # moving_img = imread('/media/julian/Data/projects/hennies/amst_devel/amst2-test-auto-init/tiffs/slice_01927_z=19.4090um.tif')
+    # # fixed_img = imread('/media/julian/Data/projects/hennies/amst_devel/amst2-test-auto-init/tiffs/slice_01926_z=19.3991um.tif')
+    # # moving_img = imread('/media/julian/Data/projects/hennies/amst_devel/amst2-hela-join-parts/tiffs/slice_01786.tif')
+    # # fixed_img = imread('/media/julian/Data/projects/hennies/amst_devel/amst2-hela-join-parts/tiffs/slice_01787.tif')
+    #
+    # fixed_img = imread('/media/julian/Data/courses/2025_embo_volume_sem/hela_sl200_455_uint8_cropped_to_data_g4_binz4xy8/slice_00449.tif')
+    # moving_img = imread('/media/julian/Data/courses/2025_embo_volume_sem/hela_sl200_455_uint8_cropped_to_data_g4_binz4xy8/slice_00450.tif')
+    #
+    # register_with_elastix(
+    #     fixed_img,
+    #     moving_img,
+    #     transform='translation',
+    #     initialize_offsets_method='init_elx',
+    #     initialize_offsets_kwargs=dict(binning=4, spacing=64),
+    #     debug_dirpath='/media/julian/Data/courses/2025_embo_volume_sem/tmp/debug'
+    # )
 
-    fixed_img = imread('/media/julian/Data/courses/2025_embo_volume_sem/hela_sl200_455_uint8_cropped_to_data_g4_binz4xy8/slice_00449.tif')
-    moving_img = imread('/media/julian/Data/courses/2025_embo_volume_sem/hela_sl200_455_uint8_cropped_to_data_g4_binz4xy8/slice_00450.tif')
+    from squirrel.library.io import load_data_handle
+    from squirrel.library.affine_matrices import AffineStack
+    stack_fp = '/media/julian/Data/projects/hennies/amst_devel/amst2-test-example/amst-full/pre-align/nsbs-pre-align.json'
+    img_stack_fp = '/media/julian/Data/projects/hennies/amst_devel/amst2-test-example/tiffs-segmentation-uint32/'
+    img_stack, shp = load_data_handle(img_stack_fp)
+    stack1 = AffineStack(filepath=stack_fp)
+    stack2 = '/media/julian/Data/projects/hennies/amst_devel/amst2-test-example/amst-full/amst/amst/amst.meta/amst/'
+    stack2 = ElastixStack(dirpath=stack2, image_shape=shp)
+    emss = ElastixMultiStepStack(stacks=[stack1, stack2], image_shape=shp[1:])
 
-    register_with_elastix(
-        fixed_img,
-        moving_img,
-        transform='translation',
-        initialize_offsets_method='init_elx',
-        initialize_offsets_kwargs=dict(binning=4, spacing=64),
-        debug_dirpath='/media/julian/Data/courses/2025_embo_volume_sem/tmp/debug'
-    )
+    emss.apply_on_image_stack(img_stack, shp, resample_interpolator='nearest')
