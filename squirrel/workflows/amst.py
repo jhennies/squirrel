@@ -8,43 +8,54 @@ def get_default_parameters(transform):
     from SimpleITK import ParameterMap
     ParameterMap()
     from SimpleITK import GetDefaultParameterMap
-    # parameter_map = GetDefaultParameterMap(
-    #     'affine', numberOfResolutions=2, finalGridSpacingInPhysicalUnits=8.0
-    # )
-    # parameter_map['AutomaticParameterEstimation'] = ('true',)
-    # parameter_map['Interpolator'] = ('BSplineInterpolator',)
-    # parameter_map['FixedImagePyramid'] = ('FixedRecursiveImagePyramid',)
-    # parameter_map['MovingImagePyramid'] = ('MovingRecursiveImagePyramid',)
-    # parameter_map['AutomaticScalesEstimation'] = ('true',)
-    # # parameter_map['ImagePyramidSchedule'] = ('8', '8', '3', '3', '1', '1')
-    # parameter_map['MaximumNumberOfIterations'] = ('1024',)
-    # # parameter_map['MaximumStepLength'] = ('4', '2', '1')
-    # parameter_map['ImageSampler'] = ('RandomCoordinate',)
-    # parameter_map['ErodeMask'] = ('true',)
-    # parameter_map['NumberOfSpatialSamples'] = ('1024',)
-    # parameter_map['NumberOfHistogramBins'] = ('48',)
-    # parameter_map['BSplineInterpolationOrder'] = ('3',)
-    # # parameter_map['ResampleInterpolator'] = ('FinalBSplineInterpolator',)
-    # parameter_map['NumberOfSamplesForExactGradient'] = ('1024',)
     if transform == 'affine':
-        parameter_map = GetDefaultParameterMap(
-            transform, numberOfResolutions=4, finalGridSpacingInPhysicalUnits=8.0
-        )
-        parameter_map['AutomaticParameterEstimation'] = ('true',)
-        parameter_map['Interpolator'] = ('BSplineInterpolator',)
-        parameter_map['ResampleInterpolator'] = ('FinalBSplineInterpolator',)
-        parameter_map['FixedImagePyramid'] = ('FixedRecursiveImagePyramid',)
-        parameter_map['MovingImagePyramid'] = ('MovingRecursiveImagePyramid',)
-        parameter_map['AutomaticScalesEstimation'] = ('false',)
-        # # parameter_map['ImagePyramidSchedule'] = ('8', '8', '3', '3', '1', '1')
-        parameter_map['MaximumNumberOfIterations'] = ('256',)
-        # # parameter_map['MaximumStepLength'] = ('4', '2', '1')
-        # parameter_map['ImageSampler'] = ('RandomCoordinate',)
-        parameter_map['ErodeMask'] = ('true',)
-        # parameter_map['NumberOfSpatialSamples'] = ('2048',)
-        parameter_map['NumberOfHistogramBins'] = ('32',)
-        parameter_map['BSplineInterpolationOrder'] = ('1',)
-        # parameter_map['NumberOfSamplesForExactGradient'] = ('1024',)
+        # parameter_map = GetDefaultParameterMap(
+        #     transform, numberOfResolutions=4, finalGridSpacingInPhysicalUnits=8.0
+        # )
+        # parameter_map['AutomaticParameterEstimation'] = ('true',)
+        # parameter_map['Interpolator'] = ('BSplineInterpolator',)
+        # parameter_map['ResampleInterpolator'] = ('FinalBSplineInterpolator',)
+        # parameter_map['FixedImagePyramid'] = ('FixedRecursiveImagePyramid',)
+        # parameter_map['MovingImagePyramid'] = ('MovingRecursiveImagePyramid',)
+        # parameter_map['AutomaticScalesEstimation'] = ('false',)
+        # # # parameter_map['ImagePyramidSchedule'] = ('8', '8', '3', '3', '1', '1')
+        # parameter_map['MaximumNumberOfIterations'] = ('1024',)
+        # # # parameter_map['MaximumStepLength'] = ('4', '2', '1')
+        # # parameter_map['ImageSampler'] = ('RandomCoordinate',)
+        # parameter_map['ErodeMask'] = ('true',)
+        # # parameter_map['NumberOfSpatialSamples'] = ('2048',)
+        # parameter_map['NumberOfHistogramBins'] = ('32',)
+        # parameter_map['BSplineInterpolationOrder'] = ('1',)
+        # # parameter_map['NumberOfSamplesForExactGradient'] = ('1024',)
+        parameter_map = GetDefaultParameterMap('affine')
+        parameter_map['AutomaticParameterEstimation'] = ["true"]
+        parameter_map['CheckNumberOfSamples'] = ["true"]
+        parameter_map['DefaultPixelValue'] = ["0.000000"]
+        parameter_map['FinalBSplineInterpolationOrder'] = ["3.000000"]
+        parameter_map['FixedImagePyramid'] = ["FixedRecursiveImagePyramid"]
+        parameter_map['ImageSampler'] = ["RandomCoordinate"]
+        parameter_map['Interpolator'] = ["BSplineInterpolator"]
+        parameter_map['MaximumNumberOfIterations'] = ["1024"]
+        parameter_map['MaximumNumberOfSamplingAttempts'] = ["8.000000"]
+        parameter_map['MaximumStepLength'] = ["0.5"]
+        parameter_map['Metric'] = ["AdvancedMattesMutualInformation"]
+        parameter_map['MovingImagePyramid'] = ["MovingRecursiveImagePyramid"]
+        parameter_map['NewSamplesEveryIteration'] = ["true"]
+        parameter_map['NumberOfResolutions'] = ["4.000000"]
+        parameter_map['NumberOfSamplesForExactGradient'] = ["4096"]
+        parameter_map['NumberOfSpatialSamples'] = ["2048"]
+        parameter_map['Optimizer'] = ["AdaptiveStochasticGradientDescent"]
+        parameter_map['Registration'] = ["MultiResolutionRegistration"]
+        parameter_map['ResampleInterpolator'] = ["FinalBSplineInterpolator"]
+        parameter_map['Resampler'] = ["DefaultResampler"]
+        parameter_map['ResultImageFormat'] = ["nii"]
+        parameter_map['Transform'] = ["AffineTransform"]
+        parameter_map['WriteIterationInfo'] = ["false"]
+        parameter_map['WriteResultImage'] = ["false"]
+        parameter_map['ErodeMask'] = ["true"]
+        parameter_map['NumberOfHistogramBins'] = ["32"]
+        parameter_map['AutomaticScalesEstimation'] = ["false"]
+
         return parameter_map
     if transform == 'bspline':
         parameter_map = GetDefaultParameterMap('bspline')
