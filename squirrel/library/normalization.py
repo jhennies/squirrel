@@ -139,12 +139,27 @@ def clahe_on_image(
         cast_dtype=None,
         invert_output=False,
         gaussian_sigma=0.0,
+        auto_mask=False,
+        background_to_mean=False
 ):
     from cv2 import createCLAHE
     clahe = createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
 
-    clahe_filtered = clahe.apply(image)
+    mask = None
+    if auto_mask:
+        mask = image > 0
+    if background_to_mean:
+        tmp_image = image.copy()
+        tmp_image[~mask] = np.mean(image[mask])
+    else:
+        # Only make a shallow copy in this case
+        tmp_image = image
+
+    clahe_filtered = clahe.apply(tmp_image)
     dtype_in = clahe_filtered.dtype
+
+    if auto_mask:
+        clahe_filtered[~mask] = 0
 
     if gaussian_sigma > 0.0:
         from vigra.filters import gaussianSmoothing
@@ -169,6 +184,8 @@ def clahe_on_slices(
         cast_dtype=None,
         invert_output=False,
         gaussian_sigma=0.0,
+        auto_mask=False,
+        background_to_mean=False,
         z_range=None,
         n_workers=1
 ):
@@ -185,7 +202,7 @@ def clahe_on_slices(
             result_stack.append(
                 clahe_on_image(
                     img, clip_limit, tile_grid_size,
-                    cast_dtype, invert_output, gaussian_sigma
+                    cast_dtype, invert_output, gaussian_sigma, auto_mask, background_to_mean
                 )
             )
 
@@ -201,7 +218,7 @@ def clahe_on_slices(
                     p.apply_async(
                         clahe_on_image, (
                             img, clip_limit, tile_grid_size,
-                            cast_dtype, invert_output, gaussian_sigma
+                            cast_dtype, invert_output, gaussian_sigma, auto_mask, background_to_mean
                         )
                     )
                 )

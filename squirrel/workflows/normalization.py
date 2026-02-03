@@ -96,6 +96,8 @@ def clahe_on_slices_workflow(
         cast_dtype=None,
         invert_output=False,
         gaussian_sigma=0.0,
+        auto_mask=False,
+        background_to_mean=False,
         batch_size=None,
         n_workers=1,
         verbose=False
@@ -129,6 +131,8 @@ def clahe_on_slices_workflow(
             cast_dtype=cast_dtype,
             invert_output=invert_output,
             gaussian_sigma=gaussian_sigma,
+            auto_mask=auto_mask,
+            background_to_mean=background_to_mean,
             z_range=z_range,
             n_workers=n_workers
         )
@@ -147,6 +151,8 @@ def clahe_on_slices_workflow(
             cast_dtype=cast_dtype,
             invert_output=invert_output,
             gaussian_sigma=gaussian_sigma,
+            auto_mask=auto_mask,
+            background_to_mean=background_to_mean,
             z_range=[zidx, zidx + batch_size],
             n_workers=n_workers
         )
