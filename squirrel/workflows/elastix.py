@@ -545,6 +545,7 @@ def stack_alignment_validation_workflow(
         out_name=None,
         y_max=None,
         method='elastix',
+        method_kwargs=None,
         gaussian_sigma=1.0,
         subtract_average=False,
         verbose=False
@@ -557,6 +558,12 @@ def stack_alignment_validation_workflow(
         print(f'key = {key}')
         print(f'pattern = {pattern}')
         print(f'resolution_yx = {resolution_yx}')
+        print(f'out_name = {out_name}')
+        print(f'y_max = {y_max}')
+        print(f'method = {method}')
+        print(f'method_kwargs = {method_kwargs}')
+        print(f'gaussian_sigma = {gaussian_sigma}')
+        print(f'subtract_average = {subtract_average}')
 
     from squirrel.library.io import load_data_handle
     from squirrel.library.elastix import register_with_elastix
@@ -564,7 +571,6 @@ def stack_alignment_validation_workflow(
     from squirrel.library.transformation import apply_stack_alignment
     from matplotlib import pyplot as plt
     from h5py import File
-    from vigra.filters import gaussianSmoothing
 
     if not os.path.exists(out_dirpath):
         os.mkdir(out_dirpath)
@@ -624,6 +630,8 @@ def stack_alignment_validation_workflow(
                 z_slice_moving = roi_data[idx + 1]
 
                 if method == 'elastix':
+                    if method_kwargs is None:
+                        method_kwargs = dict()
 
                     result_matrix, _ = register_with_elastix(
                         z_slice_fixed,
@@ -631,12 +639,10 @@ def stack_alignment_validation_workflow(
                         transform='translation',
                         automatic_transform_initialization=False,
                         auto_mask=None,
-                        # number_of_spatial_samples=256,
-                        # maximum_number_of_iterations=256,
-                        # number_of_resolutions=1,
                         return_result_image=True,
                         params_to_origin=True,
                         gaussian_sigma=2.0,
+                        parameter_map=method_kwargs['parameter_map'],
                         verbose=False  # This produces a ton of output and I don't think I need it here
                     )
 
