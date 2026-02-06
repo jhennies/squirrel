@@ -28,6 +28,7 @@ def get_default_parameters(transform):
         # parameter_map['BSplineInterpolationOrder'] = ('1',)
         # # parameter_map['NumberOfSamplesForExactGradient'] = ('1024',)
         parameter_map = GetDefaultParameterMap('affine')
+        parameter_map['AutomaticTransformInitialization'] = ["false"]
         parameter_map['AutomaticParameterEstimation'] = ["true"]
         parameter_map['CheckNumberOfSamples'] = ["true"]
         parameter_map['DefaultPixelValue'] = ["0.000000"]
@@ -59,7 +60,7 @@ def get_default_parameters(transform):
         return parameter_map
     if transform == 'bspline':
         parameter_map = GetDefaultParameterMap('bspline')
-
+        parameter_map['AutomaticTransformInitialization'] = ["false"]
         parameter_map['AutomaticParameterEstimation'] = ["true"]
         parameter_map['CheckNumberOfSamples'] = ["true"]
         parameter_map['DefaultPixelValue'] = ["0.000000"]
