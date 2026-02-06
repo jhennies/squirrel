@@ -7,9 +7,8 @@ def column_separated_inputs_to_dict(inputs):
     if type(inputs) == list:
         out_dict = dict()
         for inp in inputs:
-            key, values = str.split(inp, ':')
-            values = str.split(values, ',')
-            out_dict[key] = values
+            key, value = str.split(inp, ':')
+            out_dict[key] = value
 
         return out_dict
 
