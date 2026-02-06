@@ -630,8 +630,6 @@ def stack_alignment_validation_workflow(
                 z_slice_moving = roi_data[idx + 1]
 
                 if method == 'elastix':
-                    if method_kwargs is None:
-                        method_kwargs = dict()
 
                     result_matrix, _ = register_with_elastix(
                         z_slice_fixed,
@@ -642,7 +640,8 @@ def stack_alignment_validation_workflow(
                         return_result_image=True,
                         params_to_origin=True,
                         gaussian_sigma=2.0,
-                        parameter_map=method_kwargs['parameter_map'],
+                        parameter_map=None if 'parameter_map' not in method_kwargs else method_kwargs['parameter_map'],
+                        n_workers=os.cpu_count() if 'n_workers' not in method_kwargs else method_kwargs['n_workers'],
                         verbose=False  # This produces a ton of output and I don't think I need it here
                     )
 
