@@ -140,6 +140,7 @@ def amst_workflow(
         z_smooth_method='median',
         z_range=None,
         gaussian_sigma=0.,
+        use_clahe=False,
         elastix_parameters=None,
         crop_to_bounds_off=False,
         n_workers=os.cpu_count(),
@@ -221,6 +222,7 @@ def amst_workflow(
         parameter_map=elastix_parameters,
         median_radius=pre_smooth_median_radius,
         gaussian_sigma=gaussian_sigma,
+        use_clahe=use_clahe,
         crop_to_bounds_off=crop_to_bounds_off,
         normalize_images=False,  # Do not normalize since the images come from the same source
         n_workers=n_workers,

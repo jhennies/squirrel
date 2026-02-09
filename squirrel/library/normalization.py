@@ -140,8 +140,12 @@ def clahe_on_image(
         invert_output=False,
         gaussian_sigma=0.0,
         auto_mask=False,
-        background_to_mean=False
+        background_to_mean=False,
+        tile_grid_in_pixels=False
 ):
+    if tile_grid_in_pixels:
+        tile_grid_size = np.array(image.shape) / np.array(tile_grid_size)
+
     from cv2 import createCLAHE
     clahe = createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
 

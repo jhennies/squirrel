@@ -800,7 +800,7 @@ def register_with_elastix(
 
         if use_clahe:
             from squirrel.library.normalization import clahe_on_image
-            img = clahe_on_image(img)
+            img = clahe_on_image(img, tile_grid_size=(127, 127), tile_grid_in_pixels=True)
         if median_radius > 0:
             from skimage.filters import median
             from skimage.morphology import disk
@@ -998,6 +998,7 @@ def slice_wise_stack_to_stack_alignment(
         auto_mask='non-zero',
         median_radius=0,
         gaussian_sigma=0.,
+        use_clahe=False,
         number_of_spatial_samples=None,
         maximum_number_of_iterations=None,
         number_of_resolutions=None,
@@ -1042,6 +1043,7 @@ def slice_wise_stack_to_stack_alignment(
                 parameter_map=parameter_map,
                 median_radius=median_radius,
                 gaussian_sigma=gaussian_sigma,
+                use_clahe=use_clahe,
                 crop_to_bounds_off=crop_to_bounds_off,
                 normalize_images=normalize_images,
                 n_workers=1,
