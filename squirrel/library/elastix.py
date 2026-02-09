@@ -1101,6 +1101,7 @@ def slice_wise_stack_to_stack_alignment(
                         parameter_map=parameter_map_filepath,
                         median_radius=median_radius,
                         gaussian_sigma=gaussian_sigma,
+                        use_clahe=use_clahe,
                         crop_to_bounds_off=crop_to_bounds_off,
                         normalize_images=normalize_images,
                         result_to_disk=results_filepath if type(result_transforms) == ElastixStack else '',
