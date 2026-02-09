@@ -547,6 +547,7 @@ def stack_alignment_validation_workflow(
         method='elastix',
         method_kwargs=None,
         gaussian_sigma=1.0,
+        use_clahe=False,
         subtract_average=False,
         verbose=False
 ):
@@ -640,6 +641,7 @@ def stack_alignment_validation_workflow(
                         return_result_image=True,
                         params_to_origin=True,
                         gaussian_sigma=2.0,
+                        use_clahe=use_clahe,
                         parameter_map=None if 'parameter_map' not in method_kwargs else method_kwargs['parameter_map'],
                         n_workers=os.cpu_count() if 'n_workers' not in method_kwargs else method_kwargs['n_workers'],
                         verbose=False  # This produces a ton of output and I don't think I need it here
