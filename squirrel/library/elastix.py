@@ -800,7 +800,7 @@ def register_with_elastix(
 
         if use_clahe:
             from squirrel.library.normalization import clahe_on_image
-            img = clahe_on_image(img, tile_grid_size=(127, 127), tile_grid_in_pixels=True)
+            img = clahe_on_image(img, tile_grid_size=(127, 127), tile_grid_in_pixels=True, auto_mask=auto_mask)
         if median_radius > 0:
             from skimage.filters import median
             from skimage.morphology import disk
