@@ -603,6 +603,8 @@ def stack_alignment_validation_workflow(
     if method == 'xcorr':
         from squirrel.library.xcorr import xcorr
     #     from skimage.registration import phase_cross_correlation
+    if method == 'xcorr_limited':
+        from squirrel.library.xcorr import xcorr_limited
     if method == 'sift':
         from squirrel.library.sift2d import register_with_sift2 as register_with_sift
 
@@ -659,6 +661,11 @@ def stack_alignment_validation_workflow(
                     print(f'diffphase = {diffphase}')
                     result_matrix = -AffineMatrix(parameters=[1, 0, float(shift[0]), 0, 1, float(shift[1])])
 
+                elif method == 'xcorr_limited':
+                    shift, _ = xcorr_limited(
+                        z_slice_fixed, z_slice_moving, sigma=gaussian_sigma, max_shift=10, upsample_factor=100
+                    )
+                    result_matrix = -AffineMatrix(parameters=[1, 0, float(shift[0]), 0, 1, float(shift[1])])
                 elif method == 'sift':
                     result_matrix = AffineMatrix(parameters=register_with_sift(
                         z_slice_fixed, z_slice_moving  # , transform='translation'
