@@ -685,7 +685,7 @@ def stack_alignment_validation_workflow(
                 # result_volume.append(result_image)
 
             if subtract_average:
-                transforms = transforms * -transforms.get_smoothed_stack(8)
+                transforms = transforms * -transforms.get_median_smoothed_stack(8)
 
             result_volume = apply_stack_alignment(
                 roi_data,

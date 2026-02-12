@@ -245,6 +245,19 @@ class AffineStack:
         dtype = self[0].get_dtype()
         return self.new_stack_with_same_meta(gaussian_filter1d(self['C', :].astype('float64'), sigma, axis=0).astype(dtype))
 
+    def get_median_smoothed_stack(self, radius):
+        from scipy.ndimage import median_filter
+
+        dtype = self[0].get_dtype()
+
+        smoothed = median_filter(
+            self['C', :].astype('float64'),
+            size=2 * radius + 1,
+            mode='nearest'
+        )
+
+        return self.new_stack_with_same_meta(smoothed.astype(dtype))
+
     def get_sequenced_stack(self):
 
         assert not self.is_sequenced, 'A sequenced stack cannot be sequenced again!'
