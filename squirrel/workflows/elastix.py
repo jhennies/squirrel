@@ -663,7 +663,12 @@ def stack_alignment_validation_workflow(
 
                 elif method == 'xcorr_limited':
                     shift, _ = xcorr_limited(
-                        z_slice_fixed, z_slice_moving, sigma=gaussian_sigma, max_shift=10, upsample_factor=100
+                        z_slice_fixed,
+                        z_slice_moving,
+                        sigma=gaussian_sigma,
+                        max_shift=10,
+                        upsample_factor=100,
+                        use_clahe=use_clahe
                     )
                     result_matrix = -AffineMatrix(parameters=[1, 0, float(shift[0]), 0, 1, float(shift[1])])
                 elif method == 'sift':

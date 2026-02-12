@@ -15,9 +15,14 @@ def xcorr(fixed, moving, sigma=1.0):
     )
 
 
-def xcorr_limited(fixed, moving, sigma=1.0,
-                           max_shift=10,
-                           upsample_factor=100):
+def xcorr_limited(
+        fixed,
+        moving,
+        sigma=1.0,
+        max_shift=10,
+        upsample_factor=100,
+        use_clahe=False
+):
     """
     Phase cross-correlation with:
         - Gaussian smoothing
@@ -34,16 +39,20 @@ def xcorr_limited(fixed, moving, sigma=1.0,
     from vigra.filters import gaussianSmoothing
     from skimage.registration._phase_cross_correlation import _upsampled_dft
 
-    # --- smoothing ---
-    fixed_ = gaussianSmoothing(fixed.astype(np.float32), sigma)
-    moving_ = gaussianSmoothing(moving.astype(np.float32), sigma)
+    # --- pre-processing ---
+    if use_clahe:
+        from squirrel.library.normalization import clahe_on_image
+        fixed = clahe_on_image(fixed, tile_grid_size=(127, 127), tile_grid_in_pixels=True)
+        moving = clahe_on_image(moving, tile_grid_size=(127, 127), tile_grid_in_pixels=True)
+    fixed = gaussianSmoothing(fixed.astype(np.float32), sigma)
+    moving = gaussianSmoothing(moving.astype(np.float32), sigma)
 
-    shape = fixed_.shape
+    shape = fixed.shape
     center = np.array(shape) // 2
 
     # --- Fourier transforms ---
-    F = fftn(fixed_)
-    M = fftn(moving_)
+    F = fftn(fixed)
+    M = fftn(moving)
 
     R = F * M.conj()
     R /= np.maximum(np.abs(R), 1e-12)  # phase-only normalization
