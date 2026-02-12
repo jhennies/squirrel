@@ -640,7 +640,7 @@ def stack_alignment_validation_workflow(
                         auto_mask=None,
                         return_result_image=True,
                         params_to_origin=True,
-                        gaussian_sigma=2.0,
+                        gaussian_sigma=gaussian_sigma,
                         use_clahe=use_clahe,
                         parameter_map=None if 'parameter_map' not in method_kwargs else method_kwargs['parameter_map'],
                         n_workers=os.cpu_count() if 'n_workers' not in method_kwargs else method_kwargs['n_workers'],
