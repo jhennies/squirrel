@@ -2,13 +2,23 @@
 import numpy as np
 
 
-def xcorr(fixed, moving, sigma=1.0):
+def xcorr(
+        fixed,
+        moving,
+        sigma=1.0,
+        use_clahe=False
+):
 
     from vigra.filters import gaussianSmoothing
     from skimage.registration import phase_cross_correlation
 
-    fixed_ = gaussianSmoothing(fixed.astype('float32'), sigma)
-    moving_ = gaussianSmoothing(moving.astype('float32'), sigma)
+    if use_clahe:
+        from squirrel.library.normalization import clahe_on_image
+        fixed_ = clahe_on_image(fixed, tile_grid_size=(127, 127), tile_grid_in_pixels=True)
+        moving_ = clahe_on_image(moving, tile_grid_size=(127, 127), tile_grid_in_pixels=True)
+
+    fixed_ = gaussianSmoothing(fixed_.astype('float32'), sigma)
+    moving_ = gaussianSmoothing(moving_.astype('float32'), sigma)
 
     return phase_cross_correlation(
         fixed_, moving_, upsample_factor=100, normalization=None
