@@ -250,9 +250,13 @@ class AffineStack:
 
         dtype = self[0].get_dtype()
 
+        # window size only along axis 0
+        size = [1] * self['C', :].ndim
+        size[0] = 2 * radius + 1
+
         smoothed = median_filter(
             self['C', :].astype('float64'),
-            size=2 * radius + 1,
+            size=size,
             mode='nearest'
         )
 
