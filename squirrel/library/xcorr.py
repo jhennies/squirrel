@@ -96,7 +96,7 @@ def xcorr_limited(
     # --- subpixel refinement (identical to skimage) ---
     if upsample_factor > 1:
         shifts = np.round(shifts * upsample_factor) / upsample_factor
-        upsampled_region_size = 1
+        upsampled_region_size = 3
         dftshift = np.fix(upsampled_region_size * upsample_factor / 2.0)
         sample_region_offset = dftshift - shifts * upsample_factor
 
