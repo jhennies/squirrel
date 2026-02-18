@@ -95,9 +95,12 @@ def xcorr_limited(
 
     # --- subpixel refinement (identical to skimage) ---
     if upsample_factor > 1:
+        # Initial shift estimate in upsampled grid
         shifts = np.round(shifts * upsample_factor) / upsample_factor
-        upsampled_region_size = 3
+
+        upsampled_region_size = 3  # MUST be >= 3
         dftshift = np.fix(upsampled_region_size * upsample_factor / 2.0)
+
         sample_region_offset = dftshift - shifts * upsample_factor
 
         cc_upsampled = _upsampled_dft(
