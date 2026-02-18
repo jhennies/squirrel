@@ -651,7 +651,10 @@ def stack_alignment_validation_workflow(
 
                 elif method == 'xcorr':
                     shift, error, diffphase = xcorr(
-                        z_slice_fixed, z_slice_moving, sigma=gaussian_sigma, use_clahe=use_clahe
+                        z_slice_fixed,
+                        z_slice_moving,
+                        sigma=gaussian_sigma,
+                        use_clahe=use_clahe if not use_clahe or 'use_clahe' not in method_kwargs else method_kwargs['use_clahe']
                     )
                     # shift, error, diffphase = phase_cross_correlation(
                     #     z_slice_fixed, z_slice_moving,
