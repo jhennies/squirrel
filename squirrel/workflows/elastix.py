@@ -668,7 +668,7 @@ def stack_alignment_validation_workflow(
                         sigma=gaussian_sigma,
                         max_shift=100 if 'max_shift' not in method_kwargs else method_kwargs['max_shift'],
                         upsample_factor=100,
-                        use_clahe=use_clahe
+                        use_clahe=use_clahe if not use_clahe or 'use_clahe' not in method_kwargs else method_kwargs['use_clahe']
                     )
                     result_matrix = -AffineMatrix(parameters=[1, 0, float(shift[0]), 0, 1, float(shift[1])])
                 elif method == 'sift':
