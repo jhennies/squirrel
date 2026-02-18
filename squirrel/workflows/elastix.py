@@ -666,7 +666,7 @@ def stack_alignment_validation_workflow(
                         z_slice_fixed,
                         z_slice_moving,
                         sigma=gaussian_sigma,
-                        max_shift=10,
+                        max_shift=100 if 'max_shift' not in method_kwargs else method_kwargs['max_shift'],
                         upsample_factor=100,
                         use_clahe=use_clahe
                     )

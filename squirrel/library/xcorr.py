@@ -39,78 +39,84 @@ def xcorr_limited(
         - Euclidean shift constraint
         - Subpixel refinement
 
-    Returns
-    -------
-    shift : tuple (row_shift, col_shift)  (subpixel accurate)
-    peak_value : float
+    Matches phase_cross_correlation(..., normalization=None)
+    when max_shift >= max(image_shape).
     """
 
-    from numpy.fft import fftn, ifftn, fftshift
+    import numpy as np
+    from numpy.fft import fftn, ifftn
     from vigra.filters import gaussianSmoothing
     from skimage.registration._phase_cross_correlation import _upsampled_dft
 
-    # --- pre-processing ---
+    # --- preprocessing ---
     if use_clahe:
         from squirrel.library.normalization import clahe_on_image
         fixed = clahe_on_image(fixed, tile_grid_size=(127, 127), tile_grid_in_pixels=True)
         moving = clahe_on_image(moving, tile_grid_size=(127, 127), tile_grid_in_pixels=True)
+
     fixed = gaussianSmoothing(fixed.astype(np.float32), sigma)
     moving = gaussianSmoothing(moving.astype(np.float32), sigma)
 
     shape = fixed.shape
-    center = np.array(shape) // 2
+    midpoints = np.array([np.fix(dim / 2) for dim in shape])
 
-    # --- Fourier transforms ---
+    # --- FFT ---
     F = fftn(fixed)
     M = fftn(moving)
 
+    # IMPORTANT: match normalization=None
     R = F * M.conj()
-    R /= np.maximum(np.abs(R), 1e-12)  # phase-only normalization
 
-    cc = np.real(ifftn(R))
-    cc = fftshift(cc)
+    cc = ifftn(R)
+    cc_abs = np.abs(cc)
 
-    # --- build radius mask ---
-    y, x = np.indices(shape)
-    dy = y - center[0]
-    dx = x - center[1]
-    dist = np.sqrt(dy**2 + dx**2)
+    # --- apply constraint only to integer search ---
+    if max_shift < max(shape):
+        # build wrapped coordinate grid like phase_cross_correlation
+        coords = np.indices(shape)
 
-    mask = dist <= max_shift
-    cc_masked = np.where(mask, cc, -np.inf)
+        for d in range(len(shape)):
+            coords[d] = np.where(coords[d] > midpoints[d],
+                                 coords[d] - shape[d],
+                                 coords[d])
 
-    # --- find best integer peak inside constraint ---
-    maxpos = np.unravel_index(np.argmax(cc_masked), shape)
-    integer_shift = np.array(maxpos) - center
+        dist = np.sqrt(np.sum(coords**2, axis=0))
+        mask = dist <= max_shift
 
-    # --- Subpixel refinement using upsampled DFT ---
-    # region around detected peak
-    upsample_region_size = 3  # small local region
+        cc_abs = np.where(mask, cc_abs, -np.inf)
 
-    # location in Fourier space
-    sample_region_offset = integer_shift * upsample_factor
+    # --- integer peak ---
+    maxima = np.unravel_index(np.argmax(cc_abs), shape)
+    maxima = np.array(maxima, dtype=np.float64)
 
-    cc_upsampled = _upsampled_dft(
-        R.conj(),
-        upsample_region_size,
-        upsample_factor,
-        sample_region_offset
-    )
+    # wrap shifts
+    shifts = maxima.copy()
+    shifts[shifts > midpoints] -= np.array(shape)[shifts > midpoints]
 
-    maxima = np.unravel_index(np.argmax(np.abs(cc_upsampled)),
-                              cc_upsampled.shape)
+    # --- subpixel refinement (identical to skimage) ---
+    if upsample_factor > 1:
+        shifts = np.round(shifts * upsample_factor) / upsample_factor
+        upsampled_region_size = 1
+        dftshift = np.fix(upsampled_region_size * upsample_factor / 2.0)
+        sample_region_offset = dftshift - shifts * upsample_factor
 
-    # subpixel correction
-    maxima = np.array(maxima) - upsample_region_size // 2
-    subpixel_shift = integer_shift + maxima / upsample_factor
+        cc_upsampled = _upsampled_dft(
+            R.conj(),
+            upsampled_region_size,
+            upsample_factor,
+            sample_region_offset,
+        )
 
-    # Final safety check (guarantee constraint)
-    if np.linalg.norm(subpixel_shift) > max_shift:
-        subpixel_shift = (
-            subpixel_shift / np.linalg.norm(subpixel_shift)
-        ) * max_shift
+        maxima = np.unravel_index(
+            np.argmax(np.abs(cc_upsampled)),
+            cc_upsampled.shape
+        )
+        maxima = np.array(maxima, dtype=np.float64)
 
-    return tuple(subpixel_shift), cc[maxpos]
+        maxima -= dftshift
+        shifts += maxima / upsample_factor
+
+    return tuple(shifts), np.max(cc_abs)
 
 
 if __name__ == "__main__":
