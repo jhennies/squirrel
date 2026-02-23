@@ -573,6 +573,9 @@ def stack_alignment_validation_workflow(
     from matplotlib import pyplot as plt
     from h5py import File
 
+    if method_kwargs is None:
+        method_kwargs = dict()
+
     if not os.path.exists(out_dirpath):
         os.mkdir(out_dirpath)
 
@@ -656,10 +659,6 @@ def stack_alignment_validation_workflow(
                         sigma=gaussian_sigma,
                         use_clahe=use_clahe if not use_clahe or 'use_clahe' not in method_kwargs else method_kwargs['use_clahe']
                     )
-                    # shift, error, diffphase = phase_cross_correlation(
-                    #     z_slice_fixed, z_slice_moving,
-                    #     upsample_factor=10
-                    # )
                     print(f'shift = {shift}')
                     print(f'diffphase = {diffphase}')
                     result_matrix = -AffineMatrix(parameters=[1, 0, float(shift[0]), 0, 1, float(shift[1])])

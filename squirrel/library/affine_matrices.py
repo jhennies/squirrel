@@ -240,10 +240,10 @@ class AffineStack:
     def copy(self):
         return self.new_stack_with_same_meta(self._stack.copy())
 
-    def get_smoothed_stack(self, sigma):
+    def get_smoothed_stack(self, sigma, mode='reflect'):
         from scipy.ndimage import gaussian_filter1d
         dtype = self[0].get_dtype()
-        return self.new_stack_with_same_meta(gaussian_filter1d(self['C', :].astype('float64'), sigma, axis=0).astype(dtype))
+        return self.new_stack_with_same_meta(gaussian_filter1d(self['C', :].astype('float64'), sigma, axis=0, mode=mode).astype(dtype))
 
     def get_median_smoothed_stack(self, radius):
         from scipy.ndimage import median_filter

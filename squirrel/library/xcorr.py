@@ -18,6 +18,9 @@ def xcorr(
         from squirrel.library.normalization import clahe_on_image
         fixed_ = clahe_on_image(fixed, tile_grid_size=(use_clahe, use_clahe), tile_grid_in_pixels=True)
         moving_ = clahe_on_image(moving, tile_grid_size=(use_clahe, use_clahe), tile_grid_in_pixels=True)
+    else:
+        fixed_ = fixed.copy()
+        moving_ = moving.copy()
 
     fixed_ = gaussianSmoothing(fixed_.astype('float32'), sigma)
     moving_ = gaussianSmoothing(moving_.astype('float32'), sigma)

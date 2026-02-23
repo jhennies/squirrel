@@ -121,6 +121,9 @@ def smooth_affine_sequence():
                              'Possible values: ["translation", "rotation", "shear", "scale"]\n'
                              'E.g., "--components translation rotation" smoothes translation and rotation while '
                              'leaving shearing and scaling as it is.')
+    parser.add_argument('--mode', type=str, default='reflect',
+                        help='The mode parameter determines how the input array is extended beyond its boundaries; '
+                             'default="reflect"; see scipy.ndimage.gaussian_filter1d documentation')
     parser.add_argument('-v', '--verbose', action='store_true')
 
     args = parser.parse_args()
@@ -128,6 +131,7 @@ def smooth_affine_sequence():
     out_filepath = args.out_filepath
     sigma = args.sigma
     components = args.components
+    mode = args.mode
     verbose = args.verbose
 
     from squirrel.workflows.transformation import smooth_affine_sequence_workflow
@@ -136,6 +140,7 @@ def smooth_affine_sequence():
         out_filepath,
         sigma,
         components=components,
+        mode=mode,
         verbose=verbose,
     )
 
