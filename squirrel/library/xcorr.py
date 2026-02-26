@@ -6,7 +6,8 @@ def xcorr(
         fixed,
         moving,
         sigma=1.0,
-        use_clahe=0
+        use_clahe=0,
+        normalization=None
 ):
 
     from vigra.filters import gaussianSmoothing
@@ -26,7 +27,7 @@ def xcorr(
     moving_ = gaussianSmoothing(moving_.astype('float32'), sigma)
 
     return phase_cross_correlation(
-        fixed_, moving_, upsample_factor=100, normalization=None
+        fixed_, moving_, upsample_factor=100, normalization=normalization
     )
 
 

@@ -659,7 +659,8 @@ def stack_alignment_validation_workflow(
                         z_slice_fixed,
                         z_slice_moving,
                         sigma=gaussian_sigma,
-                        use_clahe=use_clahe if not use_clahe or 'use_clahe' not in method_kwargs else method_kwargs['use_clahe']
+                        use_clahe=use_clahe if not use_clahe or 'use_clahe' not in method_kwargs else method_kwargs['use_clahe'],
+                        normalization=None if 'normalization' not in method_kwargs else method_kwargs['normalization']
                     )
                     print(f'shift = {shift}')
                     print(f'diffphase = {diffphase}')
