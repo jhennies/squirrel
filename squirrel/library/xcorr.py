@@ -71,7 +71,7 @@ def _xcorr_at_scale(args):
     return shift_original
 
 
-def multiscale_phase_xcorr_parallel(
+def multiscale_phase_xcorr(
     fixed,
     moving,
     scales=(0.8, 1.0, 1.2),
