@@ -35,6 +35,7 @@ def _xcorr_at_scale(args):
     Worker function for one scale.
     Must be top-level for multiprocessing compatibility.
     """
+    from skimage.transform import rescale
     fixed, moving, s, xcorr_kwargs = args
 
     if s != 1.0:
