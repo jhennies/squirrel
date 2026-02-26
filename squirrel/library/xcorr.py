@@ -75,12 +75,20 @@ def multiscale_phase_xcorr(
                 mode="reflect",
                 anti_aliasing=True
             ).astype(moving.dtype)
+            fixed_scaled = rescale(
+                fixed,
+                s,
+                preserve_range=True,
+                mode="reflect",
+                anti_aliasing=True
+            ).astype(fixed.dtype)
         else:
             moving_scaled = moving
+            fixed_scaled = fixed
 
         # Compute shift at this scale
         shift, error, phasediff = xcorr(
-            fixed,
+            fixed_scaled,
             moving_scaled,
             **xcorr_kwargs
         )
