@@ -677,15 +677,16 @@ def stack_alignment_validation_workflow(
                     result_matrix = -AffineMatrix(parameters=[1, 0, float(shift[0]), 0, 1, float(shift[1])])
 
                 elif method == 'xcorr_multiscale':
-                    shift = multiscale_phase_xcorr(
+                    shift, shifts = multiscale_phase_xcorr(
                         z_slice_fixed,
                         z_slice_moving,
                         scales=(0.8, 1.0, 1.2),
-                        return_all=False,
+                        return_all=True,
                         sigma=gaussian_sigma,
                         use_clahe=use_clahe if not use_clahe or 'use_clahe' not in method_kwargs else method_kwargs['use_clahe']
                     )
                     print(f'shift = {shift}')
+                    print(f'shifts = {shifts}')
                     # print(f'diffphase = {diffphase}')
                     result_matrix = -AffineMatrix(parameters=[1, 0, float(shift[0]), 0, 1, float(shift[1])])
 
