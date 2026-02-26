@@ -680,7 +680,7 @@ def stack_alignment_validation_workflow(
                     shift, shifts = multiscale_phase_xcorr(
                         z_slice_fixed,
                         z_slice_moving,
-                        scales=(0.8, 1.0, 1.2),
+                        scales=(0.8, 0.9, 1.0, 1.1, 1.2),
                         return_all=True,
                         sigma=gaussian_sigma,
                         use_clahe=use_clahe if not use_clahe or 'use_clahe' not in method_kwargs else method_kwargs['use_clahe']
