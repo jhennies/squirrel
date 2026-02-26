@@ -682,6 +682,7 @@ def stack_alignment_validation_workflow(
                         z_slice_moving,
                         scales=(0.8, 0.9, 1.0, 1.1, 1.2),
                         return_all=True,
+                        max_workers=5,
                         sigma=gaussian_sigma,
                         use_clahe=use_clahe if not use_clahe or 'use_clahe' not in method_kwargs else method_kwargs['use_clahe']
                     )

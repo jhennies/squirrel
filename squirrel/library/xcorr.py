@@ -30,78 +30,67 @@ def xcorr(
     )
 
 
-def multiscale_phase_xcorr(
+def _xcorr_at_scale(args):
+    """
+    Worker function for one scale.
+    Must be top-level for multiprocessing compatibility.
+    """
+    fixed, moving, s, xcorr_kwargs = args
+
+    if s != 1.0:
+        moving_scaled = rescale(
+            moving,
+            s,
+            preserve_range=True,
+            mode="reflect",
+            anti_aliasing=True,
+            channel_axis=None,
+        ).astype(moving.dtype)
+
+        fixed_scaled = rescale(
+            fixed,
+            s,
+            preserve_range=True,
+            mode="reflect",
+            anti_aliasing=True,
+            channel_axis=None,
+        ).astype(fixed.dtype)
+    else:
+        moving_scaled = moving
+        fixed_scaled = fixed
+
+    shift, error, phasediff = xcorr(
+        fixed_scaled,
+        moving_scaled,
+        **xcorr_kwargs
+    )
+
+    # Convert back to original pixel coordinates
+    shift_original = np.array(shift) / s
+
+    return shift_original
+
+
+def multiscale_phase_xcorr_parallel(
     fixed,
     moving,
     scales=(0.8, 1.0, 1.2),
     return_all=False,
+    max_workers=None,
     **xcorr_kwargs
 ):
     """
-    Robust multi-scale phase cross-correlation.
-
-    Parameters
-    ----------
-    fixed : ndarray
-        Reference image.
-    moving : ndarray
-        Image to align to `fixed`.
-    scales : iterable of float
-        Scale factors applied to `moving`.
-    return_all : bool
-        If True, also return all individual shifts.
-    **xcorr_kwargs :
-        Passed directly to `xcorr`.
-
-    Returns
-    -------
-    median_shift : ndarray (2,)
-        Median shift in original pixel coordinates.
-    (optional) shifts : ndarray (n_scales, 2)
-        All computed shifts mapped to original scale.
+    Parallel multi-scale phase cross-correlation.
+    Parallelized over scales.
     """
-    from skimage.transform import rescale
+    from concurrent.futures import ThreadPoolExecutor
 
-    shifts = []
+    args = [(fixed, moving, s, xcorr_kwargs) for s in scales]
 
-    for s in scales:
-
-        # Rescale moving image
-        if s != 1.0:
-            moving_scaled = rescale(
-                moving,
-                s,
-                preserve_range=True,
-                mode="reflect",
-                anti_aliasing=True
-            ).astype(moving.dtype)
-            fixed_scaled = rescale(
-                fixed,
-                s,
-                preserve_range=True,
-                mode="reflect",
-                anti_aliasing=True
-            ).astype(fixed.dtype)
-        else:
-            moving_scaled = moving
-            fixed_scaled = fixed
-
-        # Compute shift at this scale
-        shift, error, phasediff = xcorr(
-            fixed_scaled,
-            moving_scaled,
-            **xcorr_kwargs
-        )
-
-        # Convert shift back to original pixel units
-        # phase_cross_correlation returns shift in scaled-image pixels
-        shift_original = np.array(shift) / s
-
-        shifts.append(shift_original)
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        shifts = list(executor.map(_xcorr_at_scale, args))
 
     shifts = np.array(shifts)
-
-    # Robust aggregation
     median_shift = np.median(shifts, axis=0)
 
     if return_all:
