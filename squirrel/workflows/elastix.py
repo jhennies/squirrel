@@ -608,6 +608,8 @@ def stack_alignment_validation_workflow(
     #     from skimage.registration import phase_cross_correlation
     if method == 'xcorr_limited':
         from squirrel.library.xcorr import xcorr_limited
+    if method == 'xcorr_multiscale':
+        from squirrel.library.xcorr import multiscale_phase_xcorr
     if method == 'sift':
         from squirrel.library.sift2d import register_with_sift2 as register_with_sift
 
@@ -673,6 +675,20 @@ def stack_alignment_validation_workflow(
                         use_clahe=use_clahe if not use_clahe or 'use_clahe' not in method_kwargs else method_kwargs['use_clahe']
                     )
                     result_matrix = -AffineMatrix(parameters=[1, 0, float(shift[0]), 0, 1, float(shift[1])])
+
+                elif method == 'xcorr_multiscale':
+                    shift, error, diffphase = multiscale_phase_xcorr(
+                        z_slice_fixed,
+                        z_slice_moving,
+                        scales=(0.8, 1.0, 1.2),
+                        return_all=False,
+                        sigma=gaussian_sigma,
+                        use_clahe=use_clahe if not use_clahe or 'use_clahe' not in method_kwargs else method_kwargs['use_clahe']
+                    )
+                    print(f'shift = {shift}')
+                    print(f'diffphase = {diffphase}')
+                    result_matrix = -AffineMatrix(parameters=[1, 0, float(shift[0]), 0, 1, float(shift[1])])
+
                 elif method == 'sift':
                     result_matrix = AffineMatrix(parameters=register_with_sift(
                         z_slice_fixed, z_slice_moving  # , transform='translation'
