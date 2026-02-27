@@ -622,7 +622,7 @@ def stack_alignment_validation_workflow(
     for roi_idx, roi in enumerate(rois):
 
         this_transforms_fp = transforms_filepath.format(roi_idx)
-        this_errors_fp = errors_filepath.formt(roi_idx)
+        this_errors_fp = errors_filepath.format(roi_idx)
 
         if not os.path.exists(this_transforms_fp):
 
