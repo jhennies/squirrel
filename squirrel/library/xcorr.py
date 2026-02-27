@@ -26,9 +26,11 @@ def xcorr(
     fixed_ = gaussianSmoothing(fixed_.astype('float32'), sigma)
     moving_ = gaussianSmoothing(moving_.astype('float32'), sigma)
 
-    return phase_cross_correlation(
+    shift, _, _ = phase_cross_correlation(
         fixed_, moving_, upsample_factor=100, normalization=normalization
     )
+
+    return shift, 1 - normalized_cross_correlation(fixed_, moving_, shift)
 
 
 def normalized_cross_correlation(fixed, moving, shift):
@@ -71,4 +73,10 @@ def normalized_cross_correlation(fixed, moving, shift):
 
 
 if __name__ == "__main__":
-    pass
+    from tifffile import imread
+    a = imread('/media/julian/Data/tmp/xcorr-test/fixed.tif')
+    b = imread('/media/julian/Data/tmp/xcorr-test/moving2.tif')
+    shft, err = xcorr(a, b, sigma=2.0, use_clahe=127)
+
+    print(shft)
+    print(err)

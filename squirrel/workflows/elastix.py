@@ -664,14 +664,13 @@ def stack_alignment_validation_workflow(
                     )
 
                 elif method == 'xcorr':
-                    shift, _, diffphase = xcorr(
+                    shift, error = xcorr(
                         z_slice_fixed,
                         z_slice_moving,
                         sigma=gaussian_sigma,
                         use_clahe=use_clahe if not use_clahe or 'use_clahe' not in method_kwargs else method_kwargs['use_clahe'],
                         normalization=None if 'normalization' not in method_kwargs else method_kwargs['normalization']
                     )
-                    error = normalized_cross_correlation(z_slice_fixed, z_slice_moving, -shift)
                     print(f'shift = {shift}')
                     print(f'error = {error}')
 
