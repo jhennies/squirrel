@@ -572,6 +572,7 @@ def stack_alignment_validation_workflow(
     from squirrel.library.transformation import apply_stack_alignment
     from matplotlib import pyplot as plt
     from h5py import File
+    import json
 
     if method_kwargs is None:
         method_kwargs = dict()
@@ -582,13 +583,15 @@ def stack_alignment_validation_workflow(
     if out_name is None:
         transforms_dirpath = os.path.join(out_dirpath, 'transforms')
         plot_filepath = os.path.join(out_dirpath, 'plot.pdf')
+        error_plot_filepath = os.path.join(out_dirpath, 'error_plot.pdf')
         image_dirpath = os.path.join(out_dirpath, 'images')
-        errors_filepath = os.path.join(out_dirpath, 'errors.json')
+        shifts_filepath = os.path.join(out_dirpath, 'errors.json')
     else:
         transforms_dirpath = os.path.join(out_dirpath, f'transforms-{out_name}')
         plot_filepath = os.path.join(out_dirpath, f'plot-{out_name}.pdf')
+        error_plot_filepath = os.path.join(out_dirpath, f'error_plot-{out_name}.pdf')
         image_dirpath = os.path.join(out_dirpath, f'images-{out_name}')
-        errors_filepath = os.path.join(out_dirpath, f'errors-{out_name}.json')
+        shifts_filepath = os.path.join(out_dirpath, f'errors-{out_name}.json')
     if not os.path.exists(image_dirpath):
         os.mkdir(image_dirpath)
     if not os.path.exists(transforms_dirpath):
@@ -596,28 +599,30 @@ def stack_alignment_validation_workflow(
     image_filepath = os.path.join(image_dirpath, 'image_{:04d}.h5')
     input_filepath = os.path.join(image_dirpath, 'input_{:04d}.h5')
     transforms_filepath = os.path.join(transforms_dirpath, 'transforms_{:04d}.json')
+    errors_filepath = os.path.join(transforms_dirpath, 'errors_{:04d}.json')
 
     stack, stack_size = load_data_handle(stack, key=key, pattern=pattern)
     labels = []
 
-    # phase_cross_correlation = None
     xcorr = None
     register_with_sift = None
     if method == 'xcorr':
         from squirrel.library.xcorr import xcorr
-    #     from skimage.registration import phase_cross_correlation
-    if method == 'xcorr_limited':
-        from squirrel.library.xcorr import xcorr_limited
-    if method == 'xcorr_multiscale':
-        from squirrel.library.xcorr import multiscale_phase_xcorr
     if method == 'sift':
         from squirrel.library.sift2d import register_with_sift2 as register_with_sift
 
-    all_errors = dict()
+    all_shifts = dict()
+
+    fig_shifts, ax_shifts = plt.subplots()
+    fig_errors, ax_errors = plt.subplots()
+
+    ax_shifts.set_title('Shifts')
+    ax_errors.set_title('Errors')
 
     for roi_idx, roi in enumerate(rois):
 
         this_transforms_fp = transforms_filepath.format(roi_idx)
+        this_errors_fp = errors_filepath.formt(roi_idx)
 
         if not os.path.exists(this_transforms_fp):
 
@@ -628,6 +633,7 @@ def stack_alignment_validation_workflow(
             roi_data = stack[roi]
             transforms = AffineStack(is_sequenced=False, pivot=[0., 0.])
             transforms.append(AffineMatrix(parameters=[1., 0., 0., 0., 1., 0.]))
+            errors = []
 
             for idx in range(len(roi_data) - 1):
 
@@ -636,6 +642,8 @@ def stack_alignment_validation_workflow(
 
                 z_slice_fixed = roi_data[idx]
                 z_slice_moving = roi_data[idx + 1]
+
+                error = None
 
                 if method == 'elastix':
 
@@ -663,33 +671,7 @@ def stack_alignment_validation_workflow(
                         normalization=None if 'normalization' not in method_kwargs else method_kwargs['normalization']
                     )
                     print(f'shift = {shift}')
-                    print(f'diffphase = {diffphase}')
-                    result_matrix = -AffineMatrix(parameters=[1, 0, float(shift[0]), 0, 1, float(shift[1])])
-
-                elif method == 'xcorr_limited':
-                    shift, _ = xcorr_limited(
-                        z_slice_fixed,
-                        z_slice_moving,
-                        sigma=gaussian_sigma,
-                        max_shift=100 if 'max_shift' not in method_kwargs else method_kwargs['max_shift'],
-                        upsample_factor=100,
-                        use_clahe=use_clahe if not use_clahe or 'use_clahe' not in method_kwargs else method_kwargs['use_clahe']
-                    )
-                    result_matrix = -AffineMatrix(parameters=[1, 0, float(shift[0]), 0, 1, float(shift[1])])
-
-                elif method == 'xcorr_multiscale':
-                    shift, shifts = multiscale_phase_xcorr(
-                        z_slice_fixed,
-                        z_slice_moving,
-                        scales=(0.8, 0.9, 1.0, 1.1, 1.2),
-                        return_all=True,
-                        max_workers=5,
-                        sigma=gaussian_sigma,
-                        use_clahe=use_clahe if not use_clahe or 'use_clahe' not in method_kwargs else method_kwargs['use_clahe']
-                    )
-                    print(f'shift = {shift}')
-                    print(f'shifts = {shifts}')
-                    # print(f'diffphase = {diffphase}')
+                    print(f'error = {error}')
                     result_matrix = -AffineMatrix(parameters=[1, 0, float(shift[0]), 0, 1, float(shift[1])])
 
                 elif method == 'sift':
@@ -700,10 +682,9 @@ def stack_alignment_validation_workflow(
                 if verbose:
                     print(f'result_matix = {result_matrix}')
                 transforms.append(result_matrix)
+                errors.append(error)
                 if verbose:
                     print(f'len(transforms) = {len(transforms)}')
-
-                # result_volume.append(result_image)
 
             if subtract_average:
                 transforms = transforms * -transforms.get_median_smoothed_stack(8)
@@ -720,28 +701,35 @@ def stack_alignment_validation_workflow(
             with File(input_filepath.format(roi_idx), mode='w') as f:
                 f.create_dataset('data', data=roi_data, compression='gzip')
             transforms.to_file(this_transforms_fp)
+            with open(this_errors_fp, 'w') as f:
+                json.dump(errors, f, indent=2)
 
         else:
             transforms = AffineStack(filepath=this_transforms_fp)
+            with open(this_errors_fp, 'r') as f:
+                errors = json.load(f)
 
         translations = (np.array(transforms.get_translations()) * resolution_yx).astype(float)
-        errors = np.sqrt(translations[:, 0] ** 2 + translations[:, 1] ** 2).astype(float)
-        labels.append('roi-{}-mean={:.2f}-median={:.2f}'.format(roi_idx, np.mean(errors), np.median(errors)))
-        plt.plot(errors, label=labels[-1])
+        abs_shifts = np.sqrt(translations[:, 0] ** 2 + translations[:, 1] ** 2).astype(float)
+        labels.append('roi-{}-mean={:.2f}-median={:.2f}'.format(roi_idx, np.mean(abs_shifts), np.median(abs_shifts)))
+        ax_shifts.plot(abs_shifts, label=labels[-1])
+        ax_errors.plot(errors, label=labels[-1])
 
-        all_errors[f'roi_{roi_idx}'] = dict(
+        all_shifts[f'roi_{roi_idx}'] = dict(
             translations=translations.tolist(),
-            errors=errors.tolist()
+            shifts=abs_shifts.tolist(),
+            errors=errors
         )
 
-    import json
-    with open(errors_filepath, 'w') as f:
-        json.dump(all_errors, f, indent=2)
+    with open(shifts_filepath, 'w') as f:
+        json.dump(all_shifts, f, indent=2)
 
-    plt.ylim(ymin=0, ymax=y_max)
-    plt.legend()
-    plt.savefig(plot_filepath)
-    # plt.show()
+    ax_shifts.ylim(ymin=0, ymax=y_max)
+    ax_shifts.legend()
+    ax_shifts.savefig(plot_filepath)
+
+    ax_errors.legend()
+    ax_errors.savefig(error_plot_filepath)
 
 
 def apply_multi_step_stack_alignment_workflow(
