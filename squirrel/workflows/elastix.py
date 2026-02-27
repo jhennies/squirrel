@@ -724,12 +724,12 @@ def stack_alignment_validation_workflow(
     with open(shifts_filepath, 'w') as f:
         json.dump(all_shifts, f, indent=2)
 
-    ax_shifts.ylim(ymin=0, ymax=y_max)
+    ax_shifts.set_ylim(0, y_max)
     ax_shifts.legend()
-    ax_shifts.savefig(plot_filepath)
+    fig_shifts.savefig(plot_filepath)
 
     ax_errors.legend()
-    ax_errors.savefig(error_plot_filepath)
+    fig_errors.savefig(error_plot_filepath)
 
 
 def apply_multi_step_stack_alignment_workflow(
