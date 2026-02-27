@@ -17,8 +17,8 @@ def xcorr(
         if use_clahe == 1:
             use_clahe = 127
         from squirrel.library.normalization import clahe_on_image
-        fixed_ = clahe_on_image(fixed, tile_grid_size=(use_clahe, use_clahe), tile_grid_in_pixels=True)
-        moving_ = clahe_on_image(moving, tile_grid_size=(use_clahe, use_clahe), tile_grid_in_pixels=True)
+        fixed_ = clahe_on_image(fixed, tile_grid_size=(use_clahe, use_clahe), tile_grid_in_pixels=True, auto_mask=True)
+        moving_ = clahe_on_image(moving, tile_grid_size=(use_clahe, use_clahe), tile_grid_in_pixels=True, auto_mask=True)
     else:
         fixed_ = fixed.copy()
         moving_ = moving.copy()
@@ -33,7 +33,7 @@ def xcorr(
     return shift, 1 - normalized_cross_correlation(fixed_, moving_, shift)
 
 
-def normalized_cross_correlation(fixed, moving, shift):
+def normalized_cross_correlation(fixed, moving, shift, erode_mask=0):
     """
     Compute normalized cross-correlation (NCC) ignoring zero-value pixels
     in either fixed or moving image.
@@ -41,10 +41,22 @@ def normalized_cross_correlation(fixed, moving, shift):
     from scipy.ndimage import shift as ndi_shift
 
     # Shift moving image
-    shifted_moving = ndi_shift(moving, shift=shift, order=1, mode='nearest', prefilter=False)
+    shifted_moving = ndi_shift(moving, shift=shift, order=1, prefilter=False)
+
+    from matplotlib import pyplot as plt
+    plt.imshow(shifted_moving)
+    plt.figure()
+    plt.imshow(fixed)
 
     # Create mask: only pixels non-zero in both images
     mask = (fixed != 0) & (shifted_moving != 0)
+    if erode_mask:
+        from scipy.ndimage import binary_erosion
+        mask = binary_erosion(mask, structure=None, iterations=erode_mask)
+
+    plt.figure()
+    plt.imshow(mask)
+    plt.show()
 
     if np.count_nonzero(mask) == 0:
         raise ValueError("No overlapping non-zero pixels for NCC calculation")
@@ -64,9 +76,9 @@ def normalized_cross_correlation(fixed, moving, shift):
 
 if __name__ == "__main__":
     from tifffile import imread
-    a = imread('/media/julian/Data/tmp/xcorr-test/fixed.tif')
+    a = imread('/media/julian/Data/tmp/xcorr-test/fixed2.tif')
     b = imread('/media/julian/Data/tmp/xcorr-test/moving2.tif')
-    shft, err = xcorr(a, b, sigma=2.0, use_clahe=127)
+    shft, err = xcorr(a, b, sigma=4, use_clahe=127)
 
     print(shft)
     print(err)
