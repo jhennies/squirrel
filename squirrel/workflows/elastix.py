@@ -570,6 +570,7 @@ def stack_alignment_validation_workflow(
     from squirrel.library.elastix import register_with_elastix
     from squirrel.library.affine_matrices import AffineStack, AffineMatrix
     from squirrel.library.transformation import apply_stack_alignment
+    from squirrel.library.xcorr import normalized_cross_correlation
     from matplotlib import pyplot as plt
     from h5py import File
     import json
@@ -663,15 +664,17 @@ def stack_alignment_validation_workflow(
                     )
 
                 elif method == 'xcorr':
-                    shift, error, diffphase = xcorr(
+                    shift, _, diffphase = xcorr(
                         z_slice_fixed,
                         z_slice_moving,
                         sigma=gaussian_sigma,
                         use_clahe=use_clahe if not use_clahe or 'use_clahe' not in method_kwargs else method_kwargs['use_clahe'],
                         normalization=None if 'normalization' not in method_kwargs else method_kwargs['normalization']
                     )
+                    error = normalized_cross_correlation(z_slice_fixed, z_slice_moving, shift)
                     print(f'shift = {shift}')
                     print(f'error = {error}')
+
                     result_matrix = -AffineMatrix(parameters=[1, 0, float(shift[0]), 0, 1, float(shift[1])])
 
                 elif method == 'sift':
