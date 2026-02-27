@@ -682,7 +682,7 @@ def stack_alignment_validation_workflow(
                 if verbose:
                     print(f'result_matix = {result_matrix}')
                 transforms.append(result_matrix)
-                errors.append(error)
+                errors.append(float(error))
                 if verbose:
                     print(f'len(transforms) = {len(transforms)}')
 
@@ -702,7 +702,7 @@ def stack_alignment_validation_workflow(
                 f.create_dataset('data', data=roi_data, compression='gzip')
             transforms.to_file(this_transforms_fp)
             with open(this_errors_fp, 'w') as f:
-                json.dump(errors.tolist(), f, indent=2)
+                json.dump(errors, f, indent=2)
 
         else:
             transforms = AffineStack(filepath=this_transforms_fp)
@@ -718,7 +718,7 @@ def stack_alignment_validation_workflow(
         all_shifts[f'roi_{roi_idx}'] = dict(
             translations=translations.tolist(),
             shifts=abs_shifts.tolist(),
-            errors=errors.tolist()
+            errors=errors
         )
 
     with open(shifts_filepath, 'w') as f:
