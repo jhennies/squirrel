@@ -35,39 +35,29 @@ def xcorr(
 
 def normalized_cross_correlation(fixed, moving, shift):
     """
-    Compute the normalized cross-correlation (NCC) between a fixed image
-    and a moving image shifted by `shift`.
-
-    Parameters
-    ----------
-    fixed : ndarray
-        Reference image.
-    moving : ndarray
-        Image to shift and compare.
-    shift : array-like
-        Shift to apply to `moving` (can be fractional). Same length as fixed.ndim.
-
-    Returns
-    -------
-    ncc : float
-        Normalized cross-correlation between shifted moving and fixed image.
-        Range: [-1, 1], where 1 is perfect match.
+    Compute normalized cross-correlation (NCC) ignoring zero-value pixels
+    in either fixed or moving image.
     """
     from scipy.ndimage import shift as ndi_shift
 
     # Shift moving image
     shifted_moving = ndi_shift(moving, shift=shift, order=1, mode='nearest', prefilter=False)
 
-    # Flatten images
-    f = fixed.ravel()
-    m = shifted_moving.ravel()
+    # Create mask: only pixels non-zero in both images
+    mask = (fixed != 0) & (shifted_moving != 0)
+
+    if np.count_nonzero(mask) == 0:
+        raise ValueError("No overlapping non-zero pixels for NCC calculation")
+
+    f_valid = fixed[mask]
+    m_valid = shifted_moving[mask]
 
     # Subtract mean
-    f_mean = f - np.mean(f)
-    m_mean = m - np.mean(m)
+    f_mean = f_valid - np.mean(f_valid)
+    m_mean = m_valid - np.mean(m_valid)
 
     # Compute NCC
-    ncc = np.sum(f_mean * m_mean) / np.sqrt(np.sum(f_mean ** 2) * np.sum(m_mean ** 2))
+    ncc = np.sum(f_mean * m_mean) / np.sqrt(np.sum(f_mean**2) * np.sum(m_mean**2))
 
     return ncc
 
