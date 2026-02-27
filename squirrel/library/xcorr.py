@@ -43,10 +43,10 @@ def normalized_cross_correlation(fixed, moving, shift, erode_mask=0):
     # Shift moving image
     shifted_moving = ndi_shift(moving, shift=shift, order=1, prefilter=False)
 
-    from matplotlib import pyplot as plt
-    plt.imshow(shifted_moving)
-    plt.figure()
-    plt.imshow(fixed)
+    # from matplotlib import pyplot as plt
+    # plt.imshow(shifted_moving)
+    # plt.figure()
+    # plt.imshow(fixed)
 
     # Create mask: only pixels non-zero in both images
     mask = (fixed != 0) & (shifted_moving != 0)
@@ -54,9 +54,9 @@ def normalized_cross_correlation(fixed, moving, shift, erode_mask=0):
         from scipy.ndimage import binary_erosion
         mask = binary_erosion(mask, structure=None, iterations=erode_mask)
 
-    plt.figure()
-    plt.imshow(mask)
-    plt.show()
+    # plt.figure()
+    # plt.imshow(mask)
+    # plt.show()
 
     if np.count_nonzero(mask) == 0:
         raise ValueError("No overlapping non-zero pixels for NCC calculation")
