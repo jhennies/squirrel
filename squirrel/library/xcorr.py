@@ -7,19 +7,11 @@ def xcorr(
         moving,
         sigma=1.0,
         use_clahe=0,
-        normalization=None,
-        xcorr_func=None
+        normalization=None
 ):
 
     from vigra.filters import gaussianSmoothing
-    xcorr_kwargs = dict()
-    if xcorr_func is None:
-        from skimage.registration import phase_cross_correlation
-        xcorr_func = phase_cross_correlation()
-        xcorr_kwargs = dict(
-            upsample_factor=100,
-            normalization=normalization
-        )
+    from skimage.registration import phase_cross_correlation
 
     if use_clahe:
         if use_clahe == 1:
@@ -34,8 +26,8 @@ def xcorr(
     fixed_ = gaussianSmoothing(fixed_.astype('float32'), sigma)
     moving_ = gaussianSmoothing(moving_.astype('float32'), sigma)
 
-    return xcorr_func(
-        fixed_, moving_, **xcorr_kwargs
+    return phase_cross_correlation(
+        fixed_, moving_, upsample_factor=100, normalization=normalization
     )
 
 
