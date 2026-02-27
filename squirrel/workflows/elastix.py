@@ -671,7 +671,7 @@ def stack_alignment_validation_workflow(
                         use_clahe=use_clahe if not use_clahe or 'use_clahe' not in method_kwargs else method_kwargs['use_clahe'],
                         normalization=None if 'normalization' not in method_kwargs else method_kwargs['normalization']
                     )
-                    error = normalized_cross_correlation(z_slice_fixed, z_slice_moving, shift)
+                    error = normalized_cross_correlation(z_slice_fixed, z_slice_moving, -shift)
                     print(f'shift = {shift}')
                     print(f'error = {error}')
 
