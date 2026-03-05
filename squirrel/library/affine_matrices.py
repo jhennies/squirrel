@@ -678,13 +678,14 @@ class AffineMatrix:
     def inverse(self):
         inv = np.linalg.inv(self.get_matrix(order='Ms').astype('float64'))
         inv = self._ms_to_c(inv)
-        return AffineMatrix(parameters=inv)
+        return AffineMatrix(parameters=inv, pivot=self.get_pivot())
 
     def dot(self, other):
         assert type(other) == AffineMatrix
+        assert np.all(other.get_pivot() == self.get_pivot())
         result = np.dot(self.get_matrix(order='Ms').astype('float128'), other.get_matrix(order='Ms').astype('float128'))
         result = self._ms_to_c(result)
-        return AffineMatrix(parameters=result)
+        return AffineMatrix(parameters=result, pivot=self.get_pivot())
 
     def __neg__(self):
         return self.inverse()

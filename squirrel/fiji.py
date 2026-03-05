@@ -11,14 +11,16 @@ def sift_log_to_affine_stack():
                         help='Json file containing the SIFT log output')
     parser.add_argument('out_filepath', type=str,
                         help='Output filepath for the result file (*.json)')
+    parser.add_argument('--pivot', nargs=2, type=float, default=None,
+                        help='Define the pivot point. Relevant for all non-translational transforms')
     parser.add_argument('-v', '--verbose', action='store_true')
 
     args = parser.parse_args()
     log_filepath = args.log_filepath
     out_filepath = args.out_filepath
+    pivot = args.pivot
     verbose = args.verbose
 
     from squirrel.workflows.fiji import sift_log_to_affine_stack_workflow
 
-    sift_log_to_affine_stack_workflow(log_filepath, out_filepath=out_filepath, verbose=verbose)
-
+    sift_log_to_affine_stack_workflow(log_filepath, out_filepath=out_filepath, pivot=pivot, verbose=verbose)

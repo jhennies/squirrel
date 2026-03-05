@@ -25,7 +25,7 @@ setup(
             'sift2d_stack_alignment = squirrel.sift2d:sift2d_stack_alignment',
             'sift3d = squirrel.sift3d:main',
             'template_matching_stack_alignment = squirrel.template_matching:template_matching_stack_alignment',
-            'fiji_sift_log_to_affine_stack = squirrel.fiji:sift_log_to_affine_stack',
+            'sq-fiji-sift_log_to_affine_stack = squirrel.fiji:sift_log_to_affine_stack',
             'sq-conversion-stack_to_ome_zarr = squirrel.conversions:stack_to_ome_zarr',
             'sq-conversion-ome_zarr_to_stack = squirrel.conversions:ome_zarr_to_stack',
             'sq-conversion-n5_to_stack = squirrel.conversions:n5_to_stack',

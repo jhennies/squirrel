@@ -844,6 +844,8 @@ def apply_auto_pad_workflow(
     from squirrel.library.affine_matrices import AffineStack
 
     transforms = AffineStack(filepath=transform_filepath)
+    if not transforms.is_sequenced:
+        transforms = transforms.get_sequenced_stack()
     if not transforms.exists_meta('bounds'):
         from squirrel.library.image import get_bounds_of_stack, apply_auto_pad
         from squirrel.library.io import load_data_handle
