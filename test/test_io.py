@@ -3,6 +3,7 @@ import warnings
 import os
 from shutil import rmtree
 import numpy as np
+import tempfile
 
 from random import randint
 
@@ -121,23 +122,31 @@ class TestIO(unittest.TestCase):
 
         print('Testing read_tif_slice ...')
 
-        test_file = f'./test_io_{randint(1000, 9999)}.tif'
-        test_array = np.random.rand(3, 4)
-
         from tifffile import imwrite
-        imwrite(test_file, test_array)
+        from squirrel.library.io import read_tif_slice
 
-        try:
-            from squirrel.library.io import read_tif_slice
-            loaded_array, filename = read_tif_slice(test_file)
-            assert (loaded_array == test_array).all()
-            print('... Data is identical')
-            assert filename == test_file[2:]
-            print('... File name matches')
-            os.remove(test_file)
-        except Exception:
-            os.remove(test_file)
-            raise
+        arr = np.random.randint(0, 255, (10, 10), dtype=np.uint8)
+
+        with tempfile.NamedTemporaryFile(suffix=".png") as f:
+            imwrite(f.name, arr)
+            result, filename = read_tif_slice(f.name)
+
+        np.testing.assert_array_equal(arr, result)
+
+    def test_read_png_slice(self):
+
+        print('Testing read_png_slice ...')
+
+        from skimage import io as skio
+        from squirrel.library.io import read_png_slice
+
+        arr = np.random.randint(0, 255, (10, 10), dtype=np.uint8)
+
+        with tempfile.NamedTemporaryFile(suffix=".png") as f:
+            skio.imsave(f.name, arr)
+            result, filename = read_png_slice(f.name)
+
+        np.testing.assert_array_equal(arr, result)
 
     def test_write_tif_slice(self):
 
@@ -158,4 +167,63 @@ class TestIO(unittest.TestCase):
         except Exception:
             os.remove(test_file)
             raise
+
+
+class TestGenericStack(unittest.TestCase):
+
+    def setUp(self):
+        warnings.simplefilter('ignore', category=Warning)
+
+    def test_get_item(self):
+
+        print('Testing _GenericStack.test_get_item ...')
+
+        from pathlib import Path
+        from skimage import io as skio
+        from squirrel.library.io import _GenericStack
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+
+            # create three PNG images
+            arrs = []
+            for i in range(3):
+                arrs.append(np.full((10, 10), i, dtype=np.uint8))
+                skio.imsave(tmp_path / f"slice_{i}.png", arrs[-1])
+            arrs = np.array(arrs)
+
+            stack = _GenericStack(tmpdir, image_type='png', pattern='*.png')
+
+            np.testing.assert_array_equal(stack, arrs)
+            np.testing.assert_array_equal(stack[1:2], arrs[1:2])
+
+            assert stack.shape == stack.get_shape(check_all=True) == [3, 10, 10]
+
+    def test_get_item_inconsistent_shapes(self):
+
+        print('Testing _GenericStack.test_get_item with inconsistent shapes ...')
+
+        from pathlib import Path
+        from skimage import io as skio
+        from squirrel.library.io import _GenericStack
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+
+            # create three PNG images
+            shapes = [[7, 10], [8, 9], [9, 7]]
+            arrs = []
+            for i in range(3):
+                arrs.append(np.full(shapes[i], i, dtype=np.uint8))
+                skio.imsave(tmp_path / f"slice_{i}.png", arrs[-1])
+
+            stack = _GenericStack(tmpdir, image_type='png', pattern='*.png')
+
+            for i in range(3):
+                np.testing.assert_array_equal(stack[i], arrs[i])
+            np.testing.assert_array_equal(stack[1:2], arrs[1][None, :])
+
+            assert stack.shape == [3, 7, 10]
+            assert stack.get_shape(check_all=True) == [3, 9, 10]
+
 

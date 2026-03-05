@@ -711,3 +711,37 @@ def filter_2d():
         n_workers=n_workers,
         verbose=verbose
     )
+
+
+def stack_to_consistent_shapes():
+    # ----------------------------------------------------
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Takes an image stack (tif or png) with inconsistent slice shapes and writes a stack with '
+                    'consistent slice shapes',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('stack_dirpath', type=str,
+                        help='Path of the input stack')
+    parser.add_argument('output_path', type=str,
+                        help='Output folder for tif stack where the results will be written to')
+    parser.add_argument('--pattern', type=str, default=None,
+                        help='File pattern to search for within the input folder; '
+                             'default="*.tif"'
+                             'Is also used to determine filetype: "*.png" or "*.PNG" can be used to read png stack')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    stack_dirpath = args.stack_dirpath
+    output_path = args.output_path
+    pattern = args.pattern
+    verbose = args.verbose
+
+    from squirrel.workflows.convert import stack_to_consistent_shapes_workflow
+    stack_to_consistent_shapes_workflow(
+        stack_dirpath,
+        output_path,
+        pattern,
+        verbose=verbose
+    )

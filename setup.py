@@ -69,6 +69,7 @@ setup(
             'sq-stack-estimate_crop_xy = squirrel.stack_operations:estimate_crop_xy',
             'sq-stack-filter_2d_workflow = squirrel.stack_operations:filter_2d',
             'sq-stack-merge_tif_stacks = squirrel.stack_operations:merge_tif_stacks',
+            'sq-stack-to_consistent_shapes = squirrel.stack_operations:stack_to_consistent_shapes',
             'sq-transform-apply_stack_alignment = squirrel.transformation:apply_stack_alignment',
             'sq-transform-apply_auto_pad = squirrel.transformation:apply_auto_pad'
         ]

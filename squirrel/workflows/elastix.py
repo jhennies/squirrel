@@ -583,16 +583,31 @@ def stack_alignment_validation_workflow(
 
     if out_name is None:
         transforms_dirpath = os.path.join(out_dirpath, 'transforms')
-        plot_filepath = os.path.join(out_dirpath, 'plot.pdf')
+        additional_plots_dirpath = os.path.join(out_dirpath, 'additional_plots')
+        plot_filepath = os.path.join(additional_plots_dirpath, 'plot.pdf')
         error_plot_filepath = os.path.join(out_dirpath, 'error_plot.pdf')
         image_dirpath = os.path.join(out_dirpath, 'images')
         shifts_filepath = os.path.join(out_dirpath, 'errors.json')
+        psr_plot_filepath = os.path.join(out_dirpath, 'psr_plot.pdf')
+        peak_value_plot_filepath = os.path.join(out_dirpath, 'peak_value_plot.pdf')
+        sharpness_plot_filepath = os.path.join(out_dirpath, 'sharpness_plot.pdf')
+        cleaned_plot_filepath = os.path.join(out_dirpath, f'cleaned_plot.pdf')
+        roi_plot_filepath = os.path.join(additional_plots_dirpath, 'roi_plot-{}')
     else:
         transforms_dirpath = os.path.join(out_dirpath, f'transforms-{out_name}')
-        plot_filepath = os.path.join(out_dirpath, f'plot-{out_name}.pdf')
-        error_plot_filepath = os.path.join(out_dirpath, f'error_plot-{out_name}.pdf')
+        additional_plots_dirpath = os.path.join(out_dirpath, f'additional_plots-{out_name}')
+        plot_filepath = os.path.join(additional_plots_dirpath, f'plot-{out_name}.pdf')
+        error_plot_filepath = os.path.join(additional_plots_dirpath, f'error_plot-{out_name}.pdf')
         image_dirpath = os.path.join(out_dirpath, f'images-{out_name}')
         shifts_filepath = os.path.join(out_dirpath, f'errors-{out_name}.json')
+        psr_plot_filepath = os.path.join(additional_plots_dirpath, f'psr_plot-{out_name}.pdf')
+        peak_value_plot_filepath = os.path.join(additional_plots_dirpath, f'peak_value_plot-{out_name}.pdf')
+        sharpness_plot_filepath = os.path.join(additional_plots_dirpath, f'sharpness_plot-{out_name}.pdf')
+        cleaned_plot_filepath = os.path.join(out_dirpath, f'cleaned_plot-{out_name}.pdf')
+        roi_plot_filepath = os.path.join(additional_plots_dirpath, f'roi_plot-{"{}"}-{out_name}.pdf')
+
+    if not os.path.exists(additional_plots_dirpath):
+        os.mkdir(additional_plots_dirpath)
     if not os.path.exists(image_dirpath):
         os.mkdir(image_dirpath)
     if not os.path.exists(transforms_dirpath):
@@ -603,10 +618,10 @@ def stack_alignment_validation_workflow(
     errors_filepath = os.path.join(transforms_dirpath, 'errors_{:04d}.json')
 
     stack, stack_size = load_data_handle(stack, key=key, pattern=pattern)
-    labels = []
 
     xcorr = None
     register_with_sift = None
+    windowed_ncc_registration = None
     if method == 'xcorr':
         from squirrel.library.xcorr import xcorr
     if method == 'sift':
@@ -616,11 +631,17 @@ def stack_alignment_validation_workflow(
 
     fig_shifts, ax_shifts = plt.subplots()
     fig_errors, ax_errors = plt.subplots()
+    fig_psr, ax_psr = plt.subplots()
+    fig_peak_value, ax_peak_value = plt.subplots()
+    fig_sharpness, ax_sharpness = plt.subplots()
+    fig_cleaned, ax_cleaned = plt.subplots()
 
     ax_shifts.set_title('Shifts')
     ax_errors.set_title('Errors')
 
     for roi_idx, roi in enumerate(rois):
+
+        fig_roi, ax_roi = plt.subplots()
 
         this_transforms_fp = transforms_filepath.format(roi_idx)
         this_errors_fp = errors_filepath.format(roi_idx)
@@ -634,7 +655,7 @@ def stack_alignment_validation_workflow(
             roi_data = stack[roi]
             transforms = AffineStack(is_sequenced=False, pivot=[0., 0.])
             transforms.append(AffineMatrix(parameters=[1., 0., 0., 0., 1., 0.]))
-            errors = []
+            errors = [[0, 0, 0, 0]]
 
             for idx in range(len(roi_data) - 1):
 
@@ -664,7 +685,7 @@ def stack_alignment_validation_workflow(
                     )
 
                 elif method == 'xcorr':
-                    shift, error = xcorr(
+                    shift, error, psr, peak_value, sharpness = xcorr(
                         z_slice_fixed,
                         z_slice_moving,
                         sigma=gaussian_sigma,
@@ -673,6 +694,9 @@ def stack_alignment_validation_workflow(
                     )
                     print(f'shift = {shift}')
                     print(f'error = {error}')
+                    print(f'psr = {psr}')
+                    print(f'peak_value = {peak_value}')
+                    print(f'sharpness = {sharpness}')
 
                     result_matrix = -AffineMatrix(parameters=[1, 0, float(shift[0]), 0, 1, float(shift[1])])
 
@@ -684,7 +708,7 @@ def stack_alignment_validation_workflow(
                 if verbose:
                     print(f'result_matix = {result_matrix}')
                 transforms.append(result_matrix)
-                errors.append(float(error))
+                errors.append([float(error), float(psr), float(peak_value), float(sharpness)])
                 if verbose:
                     print(f'len(transforms) = {len(transforms)}')
 
@@ -713,15 +737,38 @@ def stack_alignment_validation_workflow(
 
         translations = (np.array(transforms.get_translations()) * resolution_yx).astype(float)
         abs_shifts = np.sqrt(translations[:, 0] ** 2 + translations[:, 1] ** 2).astype(float)
-        labels.append('roi-{}-mean={:.2f}-median={:.2f}'.format(roi_idx, np.mean(abs_shifts), np.median(abs_shifts)))
-        ax_shifts.plot(abs_shifts, label=labels[-1])
-        ax_errors.plot(errors, label=labels[-1])
+        ax_shifts.plot(
+            abs_shifts,
+            label='roi-{}-mean={:.2f}-median={:.2f}'.format(roi_idx, np.mean(abs_shifts), np.median(abs_shifts))
+        )
+        ax_roi.plot(
+            abs_shifts,
+            label='roi-{}-mean={:.2f}-median={:.2f}'.format(roi_idx, np.mean(abs_shifts), np.median(abs_shifts))
+        )
+        # abs_shifts[np.array(errors)[:, 1] < 8] = 0
+        abs_shifts[np.array(errors)[:, 0] > 0.5] = 0
+        ax_cleaned.plot(
+            abs_shifts,
+            label='roi-{}-mean={:.2f}-median={:.2f}'.format(roi_idx, np.mean(abs_shifts), np.median(abs_shifts))
+        )
+        ax_roi.plot(
+            abs_shifts,
+            label='roi-{}-mean={:.2f}-median={:.2f}'.format(roi_idx, np.mean(abs_shifts), np.median(abs_shifts))
+        )
+        ax_errors.plot(np.array(errors)[:, 0], label='roi-{}'.format(roi_idx))
+        ax_psr.plot(np.array(errors)[:, 1], label='roi-{}'.format(roi_idx))
+        ax_peak_value.plot(np.array(errors)[:, 2], label='roi-{}'.format(roi_idx))
+        ax_sharpness.plot(np.array(errors)[:, 3], label='roi-{}'.format(roi_idx))
 
         all_shifts[f'roi_{roi_idx}'] = dict(
             translations=translations.tolist(),
             shifts=abs_shifts.tolist(),
             errors=errors
         )
+
+        ax_roi.set_ylim(0, y_max)
+        ax_roi.legend()
+        fig_roi.savefig(roi_plot_filepath.format(roi_idx))
 
     with open(shifts_filepath, 'w') as f:
         json.dump(all_shifts, f, indent=2)
@@ -730,8 +777,29 @@ def stack_alignment_validation_workflow(
     ax_shifts.legend()
     fig_shifts.savefig(plot_filepath)
 
+    ax_cleaned.set_ylim(0, y_max)
+    ax_cleaned.legend()
+    fig_cleaned.savefig(cleaned_plot_filepath)
+
     ax_errors.legend()
+    ax_errors.axhline(
+        y=0.5,
+        color='gray',
+        linestyle='--',
+        linewidth=1,
+        label='Error threshold'
+    )
     fig_errors.savefig(error_plot_filepath)
+
+    ax_psr.legend()
+    fig_psr.savefig(psr_plot_filepath)
+
+    ax_peak_value.legend()
+    fig_peak_value.savefig(peak_value_plot_filepath)
+
+    ax_sharpness.legend()
+    ax_sharpness.set_yscale('log')
+    fig_sharpness.savefig(sharpness_plot_filepath)
 
 
 def apply_multi_step_stack_alignment_workflow(

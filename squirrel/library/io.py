@@ -80,6 +80,18 @@ def read_tif_slice(filepath, return_filepath=True):
     return image
 
 
+def read_png_slice(filepath, return_filepath=True):
+
+    from skimage import io as sk_io
+
+    image = sk_io.imread(filepath)
+
+    # Return the image and the filename
+    if return_filepath:
+        return image, os.path.split(filepath)[1]
+    return image
+
+
 def write_tif_slice(image, out_folder, filename):
     im_filepath = os.path.join(out_folder, filename)
     imwrite(im_filepath, image, compression='zlib')
@@ -207,8 +219,25 @@ def load_data_handle(path, key=None, pattern=None):
         return h, h.shape
 
     if filetype == 'dir':
-        h = TiffStack(path, pattern=pattern if pattern is not None else '*.tif')
-        return h, h.get_shape()
+        # default pattern: '*.tif' or '*.png'
+        if pattern is None:
+            # check if directory has any PNGs
+            from pathlib import Path
+            p = Path(path)
+            if any(f.suffix.lower() == ".png" for f in p.iterdir()):
+                h = PngStack(path)
+                return h, h.get_shape()
+            else:
+                h = TiffStack(path, pattern="*.tif")
+                return h, h.get_shape()
+        else:
+            # use user-provided pattern
+            if pattern.lower().endswith(".png"):
+                h = PngStack(path, pattern=pattern)
+                return h, h.get_shape()
+            else:
+                h = TiffStack(path, pattern=pattern)
+                return h, h.get_shape()
 
     if filetype == 'nii':
         h = load_nii_file(path)
@@ -237,14 +266,21 @@ def crop_roi(h, roi):
     return h[z][min_y: max_y, min_x: max_x]
 
 
-class TiffStack(list):
+class _GenericStack(list):
 
-    def __init__(self, dirpath, pattern='*.tif'):
+    def __init__(self, dirpath, pattern=None, image_type='tif'):
         stack = get_file_list(dirpath, pattern)
         list.__init__(self, stack)
+        self.image_type = image_type
         self.dtype = self[0].dtype
         self.shape = self.get_shape()
         self.chunks = [1] + self.shape[1:]
+
+    def read_slice(self, filepath, return_filepath=True):
+        if self.image_type == 'tif':
+            return read_tif_slice(filepath, return_filepath)
+        if self.image_type == 'png':
+            return read_png_slice(filepath, return_filepath)
 
     def __getitem__(self, item):
 
@@ -253,9 +289,9 @@ class TiffStack(list):
         else:
             filepaths = list.__getitem__(self, item)
         if isinstance(filepaths, str):
-            return read_tif_slice(filepaths, return_filepath=False)
+            return self.read_slice(filepaths, return_filepath=False)
         if isinstance(filepaths, list):
-            stack = [read_tif_slice(x, return_filepath=False) for x in filepaths]
+            stack = [self.read_slice(x, return_filepath=False) for x in filepaths]
             try:
                 return np.array(stack)
             except ValueError:
@@ -264,18 +300,46 @@ class TiffStack(list):
 
     def __iter__(self):
         for x in super().__iter__():
-            yield read_tif_slice(x, return_filepath=False)
+            yield self.read_slice(x, return_filepath=False)
 
     def get_slice_and_filepath(self, idx):
 
         assert isinstance(idx, int)
-        return read_tif_slice(list.__getitem__(self, idx), return_filepath=True)
+        return self.read_slice(list.__getitem__(self, idx), return_filepath=True)
 
     def get_filepaths(self):
         return list.__getitem__(self, np.s_[:])
 
-    def get_shape(self):
-        return [len(self)] + list(self[0].shape)
+    def get_shape(self, check_all=False):
+        """
+        Returns the shape of the stack (z, y, x)
+        :param check_all: If False, only the shape of the first slice is checked and inferred for x and y
+            In case the stack has inconsisten slice shapes, use check_all=True which will return the max x and y values
+        :return:
+        """
+        if check_all:
+            st = self[:]
+            if type(st) is list:
+                shapes = []
+                for idx, sl in enumerate(st):
+                    shapes.append(sl.shape)
+                shape = np.max(shapes, axis=0)
+            else:
+                shape = st[0].shape
+            del st
+        else:
+            shape = self[0].shape
+        return [len(self)] + list(shape)
+
+
+class TiffStack(_GenericStack):
+    def __init__(self, dirpath, pattern='*.tif'):
+        _GenericStack.__init__(self, dirpath, pattern=pattern, image_type='tif')
+
+
+class PngStack(_GenericStack):
+    def __init__(self, dirpath, pattern='*.png'):
+        _GenericStack.__init__(self, dirpath, pattern=pattern, image_type='png')
 
 
 def write_stack(path, data, key='data', id_offset=0):
