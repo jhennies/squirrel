@@ -626,6 +626,8 @@ def stack_alignment_validation_workflow(
         from squirrel.library.xcorr import xcorr
     if method == 'sift':
         from squirrel.library.sift2d import register_with_sift2 as register_with_sift
+    if method == 'search-best':
+        from squirrel.library.elastix import search_best_registration
 
     all_shifts = dict()
 
@@ -684,6 +686,11 @@ def stack_alignment_validation_workflow(
                         verbose=False  # This produces a ton of output and I don't think I need it here
                     )
 
+                    error = 0
+                    psr = 0
+                    peak_value = 0
+                    sharpness = 0
+
                 elif method == 'xcorr':
                     shift, error, psr, peak_value, sharpness = xcorr(
                         z_slice_fixed,
@@ -704,6 +711,20 @@ def stack_alignment_validation_workflow(
                     result_matrix = AffineMatrix(parameters=register_with_sift(
                         z_slice_fixed, z_slice_moving  # , transform='translation'
                     ).flatten())
+
+                    error = 0
+                    psr = 0
+                    peak_value = 0
+                    sharpness = 0
+
+                elif method == 'search-best':
+
+                    shift, error, mi, idx = search_best_registration(z_slice_fixed, z_slice_moving)
+
+                    psr = mi
+                    peak_value = idx
+                    sharpness = 0
+                    result_matrix = -AffineMatrix(parameters=[1, 0, float(shift[0]), 0, 1, float(shift[1])])
 
                 if verbose:
                     print(f'result_matix = {result_matrix}')
@@ -816,10 +837,14 @@ def apply_multi_step_stack_alignment_workflow(
         n_workers=1,
         quiet=False,
         write_result=False,
+        assert_sequenced=False,
         verbose=False,
 ):
     from squirrel.library.elastix import ElastixMultiStepStack, ElastixStack
     from squirrel.library.affine_matrices import AffineStack
+
+    if auto_pad:
+        raise NotImplementedError('Auto padding not implemented here.')
 
     from squirrel.library.io import load_data_handle
     if target_image_shape is None:
@@ -847,6 +872,8 @@ def apply_multi_step_stack_alignment_workflow(
             else:
                 image_shape = target_image_shape
             if not stack.is_sequenced:
+                if assert_sequenced:
+                    raise AssertionError(f'Transformation stack is not sequenced: {transform_path}')
                 stack = stack.get_sequenced_stack()
             stacks.append(ElastixStack(stack=stack, image_shape=image_shape))
 

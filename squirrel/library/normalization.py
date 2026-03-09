@@ -29,7 +29,7 @@ def _normalize(pixels, alow, ahigh, qlow, qhigh, keep_zeros=False):
     return pixels
 
 
-def _apply_quantiles(image, quantiles=(0.1, 0.9), anchors=(0.2, 0.8), dilate_background=0, keep_zeros=False):
+def apply_quantiles(image, quantiles=(0.1, 0.9), anchors=(0.2, 0.8), dilate_background=0, keep_zeros=False):
     threshold = (1, np.iinfo(image.dtype).max - 1)
     qlow, qhigh = _get_quantiles(image, quantiles, threshold=threshold, dilate_background=dilate_background)
     alow, ahigh = np.array(anchors) * np.iinfo(image.dtype).max
@@ -60,7 +60,7 @@ def normalize_slices(
         result_stack = []
         for idx in range(*z_range):
             img = stack[idx]
-            result_stack.append(_apply_quantiles(img, quantiles, anchors, dilate_background, keep_zeros))
+            result_stack.append(apply_quantiles(img, quantiles, anchors, dilate_background, keep_zeros))
 
     else:
         print(f'Running with {n_workers} CPUs')
@@ -70,7 +70,7 @@ def normalize_slices(
             tasks = []
             for idx in range(*z_range):
                 img = stack[idx]
-                tasks.append(p.apply_async(_apply_quantiles, (img, quantiles, anchors, dilate_background, keep_zeros)))
+                tasks.append(p.apply_async(apply_quantiles, (img, quantiles, anchors, dilate_background, keep_zeros)))
             result_stack = [task.get() for task in tasks]
 
     return np.array(result_stack)

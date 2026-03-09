@@ -7,16 +7,11 @@ def sift_log_line_to_affine(line, pivot):
 
     pattern = r'[+-]?\d*\.?\d+(?:[eE][+-]?\d+)?'
     matrix = np.array([float(x) for x in re.findall(pattern, line)])
-    # matrix = np.array([float(x) for x in (re.findall('[+-]*\d+\.\d+', line))])
-    # The fiji matrix has inverted x and y axes
-    # matrix = [matrix[4], matrix[3], -matrix[5], matrix[1], matrix[0], -matrix[2]]
 
     from squirrel.library.affine_matrices import AffineMatrix
-    # return AffineMatrix(parameters=matrix, pivot=pivot)
-    # m = AffineMatrix([matrix[4], matrix[3], 0, matrix[1], matrix[0], 0], pivot=pivot)
-    # m = AffineMatrix([matrix[0], matrix[1], 0, matrix[3], matrix[4], 0], pivot=pivot)
-    m = -AffineMatrix([matrix[4], matrix[3], 0, matrix[1], matrix[0], 0], pivot=pivot)
-    m.set_translation([-matrix[5], -matrix[2]])
+    # The fiji matrix has inverted x and y axes
+    m = -AffineMatrix([matrix[4], matrix[3], matrix[5], matrix[1], matrix[0], matrix[2]], pivot=pivot)
+    # m.set_translation([-matrix[5], -matrix[2]])
     return m
 
 
