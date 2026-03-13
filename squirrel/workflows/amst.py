@@ -106,6 +106,13 @@ def _z_smooth(
         from scipy.ndimage import median_filter
         return median_filter(inp, footprint=np.ones((median_radius * 2 + 1, 1, 1)), mode='nearest')
 
+    if method == 'median_non_zero':
+        from scipy.ndimage import minimum_filter, median_filter
+        inp_min = minimum_filter(inp, footprint=np.ones((median_radius * 2 + 1, 1, 1)), mode='nearest')
+        inp_med = median_filter(inp, footprint=np.ones((median_radius * 2 + 1, 1, 1)), mode='nearest')
+        inp_med[inp_min == 0] = 0
+        return inp_med
+
     if method == 'gaussian':
         from vigra.filters import gaussianSmoothing
         dtype = inp.dtype
