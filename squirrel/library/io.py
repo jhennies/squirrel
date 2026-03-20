@@ -210,7 +210,8 @@ def load_data_handle(path, key=None, pattern=None):
     filetype = get_filetype(path)
 
     if filetype == 'h5':
-        h = h5py.File(path, mode='r')[key if key is not None else 'data']
+        from h5py import File
+        h = File(path, mode='r')[key if key is not None else 'data']
         return h, h.shape
 
     if filetype == 'n5':

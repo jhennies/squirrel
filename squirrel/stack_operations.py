@@ -213,6 +213,9 @@ def clahe_on_stack():
     parser.add_argument('--background_to_mean', action='store_true',
                         help='The background is set to the mean value of the masked region '
                              '(entire image if auto mask is off)')
+    parser.add_argument('--tile_grid_in_pixels', action='store_true',
+                        help='By default tile grid size describes the numbers of tiles in each dimension. '
+                             'If tile_grid_in_pixels=True, tile grid size is the size of each tile in pixels')
     parser.add_argument('--batch_size', type=int, default=None,
                         help='Will process and write data in batches (more memory efficient); default=None')
     parser.add_argument('--n_workers', type=int, default=1,
@@ -232,6 +235,7 @@ def clahe_on_stack():
     gaussian_sigma = args.gaussian_sigma
     auto_mask = args.auto_mask
     background_to_mean = args.background_to_mean
+    tile_grid_in_pixels = args.tile_grid_in_pixels
     batch_size = args.batch_size
     n_workers = args.n_workers
     verbose = args.verbose
@@ -251,6 +255,7 @@ def clahe_on_stack():
         gaussian_sigma=gaussian_sigma,
         auto_mask=auto_mask,
         background_to_mean=background_to_mean,
+        tile_grid_in_pixels=tile_grid_in_pixels,
         n_workers=n_workers,
         batch_size=batch_size,
         verbose=verbose

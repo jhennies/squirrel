@@ -98,6 +98,7 @@ def clahe_on_slices_workflow(
         gaussian_sigma=0.0,
         auto_mask=False,
         background_to_mean=False,
+        tile_grid_in_pixels=False,
         batch_size=None,
         n_workers=1,
         verbose=False
@@ -133,6 +134,7 @@ def clahe_on_slices_workflow(
             gaussian_sigma=gaussian_sigma,
             auto_mask=auto_mask,
             background_to_mean=background_to_mean,
+            tile_grid_in_pixels=tile_grid_in_pixels,
             z_range=z_range,
             n_workers=n_workers
         )
@@ -153,6 +155,7 @@ def clahe_on_slices_workflow(
             gaussian_sigma=gaussian_sigma,
             auto_mask=auto_mask,
             background_to_mean=background_to_mean,
+            tile_grid_in_pixels=tile_grid_in_pixels,
             z_range=[zidx, zidx + batch_size],
             n_workers=n_workers
         )

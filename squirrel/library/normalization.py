@@ -190,6 +190,7 @@ def clahe_on_slices(
         gaussian_sigma=0.0,
         auto_mask=False,
         background_to_mean=False,
+        tile_grid_in_pixels=False,
         z_range=None,
         n_workers=1
 ):
@@ -206,7 +207,7 @@ def clahe_on_slices(
             result_stack.append(
                 clahe_on_image(
                     img, clip_limit, tile_grid_size,
-                    cast_dtype, invert_output, gaussian_sigma, auto_mask, background_to_mean
+                    cast_dtype, invert_output, gaussian_sigma, auto_mask, background_to_mean, tile_grid_in_pixels
                 )
             )
 
@@ -222,7 +223,8 @@ def clahe_on_slices(
                     p.apply_async(
                         clahe_on_image, (
                             img, clip_limit, tile_grid_size,
-                            cast_dtype, invert_output, gaussian_sigma, auto_mask, background_to_mean
+                            cast_dtype, invert_output, gaussian_sigma, auto_mask, background_to_mean,
+                            tile_grid_in_pixels
                         )
                     )
                 )
