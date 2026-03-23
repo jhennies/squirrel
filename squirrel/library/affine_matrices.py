@@ -1,6 +1,9 @@
 
 import numpy as np
 
+if not hasattr(np, "float128"):
+    np.float128 = np.longdouble
+
 
 def load_affine_stack_from_multiple_files(filepaths, sequence_stack=False):
 
@@ -507,7 +510,7 @@ class AffineMatrix:
 
     def set_from_parameters(self, parameters, pivot=None):
         parameters = self._validate_parameters(parameters)
-        self._parameters = np.array(parameters, dtype='float128')
+        self._parameters = np.array(parameters, dtype=np.float128)
         self.set_pivot(pivot)
         return
 
@@ -659,13 +662,13 @@ class AffineMatrix:
         return self._ndim
 
     def inverse(self):
-        inv = np.linalg.inv(self.get_matrix(order='Ms').astype('float64'))
+        inv = np.linalg.inv(self.get_matrix(order='Ms').astype(np.float128))
         inv = self._ms_to_c(inv)
         return AffineMatrix(parameters=inv)
 
     def dot(self, other):
         assert type(other) == AffineMatrix
-        result = np.dot(self.get_matrix(order='Ms').astype('float128'), other.get_matrix(order='Ms').astype('float128'))
+        result = np.dot(self.get_matrix(order='Ms').astype(np.float128), other.get_matrix(order='Ms').astype(np.float128))
         result = self._ms_to_c(result)
         return AffineMatrix(parameters=result)
 
