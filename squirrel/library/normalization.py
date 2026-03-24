@@ -234,13 +234,31 @@ def clahe_on_slices(
 
 
 if __name__ == '__main__':
-    from squirrel.library.io import load_data_handle
-    h, _ = load_data_handle('/media/julian/Data/tmp/tmp_hela_16bit_3slices/')
-    normalize_slices(
-            h,
-            dilate_background=0,
-            quantiles=(0.1, 0.9),
-            anchors=(0.2, 0.8),
-            z_range=None,
-            n_workers=1
+    # from squirrel.library.io import load_data_handle
+    # h, _ = load_data_handle('/media/julian/Data/tmp/tmp_hela_16bit_3slices/')
+    # normalize_slices(
+    #         h,
+    #         dilate_background=0,
+    #         quantiles=(0.1, 0.9),
+    #         anchors=(0.2, 0.8),
+    #         z_range=None,
+    #         n_workers=1
+    # )
+
+    from squirrel.library.io import read_tif_slice
+    img = read_tif_slice(filepath='/mnt/icem/hennies/tmp/clahe_test/image.tif', return_filepath=False)
+
+    from matplotlib import pyplot as plt
+    plt.imshow(img, cmap='gray')
+
+    clahe = clahe_on_image(
+        img,
+        cast_dtype='uint8',
+        gaussian_sigma=2,
+        auto_mask=True,
+        tile_grid_size=(63, 63),
+        tile_grid_in_pixels=True
     )
+    plt.figure()
+    plt.imshow(clahe, cmap='gray')
+    plt.show()
