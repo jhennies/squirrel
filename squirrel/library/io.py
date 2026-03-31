@@ -92,8 +92,11 @@ def read_png_slice(filepath, return_filepath=True):
     return image
 
 
-def write_tif_slice(image, out_folder, filename):
-    im_filepath = os.path.join(out_folder, filename)
+def write_tif_slice(image, out_folder=None, filename=None, out_filepath=None):
+    if not bool(out_folder is None) ^ bool(out_filepath is None):
+        raise ValueError('Supply either out_folder and filename or out_filepath, and not both!')
+    if out_folder is not None:
+        im_filepath = os.path.join(out_folder, filename)
     imwrite(im_filepath, image, compression='zlib')
 
 

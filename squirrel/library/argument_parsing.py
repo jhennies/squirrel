@@ -30,3 +30,7 @@ def column_separated_inputs_to_dict(inputs):
         out_dict[key] = parse_value(value)
 
     return out_dict
+
+
+def parse_json_string():
+    pass

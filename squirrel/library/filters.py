@@ -15,19 +15,20 @@ class ImageFilter:
                 raise ValueError(f'{filter_name} not in available filters: {available_filters}')
 
     def get_filtered(
-            self, filter_names: list[str], kwargs: list[dict[str, float]], in_array: np.ndarray = None
+            self, filters: list[list[object]], in_array=None
     ) -> np.ndarray:
 
+        filter_names = [filter[0] for filter in filters]
         self._check_filter_names(filter_names)
 
         result_array = self._in_array.copy() if in_array is None else in_array
-        for idx, filter_name in enumerate(filter_names):
-            result_array = getattr(self, filter_name)(result_array, **kwargs[idx])
+        for filter_name, filter_kwargs in filters:
+            result_array = getattr(self, filter_name)(result_array, **filter_kwargs)
 
         return result_array
 
     def get_filtered_stack(
-            self, filter_names: list[str], kwargs: list[dict[str, float]], n_workers: int = 1
+            self, filters: list[list[object]], n_workers: int = 1
     ) -> np.ndarray:
         if not (2 < self._in_array.ndim <= 4):
             raise RuntimeError(f'in_array.ndim = {self._in_array.ndim}. \n'
@@ -36,7 +37,7 @@ class ImageFilter:
 
         if n_workers == 1:
             result_array = np.array([
-                self.get_filtered(filter_names, kwargs, in_array=im_slice)
+                self.get_filtered(filters, in_array=im_slice)
                 for im_slice in self._in_array
             ])
 
@@ -46,7 +47,7 @@ class ImageFilter:
             with Pool(processes=n_workers) as p:
                 tasks = [
                     p.apply_async(
-                        self.get_filtered, (filter_names, kwargs), dict(in_array=im_slice)
+                        self.get_filtered, (filters,), dict(in_array=im_slice)
                     )
                     for im_slice in self._in_array
                 ]
@@ -64,6 +65,10 @@ class ImageFilter:
     @staticmethod
     def gaussian(in_array: np.ndarray, sigma: float = 1.0) -> np.ndarray:
         from vigra.filters import gaussianSmoothing
+        if in_array.dtype == 'uint16':
+            in_array = in_array.astype('float32')
+            return gaussianSmoothing(in_array, sigma=sigma).astype('uint16')
+
         return gaussianSmoothing(in_array, sigma=sigma)
 
     @staticmethod
@@ -71,10 +76,85 @@ class ImageFilter:
         from vigra.filters import gaussianGradientMagnitude
         return gaussianGradientMagnitude(in_array.astype('float32'), sigma=sigma)
 
+    @staticmethod
+    def clahe(
+            in_array: np.ndarray,
+            clip_limit: float = 3.0,
+            tile_grid_size: tuple[int, int] = (127, 127),
+            # cast_dtype: str = None,
+            invert_output: bool = False,
+            # gaussian_sigma: float = 0.0,
+            auto_mask: bool = False,
+            background_to_mean: bool = False,
+            tile_grid_in_pixels: bool = False
+    ) -> np.ndarray:
+        from squirrel.library.normalization import clahe_on_image
+        return clahe_on_image(
+            in_array,
+            clip_limit=clip_limit,
+            tile_grid_size=tile_grid_size,
+            # cast_dtype=cast_dtype,
+            invert_output=invert_output,
+            # gaussian_sigma=gaussian_sigma,
+            auto_mask=auto_mask,
+            background_to_mean=background_to_mean,
+            tile_grid_in_pixels=tile_grid_in_pixels
+        )
+
+    @staticmethod
+    def vsnr(
+            in_array: np.ndarray,
+            filters: list[dict] = None,
+            is_gpu: bool = True,
+            maxit: int = 20,
+            algo: str = 'auto'
+    ) -> np.ndarray:
+        from squirrel.library.vsnr import vsnr_on_image
+        return vsnr_on_image(
+            in_array,
+            filters=filters,
+            is_gpu=is_gpu,
+            maxit=maxit,
+            algo=algo
+        )
+
 
 if __name__ == '__main__':
 
-    imf = ImageFilter(np.zeros([10, 100, 100]))
-    print(imf.get_available_filter_names())
-    # imf.get_filtered(['gaussian', 'gaussian_gradient_magnitude'], [dict(sigma=1.0), dict(sigma=1.0)])
-    imf.get_filtered_batch(['gaussian'], [dict(sigma=1.0)], n_workers=10)
+    # img = np.random.randint(0, 128, (200, 200), dtype=np.uint8)
+    # imf = ImageFilter(img)
+    # # imf = ImageFilter(np.zeros([10, 100, 100]))
+    # print(imf.get_available_filter_names())
+    # # imf.get_filtered(['gaussian', 'gaussian_gradient_magnitude'], [dict(sigma=1.0), dict(sigma=1.0)])
+    # # imf.get_filtered_batch(['gaussian'], [dict(sigma=1.0)], n_workers=10)
+    # result = imf.get_filtered(['clahe'], [dict(tile_grid_in_pixels=True, tile_grid_size=(31, 31))])
+    #
+    # from matplotlib import pyplot as plt
+    # plt.imshow(np.concatenate([img, result], axis=1), cmap='gray')
+    # plt.show()
+
+    from squirrel.library.io import read_tif_slice
+    img = read_tif_slice(filepath='/mnt/icem/hennies/tmp/clahe_test/image.tif', return_filepath=False)
+
+    imf = ImageFilter(img)
+
+    result = imf.get_filtered(
+        [
+            ['vsnr', dict(is_gpu=True, maxit=100, filters=[
+                dict(name='Gabor', sigma=[2, 35], theta=0, noise_level=0.5),  #, frequency=0.3),
+            ])],
+            ['vsnr', dict(is_gpu=True, maxit=100, filters=[
+                dict(name='Gabor', sigma=[2, 35], theta=90, noise_level=0.5),
+            ])],
+            ['vsnr', dict(is_gpu=True, maxit=100, filters=[
+                dict(name='Gabor', sigma=[5, 35], theta=90, noise_level=0.5),
+            ])],
+            ['clahe', dict(tile_grid_in_pixels=True, tile_grid_size=(63, 63))],
+            ['gaussian', dict(sigma=1.5)]
+        ]
+    )
+
+    from matplotlib import pyplot as plt
+    plt.imshow(np.concatenate([img, result], axis=1), cmap='gray')
+    plt.show()
+

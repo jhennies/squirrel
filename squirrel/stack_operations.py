@@ -176,90 +176,90 @@ def adjust_greyscale():
     )
 
 
-def clahe_on_stack():
-
-    # ----------------------------------------------------
-    import argparse
-
-    parser = argparse.ArgumentParser(
-        description='Runs a clahe filtering on an image stack (slice-wise)',
-        formatter_class=argparse.RawTextHelpFormatter
-    )
-    parser.add_argument('in_path', type=str,
-                        help='Input folder containing a tif stack or filepath of h5 container')
-    parser.add_argument('out_path', type=str,
-                        help='Output folder for tif stack or filepath for h5 container where the results will '
-                             'be written to')
-    parser.add_argument('--clip_limit', type=float, default=3.0,
-                        help='CLAHE parameter; default=3.0')
-    parser.add_argument('--tile_grid_size', type=int, nargs=2, default=(63, 63),
-                        help='CLAHE parameter; default=(63, 63)')
-    parser.add_argument('--in_pattern', type=str, default='*.tif',
-                        help='File patter to search for within the input folder; default = "*.tif"; used if in_path is '
-                             'tif stack')
-    parser.add_argument('--in_key', type=str, default='data',
-                        help='Internal path of the input dataset; default="data"; used if in_path is h5 filepath')
-    parser.add_argument('--out_key', type=str, default='data',
-                        help='Internal path of the output dataset; default="data"; used if out_path is h5 filepath')
-    parser.add_argument('--cast_dtype', type=str, default=None,
-                        help='If set, the data-type will be casted accordingly, '
-                             'including adjustment of the greyscale values; default=None (no dtype casting)')
-    parser.add_argument('--invert_output', action='store_true',
-                        help='Inverts the output')
-    parser.add_argument('--gaussian_sigma', type=float, default=0.0,
-                        help='If > 0, the output will be smoothed by a 2D gaussian filter; default=0.0')
-    parser.add_argument('--auto_mask', action='store_true',
-                        help='Limits CLAHE filtering to the masked area; mask is created by image > 0')
-    parser.add_argument('--background_to_mean', action='store_true',
-                        help='The background is set to the mean value of the masked region '
-                             '(entire image if auto mask is off)')
-    parser.add_argument('--tile_grid_in_pixels', action='store_true',
-                        help='By default tile grid size describes the numbers of tiles in each dimension. '
-                             'If tile_grid_in_pixels=True, tile grid size is the size of each tile in pixels')
-    parser.add_argument('--batch_size', type=int, default=None,
-                        help='Will process and write data in batches (more memory efficient); default=None')
-    parser.add_argument('--n_workers', type=int, default=1,
-                        help='The number of cores to use for processing')
-    parser.add_argument('-v', '--verbose', action='store_true')
-
-    args = parser.parse_args()
-    in_path = args.in_path
-    out_path = args.out_path
-    clip_limit = args.clip_limit
-    tile_grid_size = args.tile_grid_size
-    in_pattern = args.in_pattern
-    in_key = args.in_key
-    out_key = args.out_key
-    cast_dtype = args.cast_dtype
-    invert_output = args.invert_output
-    gaussian_sigma = args.gaussian_sigma
-    auto_mask = args.auto_mask
-    background_to_mean = args.background_to_mean
-    tile_grid_in_pixels = args.tile_grid_in_pixels
-    batch_size = args.batch_size
-    n_workers = args.n_workers
-    verbose = args.verbose
-
-    from squirrel.workflows.normalization import clahe_on_slices_workflow
-
-    clahe_on_slices_workflow(
-        in_path,
-        out_path,
-        clip_limit=clip_limit,
-        tile_grid_size=tile_grid_size,
-        in_pattern=in_pattern,
-        in_key=in_key,
-        out_key=out_key,
-        cast_dtype=cast_dtype,
-        invert_output=invert_output,
-        gaussian_sigma=gaussian_sigma,
-        auto_mask=auto_mask,
-        background_to_mean=background_to_mean,
-        tile_grid_in_pixels=tile_grid_in_pixels,
-        n_workers=n_workers,
-        batch_size=batch_size,
-        verbose=verbose
-    )
+# def clahe_on_stack():
+#
+#     # ----------------------------------------------------
+#     import argparse
+#
+#     parser = argparse.ArgumentParser(
+#         description='Runs a clahe filtering on an image stack (slice-wise)',
+#         formatter_class=argparse.RawTextHelpFormatter
+#     )
+#     parser.add_argument('in_path', type=str,
+#                         help='Input folder containing a tif stack or filepath of h5 container')
+#     parser.add_argument('out_path', type=str,
+#                         help='Output folder for tif stack or filepath for h5 container where the results will '
+#                              'be written to')
+#     parser.add_argument('--clip_limit', type=float, default=3.0,
+#                         help='CLAHE parameter; default=3.0')
+#     parser.add_argument('--tile_grid_size', type=int, nargs=2, default=(63, 63),
+#                         help='CLAHE parameter; default=(63, 63)')
+#     parser.add_argument('--in_pattern', type=str, default='*.tif',
+#                         help='File patter to search for within the input folder; default = "*.tif"; used if in_path is '
+#                              'tif stack')
+#     parser.add_argument('--in_key', type=str, default='data',
+#                         help='Internal path of the input dataset; default="data"; used if in_path is h5 filepath')
+#     parser.add_argument('--out_key', type=str, default='data',
+#                         help='Internal path of the output dataset; default="data"; used if out_path is h5 filepath')
+#     parser.add_argument('--cast_dtype', type=str, default=None,
+#                         help='If set, the data-type will be casted accordingly, '
+#                              'including adjustment of the greyscale values; default=None (no dtype casting)')
+#     parser.add_argument('--invert_output', action='store_true',
+#                         help='Inverts the output')
+#     parser.add_argument('--gaussian_sigma', type=float, default=0.0,
+#                         help='If > 0, the output will be smoothed by a 2D gaussian filter; default=0.0')
+#     parser.add_argument('--auto_mask', action='store_true',
+#                         help='Limits CLAHE filtering to the masked area; mask is created by image > 0')
+#     parser.add_argument('--background_to_mean', action='store_true',
+#                         help='The background is set to the mean value of the masked region '
+#                              '(entire image if auto mask is off)')
+#     parser.add_argument('--tile_grid_in_pixels', action='store_true',
+#                         help='By default tile grid size describes the numbers of tiles in each dimension. '
+#                              'If tile_grid_in_pixels=True, tile grid size is the size of each tile in pixels')
+#     parser.add_argument('--batch_size', type=int, default=None,
+#                         help='Will process and write data in batches (more memory efficient); default=None')
+#     parser.add_argument('--n_workers', type=int, default=1,
+#                         help='The number of cores to use for processing')
+#     parser.add_argument('-v', '--verbose', action='store_true')
+#
+#     args = parser.parse_args()
+#     in_path = args.in_path
+#     out_path = args.out_path
+#     clip_limit = args.clip_limit
+#     tile_grid_size = args.tile_grid_size
+#     in_pattern = args.in_pattern
+#     in_key = args.in_key
+#     out_key = args.out_key
+#     cast_dtype = args.cast_dtype
+#     invert_output = args.invert_output
+#     gaussian_sigma = args.gaussian_sigma
+#     auto_mask = args.auto_mask
+#     background_to_mean = args.background_to_mean
+#     tile_grid_in_pixels = args.tile_grid_in_pixels
+#     batch_size = args.batch_size
+#     n_workers = args.n_workers
+#     verbose = args.verbose
+#
+#     from squirrel.workflows.normalization import clahe_on_slices_workflow
+#
+#     clahe_on_slices_workflow(
+#         in_path,
+#         out_path,
+#         clip_limit=clip_limit,
+#         tile_grid_size=tile_grid_size,
+#         in_pattern=in_pattern,
+#         in_key=in_key,
+#         out_key=out_key,
+#         cast_dtype=cast_dtype,
+#         invert_output=invert_output,
+#         gaussian_sigma=gaussian_sigma,
+#         auto_mask=auto_mask,
+#         background_to_mean=background_to_mean,
+#         tile_grid_in_pixels=tile_grid_in_pixels,
+#         n_workers=n_workers,
+#         batch_size=batch_size,
+#         verbose=verbose
+#     )
 
 
 def merge_tif_stacks():
@@ -651,6 +651,7 @@ def estimate_crop_xy():
 def filter_2d():
     # ----------------------------------------------------
     import argparse
+    import json
 
     parser = argparse.ArgumentParser(
         description='Performs a 2D filter on each slice of an image stack',
@@ -670,18 +671,19 @@ def filter_2d():
                              'default=None (which is interpreted as "*.tif")')
     parser.add_argument('--out_key', type=str, default=None,
                         help='For h5 and ome.zarr output paths')
-    parser.add_argument('-filters', '--filter_names', type=str, nargs='+', default=('gaussian',),
-                        help='List of filters that will be applied consecutively; '
-                             'Possible values=["gaussian", "gaussian_gradient_magnitude"]; default=("gaussian",)'
-                             'More filters will be added when required. ')
-    parser.add_argument('-kwargs', '--filter_kwargs', type=str, nargs='+', default=None,
-                        help='This defines the keyword argument the filter requires; '
-                             'default=None which uses the defaults of the respective filter\n'
-                             'These are the parameters required for the implemented filters:\n'
-                             ' - "gaussian": "sigma=1.0"\n'
-                             ' - "gaussian_gradient_magnitude": "sigma=1.0"\n'
-                             'If a filter takes multiple kwargs, separate by comma. e.g.:\n'
-                             '  -filters filter_a filter_b -kwargs kwarg_a1=1.0,kwarg_a2=2.0 kwargs_b1=2,kwarg_b2=3.0')
+    parser.add_argument('-f', '--filters', type=json.loads, nargs='+', default=None,
+                        help='Definition for the image filters, use valid json format to define. \n'
+                             'The general structure is\n'
+                             '  --filters \'["filter1", {"arg1": value1, ...}], ["filter2", {"arg2": value2, ...}, ...\'\n'
+                             'Some examples for single filters:\n'
+                             '  \'["gaussian", {"sigma": 2}]\'\n'
+                             '  \'["gaussian_gradient_magnitude", {"sigma": 2}]\'\n'
+                             '  \'["clahe", {"tile_grid_in_pixels": true, "tile_grid_size": [63,63]}]\'\n'
+                             '  \'["vsnr", {"maxit": 20, "filters": {"name": "Gabor", "sigma": [2, 35], "theta": 0, "noise_level": 0.5}}]\'')
+    parser.add_argument('-ff', '--filters_file', type=str, default=None,
+                        help='*.json file defining the filters as described in the --filters argument. \n'
+                             'Using a parameter file should be preferred especially for filters with complex arguments '
+                             '(CLAHE, VSNR) or for long filter pipelines. ')
     parser.add_argument('--batch_size', type=int, default=None,
                         help='Will process and write data in batches (more memory efficient); default=None')
     parser.add_argument('--n_workers', type=int, default=1,
@@ -694,13 +696,17 @@ def filter_2d():
     key = args.key
     pattern = args.pattern
     out_key = args.out_key
-    filter_names = args.filter_names
-    filter_kwargs = args.filter_kwargs
+    filters = args.filters
+    filters_file = args.filters_file
     batch_size = args.batch_size
     n_workers = args.n_workers
     verbose = args.verbose
 
-    filter_kwargs = [{k: float(v) for k, v in (kwarg.split('=') for kwarg in kwargs.split(','))} for kwargs in filter_kwargs]
+    if not (bool(filters is None) ^ bool(filters_file is None)):
+        raise(ValueError('Supply either --filters or --filters_file and not both!'))
+    if filters_file is not None:
+        with open(filters_file, mode='r') as f:
+            filters = json.load(f)
 
     from squirrel.workflows.volume import filter_2d_workflow
 
@@ -710,8 +716,7 @@ def filter_2d():
         key=key,
         pattern=pattern,
         out_key=out_key,
-        filter_names=filter_names,
-        filter_kwargs=filter_kwargs,
+        filters=filters,
         batch_size=batch_size,
         n_workers=n_workers,
         verbose=verbose
