@@ -669,6 +669,7 @@ def smooth_affine_sequence_workflow(
         out_filepath,
         sigma,
         components=None,
+        mode='reflect',
         verbose=False
 ):
 
@@ -678,28 +679,8 @@ def smooth_affine_sequence_workflow(
     from ..library.affine_matrices import AffineStack
 
     transforms = AffineStack(filepath=transform_filepath)
-    transforms = transforms.get_smoothed_stack(sigma)
+    transforms = transforms.get_smoothed_stack(sigma, mode=mode)
     transforms.to_file(out_filepath)
-
-    # import json
-    # with open(transform_filepath, mode='r') as f:
-    #     transforms = np.array(json.load(f))
-    #
-    # from scipy.ndimage import gaussian_filter1d
-    # from scipy.signal import medfilt
-    # from ..library.transformation import smooth_2d_affine_sequence
-    #
-    # # transforms = transforms.swapaxes(0, 1)
-    # # for idx, x in enumerate(transforms):
-    # #     transforms[idx] = gaussian_filter1d(x, sigma)
-    #
-    # transforms = np.array(smooth_2d_affine_sequence(transforms, sigma, components=components))
-    #
-    # # transforms = gaussian_filter1d(transforms, sigma, axis=0)
-    # # transforms = np.array([medfilt(x) for x in transforms.swapaxes(0, 1)]).swapaxes(0, 1)
-    #
-    # with open(out_filepath, mode='w') as f:
-    #     json.dump(transforms.tolist(), f, indent=2)
 
 
 def inverse_of_sequence_workflow(
@@ -863,6 +844,8 @@ def apply_auto_pad_workflow(
     from squirrel.library.affine_matrices import AffineStack
 
     transforms = AffineStack(filepath=transform_filepath)
+    if not transforms.is_sequenced:
+        transforms = transforms.get_sequenced_stack()
     if not transforms.exists_meta('bounds'):
         from squirrel.library.image import get_bounds_of_stack, apply_auto_pad
         from squirrel.library.io import load_data_handle

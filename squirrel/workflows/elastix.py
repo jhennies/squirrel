@@ -545,7 +545,9 @@ def stack_alignment_validation_workflow(
         out_name=None,
         y_max=None,
         method='elastix',
+        method_kwargs=None,
         gaussian_sigma=1.0,
+        use_clahe=False,
         subtract_average=False,
         verbose=False
 ):
@@ -557,28 +559,55 @@ def stack_alignment_validation_workflow(
         print(f'key = {key}')
         print(f'pattern = {pattern}')
         print(f'resolution_yx = {resolution_yx}')
+        print(f'out_name = {out_name}')
+        print(f'y_max = {y_max}')
+        print(f'method = {method}')
+        print(f'method_kwargs = {method_kwargs}')
+        print(f'gaussian_sigma = {gaussian_sigma}')
+        print(f'subtract_average = {subtract_average}')
 
     from squirrel.library.io import load_data_handle
     from squirrel.library.elastix import register_with_elastix
     from squirrel.library.affine_matrices import AffineStack, AffineMatrix
     from squirrel.library.transformation import apply_stack_alignment
+    from squirrel.library.xcorr import normalized_cross_correlation
     from matplotlib import pyplot as plt
     from h5py import File
-    from vigra.filters import gaussianSmoothing
+    import json
+
+    if method_kwargs is None:
+        method_kwargs = dict()
 
     if not os.path.exists(out_dirpath):
         os.mkdir(out_dirpath)
 
     if out_name is None:
         transforms_dirpath = os.path.join(out_dirpath, 'transforms')
-        plot_filepath = os.path.join(out_dirpath, 'plot.pdf')
+        additional_plots_dirpath = os.path.join(out_dirpath, 'additional_plots')
+        plot_filepath = os.path.join(additional_plots_dirpath, 'plot.pdf')
+        error_plot_filepath = os.path.join(out_dirpath, 'error_plot.pdf')
         image_dirpath = os.path.join(out_dirpath, 'images')
-        errors_filepath = os.path.join(out_dirpath, 'errors.json')
+        shifts_filepath = os.path.join(out_dirpath, 'errors.json')
+        psr_plot_filepath = os.path.join(out_dirpath, 'psr_plot.pdf')
+        peak_value_plot_filepath = os.path.join(out_dirpath, 'peak_value_plot.pdf')
+        sharpness_plot_filepath = os.path.join(out_dirpath, 'sharpness_plot.pdf')
+        cleaned_plot_filepath = os.path.join(out_dirpath, f'cleaned_plot.pdf')
+        roi_plot_filepath = os.path.join(additional_plots_dirpath, 'roi_plot-{}')
     else:
         transforms_dirpath = os.path.join(out_dirpath, f'transforms-{out_name}')
-        plot_filepath = os.path.join(out_dirpath, f'plot-{out_name}.pdf')
+        additional_plots_dirpath = os.path.join(out_dirpath, f'additional_plots-{out_name}')
+        plot_filepath = os.path.join(additional_plots_dirpath, f'plot-{out_name}.pdf')
+        error_plot_filepath = os.path.join(additional_plots_dirpath, f'error_plot-{out_name}.pdf')
         image_dirpath = os.path.join(out_dirpath, f'images-{out_name}')
-        errors_filepath = os.path.join(out_dirpath, f'errors-{out_name}.json')
+        shifts_filepath = os.path.join(out_dirpath, f'errors-{out_name}.json')
+        psr_plot_filepath = os.path.join(additional_plots_dirpath, f'psr_plot-{out_name}.pdf')
+        peak_value_plot_filepath = os.path.join(additional_plots_dirpath, f'peak_value_plot-{out_name}.pdf')
+        sharpness_plot_filepath = os.path.join(additional_plots_dirpath, f'sharpness_plot-{out_name}.pdf')
+        cleaned_plot_filepath = os.path.join(out_dirpath, f'cleaned_plot-{out_name}.pdf')
+        roi_plot_filepath = os.path.join(additional_plots_dirpath, f'roi_plot-{"{}"}-{out_name}.pdf')
+
+    if not os.path.exists(additional_plots_dirpath):
+        os.mkdir(additional_plots_dirpath)
     if not os.path.exists(image_dirpath):
         os.mkdir(image_dirpath)
     if not os.path.exists(transforms_dirpath):
@@ -586,24 +615,38 @@ def stack_alignment_validation_workflow(
     image_filepath = os.path.join(image_dirpath, 'image_{:04d}.h5')
     input_filepath = os.path.join(image_dirpath, 'input_{:04d}.h5')
     transforms_filepath = os.path.join(transforms_dirpath, 'transforms_{:04d}.json')
+    errors_filepath = os.path.join(transforms_dirpath, 'errors_{:04d}.json')
 
     stack, stack_size = load_data_handle(stack, key=key, pattern=pattern)
-    labels = []
 
-    # phase_cross_correlation = None
     xcorr = None
     register_with_sift = None
+    windowed_ncc_registration = None
     if method == 'xcorr':
         from squirrel.library.xcorr import xcorr
-    #     from skimage.registration import phase_cross_correlation
     if method == 'sift':
         from squirrel.library.sift2d import register_with_sift2 as register_with_sift
+    if method == 'search-best':
+        from squirrel.library.elastix import search_best_registration
 
-    all_errors = dict()
+    all_shifts = dict()
+
+    fig_shifts, ax_shifts = plt.subplots()
+    fig_errors, ax_errors = plt.subplots()
+    fig_psr, ax_psr = plt.subplots()
+    fig_peak_value, ax_peak_value = plt.subplots()
+    fig_sharpness, ax_sharpness = plt.subplots()
+    fig_cleaned, ax_cleaned = plt.subplots()
+
+    ax_shifts.set_title('Shifts')
+    ax_errors.set_title('Errors')
 
     for roi_idx, roi in enumerate(rois):
 
+        fig_roi, ax_roi = plt.subplots()
+
         this_transforms_fp = transforms_filepath.format(roi_idx)
+        this_errors_fp = errors_filepath.format(roi_idx)
 
         if not os.path.exists(this_transforms_fp):
 
@@ -614,6 +657,7 @@ def stack_alignment_validation_workflow(
             roi_data = stack[roi]
             transforms = AffineStack(is_sequenced=False, pivot=[0., 0.])
             transforms.append(AffineMatrix(parameters=[1., 0., 0., 0., 1., 0.]))
+            errors = [[0, 0, 0, 0]]
 
             for idx in range(len(roi_data) - 1):
 
@@ -623,6 +667,8 @@ def stack_alignment_validation_workflow(
                 z_slice_fixed = roi_data[idx]
                 z_slice_moving = roi_data[idx + 1]
 
+                error = None
+
                 if method == 'elastix':
 
                     result_matrix, _ = register_with_elastix(
@@ -631,25 +677,34 @@ def stack_alignment_validation_workflow(
                         transform='translation',
                         automatic_transform_initialization=False,
                         auto_mask=None,
-                        # number_of_spatial_samples=256,
-                        # maximum_number_of_iterations=256,
-                        # number_of_resolutions=1,
                         return_result_image=True,
                         params_to_origin=True,
-                        gaussian_sigma=2.0,
+                        gaussian_sigma=gaussian_sigma,
+                        use_clahe=use_clahe,
+                        parameter_map=None if 'parameter_map' not in method_kwargs else method_kwargs['parameter_map'],
+                        n_workers=os.cpu_count() if 'n_workers' not in method_kwargs else method_kwargs['n_workers'],
                         verbose=False  # This produces a ton of output and I don't think I need it here
                     )
 
+                    error = 0
+                    psr = 0
+                    peak_value = 0
+                    sharpness = 0
+
                 elif method == 'xcorr':
-                    shift, error, diffphase = xcorr(
-                        z_slice_fixed, z_slice_moving, sigma=gaussian_sigma
+                    shift, error, psr, peak_value, sharpness = xcorr(
+                        z_slice_fixed,
+                        z_slice_moving,
+                        sigma=gaussian_sigma,
+                        use_clahe=use_clahe if not use_clahe or 'use_clahe' not in method_kwargs else method_kwargs['use_clahe'],
+                        normalization=None if 'normalization' not in method_kwargs else method_kwargs['normalization']
                     )
-                    # shift, error, diffphase = phase_cross_correlation(
-                    #     z_slice_fixed, z_slice_moving,
-                    #     upsample_factor=10
-                    # )
                     print(f'shift = {shift}')
-                    print(f'diffphase = {diffphase}')
+                    print(f'error = {error}')
+                    print(f'psr = {psr}')
+                    print(f'peak_value = {peak_value}')
+                    print(f'sharpness = {sharpness}')
+
                     result_matrix = -AffineMatrix(parameters=[1, 0, float(shift[0]), 0, 1, float(shift[1])])
 
                 elif method == 'sift':
@@ -657,16 +712,29 @@ def stack_alignment_validation_workflow(
                         z_slice_fixed, z_slice_moving  # , transform='translation'
                     ).flatten())
 
+                    error = 0
+                    psr = 0
+                    peak_value = 0
+                    sharpness = 0
+
+                elif method == 'search-best':
+
+                    shift, error, mi, idx = search_best_registration(z_slice_fixed, z_slice_moving)
+
+                    psr = mi
+                    peak_value = idx
+                    sharpness = 0
+                    result_matrix = -AffineMatrix(parameters=[1, 0, float(shift[0]), 0, 1, float(shift[1])])
+
                 if verbose:
                     print(f'result_matix = {result_matrix}')
                 transforms.append(result_matrix)
+                errors.append([float(error), float(psr), float(peak_value), float(sharpness)])
                 if verbose:
                     print(f'len(transforms) = {len(transforms)}')
 
-                # result_volume.append(result_image)
-
             if subtract_average:
-                transforms = transforms * -transforms.get_smoothed_stack(8)
+                transforms = transforms * -transforms.get_median_smoothed_stack(8)
 
             result_volume = apply_stack_alignment(
                 roi_data,
@@ -680,28 +748,79 @@ def stack_alignment_validation_workflow(
             with File(input_filepath.format(roi_idx), mode='w') as f:
                 f.create_dataset('data', data=roi_data, compression='gzip')
             transforms.to_file(this_transforms_fp)
+            with open(this_errors_fp, 'w') as f:
+                json.dump(errors, f, indent=2)
 
         else:
             transforms = AffineStack(filepath=this_transforms_fp)
+            with open(this_errors_fp, 'r') as f:
+                errors = json.load(f)
 
         translations = (np.array(transforms.get_translations()) * resolution_yx).astype(float)
-        errors = np.sqrt(translations[:, 0] ** 2 + translations[:, 1] ** 2).astype(float)
-        labels.append('roi-{}-mean={:.2f}-median={:.2f}'.format(roi_idx, np.mean(errors), np.median(errors)))
-        plt.plot(errors, label=labels[-1])
+        abs_shifts = np.sqrt(translations[:, 0] ** 2 + translations[:, 1] ** 2).astype(float)
+        ax_shifts.plot(
+            abs_shifts,
+            label='roi-{}-mean={:.2f}-median={:.2f}'.format(roi_idx, np.mean(abs_shifts), np.median(abs_shifts))
+        )
+        ax_roi.plot(
+            abs_shifts,
+            label='roi-{}-mean={:.2f}-median={:.2f}'.format(roi_idx, np.mean(abs_shifts), np.median(abs_shifts))
+        )
+        # abs_shifts[np.array(errors)[:, 1] < 8] = 0
+        abs_shifts[np.array(errors)[:, 0] > 0.5] = 0
+        ax_cleaned.plot(
+            abs_shifts,
+            label='roi-{}-mean={:.2f}-median={:.2f}'.format(roi_idx, np.mean(abs_shifts), np.median(abs_shifts))
+        )
+        ax_roi.plot(
+            abs_shifts,
+            label='roi-{}-mean={:.2f}-median={:.2f}'.format(roi_idx, np.mean(abs_shifts), np.median(abs_shifts))
+        )
+        ax_errors.plot(np.array(errors)[:, 0], label='roi-{}'.format(roi_idx))
+        ax_psr.plot(np.array(errors)[:, 1], label='roi-{}'.format(roi_idx))
+        ax_peak_value.plot(np.array(errors)[:, 2], label='roi-{}'.format(roi_idx))
+        ax_sharpness.plot(np.array(errors)[:, 3], label='roi-{}'.format(roi_idx))
 
-        all_errors[f'roi_{roi_idx}'] = dict(
+        all_shifts[f'roi_{roi_idx}'] = dict(
             translations=translations.tolist(),
-            errors=errors.tolist()
+            shifts=abs_shifts.tolist(),
+            errors=errors
         )
 
-    import json
-    with open(errors_filepath, 'w') as f:
-        json.dump(all_errors, f, indent=2)
+        ax_roi.set_ylim(0, y_max)
+        ax_roi.legend()
+        fig_roi.savefig(roi_plot_filepath.format(roi_idx))
 
-    plt.ylim(ymin=0, ymax=y_max)
-    plt.legend()
-    plt.savefig(plot_filepath)
-    # plt.show()
+    with open(shifts_filepath, 'w') as f:
+        json.dump(all_shifts, f, indent=2)
+
+    ax_shifts.set_ylim(0, y_max)
+    ax_shifts.legend()
+    fig_shifts.savefig(plot_filepath)
+
+    ax_cleaned.set_ylim(0, y_max)
+    ax_cleaned.legend()
+    fig_cleaned.savefig(cleaned_plot_filepath)
+
+    ax_errors.legend()
+    ax_errors.axhline(
+        y=0.5,
+        color='gray',
+        linestyle='--',
+        linewidth=1,
+        label='Error threshold'
+    )
+    fig_errors.savefig(error_plot_filepath)
+
+    ax_psr.legend()
+    fig_psr.savefig(psr_plot_filepath)
+
+    ax_peak_value.legend()
+    fig_peak_value.savefig(peak_value_plot_filepath)
+
+    ax_sharpness.legend()
+    ax_sharpness.set_yscale('log')
+    fig_sharpness.savefig(sharpness_plot_filepath)
 
 
 def apply_multi_step_stack_alignment_workflow(
@@ -718,10 +837,14 @@ def apply_multi_step_stack_alignment_workflow(
         n_workers=1,
         quiet=False,
         write_result=False,
+        assert_sequenced=False,
         verbose=False,
 ):
     from squirrel.library.elastix import ElastixMultiStepStack, ElastixStack
     from squirrel.library.affine_matrices import AffineStack
+
+    if auto_pad:
+        raise NotImplementedError('Auto padding not implemented here.')
 
     from squirrel.library.io import load_data_handle
     if target_image_shape is None:
@@ -749,6 +872,8 @@ def apply_multi_step_stack_alignment_workflow(
             else:
                 image_shape = target_image_shape
             if not stack.is_sequenced:
+                if assert_sequenced:
+                    raise AssertionError(f'Transformation stack is not sequenced: {transform_path}')
                 stack = stack.get_sequenced_stack()
             stacks.append(ElastixStack(stack=stack, image_shape=image_shape))
 

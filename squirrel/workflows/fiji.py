@@ -2,6 +2,7 @@
 def sift_log_to_affine_stack_workflow(
         log_filepath,
         out_filepath=None,
+        pivot=None,
         verbose=False
 ):
 
@@ -11,10 +12,10 @@ def sift_log_to_affine_stack_workflow(
 
     from squirrel.library.fiji import sift_log_to_affine_stack
     with open(log_filepath, mode='r') as f:
-        transforms = sift_log_to_affine_stack(f.readlines())
+        transforms = sift_log_to_affine_stack(f.readlines(), pivot=pivot)
 
     from squirrel.library.affine_matrices import AffineStack
-    out_transforms = transforms.new_stack_with_same_meta(AffineStack([[1., 0., 0., 0., 1., 0.]]))
+    out_transforms = transforms.new_stack_with_same_meta(AffineStack([[1., 0., 0., 0., 1., 0.]], pivot=pivot if pivot is not None else [0., 0.]))
     out_transforms.append(transforms)
 
     if out_filepath is not None:

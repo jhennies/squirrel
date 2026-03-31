@@ -29,7 +29,7 @@ def _normalize(pixels, alow, ahigh, qlow, qhigh, keep_zeros=False):
     return pixels
 
 
-def _apply_quantiles(image, quantiles=(0.1, 0.9), anchors=(0.2, 0.8), dilate_background=0, keep_zeros=False):
+def apply_quantiles(image, quantiles=(0.1, 0.9), anchors=(0.2, 0.8), dilate_background=0, keep_zeros=False):
     threshold = (1, np.iinfo(image.dtype).max - 1)
     qlow, qhigh = _get_quantiles(image, quantiles, threshold=threshold, dilate_background=dilate_background)
     alow, ahigh = np.array(anchors) * np.iinfo(image.dtype).max
@@ -60,7 +60,7 @@ def normalize_slices(
         result_stack = []
         for idx in range(*z_range):
             img = stack[idx]
-            result_stack.append(_apply_quantiles(img, quantiles, anchors, dilate_background, keep_zeros))
+            result_stack.append(apply_quantiles(img, quantiles, anchors, dilate_background, keep_zeros))
 
     else:
         print(f'Running with {n_workers} CPUs')
@@ -70,7 +70,7 @@ def normalize_slices(
             tasks = []
             for idx in range(*z_range):
                 img = stack[idx]
-                tasks.append(p.apply_async(_apply_quantiles, (img, quantiles, anchors, dilate_background, keep_zeros)))
+                tasks.append(p.apply_async(apply_quantiles, (img, quantiles, anchors, dilate_background, keep_zeros)))
             result_stack = [task.get() for task in tasks]
 
     return np.array(result_stack)
@@ -139,12 +139,31 @@ def clahe_on_image(
         cast_dtype=None,
         invert_output=False,
         gaussian_sigma=0.0,
+        auto_mask=False,
+        background_to_mean=False,
+        tile_grid_in_pixels=False
 ):
+    if tile_grid_in_pixels:
+        tile_grid_size = (np.array(image.shape) / np.array(tile_grid_size)).astype(int).tolist()
+
     from cv2 import createCLAHE
     clahe = createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
 
-    clahe_filtered = clahe.apply(image)
+    mask = None
+    if auto_mask:
+        mask = image > 0
+    if background_to_mean:
+        tmp_image = image.copy()
+        tmp_image[~mask] = np.mean(image[mask])
+    else:
+        # Only make a shallow copy in this case
+        tmp_image = image
+
+    clahe_filtered = clahe.apply(tmp_image)
     dtype_in = clahe_filtered.dtype
+
+    if auto_mask:
+        clahe_filtered[~mask] = 0
 
     if gaussian_sigma > 0.0:
         from vigra.filters import gaussianSmoothing
@@ -169,6 +188,9 @@ def clahe_on_slices(
         cast_dtype=None,
         invert_output=False,
         gaussian_sigma=0.0,
+        auto_mask=False,
+        background_to_mean=False,
+        tile_grid_in_pixels=False,
         z_range=None,
         n_workers=1
 ):
@@ -185,7 +207,7 @@ def clahe_on_slices(
             result_stack.append(
                 clahe_on_image(
                     img, clip_limit, tile_grid_size,
-                    cast_dtype, invert_output, gaussian_sigma
+                    cast_dtype, invert_output, gaussian_sigma, auto_mask, background_to_mean, tile_grid_in_pixels
                 )
             )
 
@@ -201,7 +223,8 @@ def clahe_on_slices(
                     p.apply_async(
                         clahe_on_image, (
                             img, clip_limit, tile_grid_size,
-                            cast_dtype, invert_output, gaussian_sigma
+                            cast_dtype, invert_output, gaussian_sigma, auto_mask, background_to_mean,
+                            tile_grid_in_pixels
                         )
                     )
                 )
@@ -211,13 +234,31 @@ def clahe_on_slices(
 
 
 if __name__ == '__main__':
-    from squirrel.library.io import load_data_handle
-    h, _ = load_data_handle('/media/julian/Data/tmp/tmp_hela_16bit_3slices/')
-    normalize_slices(
-            h,
-            dilate_background=0,
-            quantiles=(0.1, 0.9),
-            anchors=(0.2, 0.8),
-            z_range=None,
-            n_workers=1
+    # from squirrel.library.io import load_data_handle
+    # h, _ = load_data_handle('/media/julian/Data/tmp/tmp_hela_16bit_3slices/')
+    # normalize_slices(
+    #         h,
+    #         dilate_background=0,
+    #         quantiles=(0.1, 0.9),
+    #         anchors=(0.2, 0.8),
+    #         z_range=None,
+    #         n_workers=1
+    # )
+
+    from squirrel.library.io import read_tif_slice
+    img = read_tif_slice(filepath='/mnt/icem/hennies/tmp/clahe_test/image.tif', return_filepath=False)
+
+    from matplotlib import pyplot as plt
+    plt.imshow(img, cmap='gray')
+
+    clahe = clahe_on_image(
+        img,
+        cast_dtype='uint8',
+        gaussian_sigma=2,
+        auto_mask=True,
+        tile_grid_size=(63, 63),
+        tile_grid_in_pixels=True
     )
+    plt.figure()
+    plt.imshow(clahe, cmap='gray')
+    plt.show()

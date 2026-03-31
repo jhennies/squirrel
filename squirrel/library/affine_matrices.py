@@ -243,10 +243,27 @@ class AffineStack:
     def copy(self):
         return self.new_stack_with_same_meta(self._stack.copy())
 
-    def get_smoothed_stack(self, sigma):
+    def get_smoothed_stack(self, sigma, mode='reflect'):
         from scipy.ndimage import gaussian_filter1d
         dtype = self[0].get_dtype()
-        return self.new_stack_with_same_meta(gaussian_filter1d(self['C', :].astype('float64'), sigma, axis=0).astype(dtype))
+        return self.new_stack_with_same_meta(gaussian_filter1d(self['C', :].astype('float64'), sigma, axis=0, mode=mode).astype(dtype))
+
+    def get_median_smoothed_stack(self, radius):
+        from scipy.ndimage import median_filter
+
+        dtype = self[0].get_dtype()
+
+        # window size only along axis 0
+        size = [1] * self['C', :].ndim
+        size[0] = 2 * radius + 1
+
+        smoothed = median_filter(
+            self['C', :].astype('float64'),
+            size=size,
+            mode='nearest'
+        )
+
+        return self.new_stack_with_same_meta(smoothed.astype(dtype))
 
     def get_sequenced_stack(self):
 
@@ -664,13 +681,14 @@ class AffineMatrix:
     def inverse(self):
         inv = np.linalg.inv(self.get_matrix(order='Ms').astype(np.float128))
         inv = self._ms_to_c(inv)
-        return AffineMatrix(parameters=inv)
+        return AffineMatrix(parameters=inv, pivot=self.get_pivot())
 
     def dot(self, other):
         assert type(other) == AffineMatrix
+        assert np.all(other.get_pivot() == self.get_pivot())
         result = np.dot(self.get_matrix(order='Ms').astype(np.float128), other.get_matrix(order='Ms').astype(np.float128))
         result = self._ms_to_c(result)
-        return AffineMatrix(parameters=result)
+        return AffineMatrix(parameters=result, pivot=self.get_pivot())
 
     def __neg__(self):
         return self.inverse()

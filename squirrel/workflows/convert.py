@@ -143,18 +143,7 @@ def merge_tif_stacks_workflow(
             h, s = load_data_handle(stack, pattern=pattern)
             if inconsistent_shapes:
                 print('Checking for inconsistent shapes')
-                this_shapes = []
-                st = h[:]
-                if type(st) is list:
-                    print('Fixing inconsistent shapes')
-                    for idx, sl in enumerate(st):
-                        print(f'idx = {idx}')
-                        this_shapes.append(sl.shape)
-                    shapes.append(np.max(this_shapes, axis=0))
-                else:
-                    print('Shape is consistent')
-                    shapes.append(st[0].shape)
-                del st
+                shapes.append(h.get_shape(check_all=True)[1:])
             else:
                 shapes.append(s[1:])  # only y and x
             handles.append(h)
@@ -193,6 +182,42 @@ def merge_tif_stacks_workflow(
 
         out_filepath = os.path.join(out_folder, out_pattern.format(idx))
         copyfile(im_filepath, out_filepath)
+
+
+def stack_to_consistent_shapes_workflow(
+        stack_dirpath,
+        output_path,
+        pattern='*.tif',
+        verbose=False
+):
+
+    if verbose:
+        print(f'stack_dirpath={stack_dirpath}')
+        print(f'output_path={output_path}')
+        print(f'stack_pattern={pattern}')
+
+    from squirrel.library.io import get_filetype
+    assert get_filetype(stack_dirpath) == 'dir'
+
+    if not os.path.exists(output_path):
+        os.mkdir(output_path)
+
+    from squirrel.library.io import load_data_handle
+    h, _ = load_data_handle(stack_dirpath, pattern=pattern)
+
+    if verbose:
+        print(f'retrieving full shape ...')
+    shape = h.get_shape(check_all=True)
+
+    if verbose:
+        print(f'shape = {shape}')
+        print(f'Writing dataset ...')
+    from squirrel.library.image import image_to_shape
+    for idx in range(len(h)):
+        img, fp = h.get_slice_and_filepath(idx)
+        print(f'{idx + 1} / {len(h)} -- shape: {img.shape} -> {shape[1:]}')
+        fn = os.path.splitext(os.path.split(fp)[1])[0]
+        write_tif_slice(image_to_shape(img, shape[1:]), output_path, f'{fn}.tif')
 
 
 def stack_to_ome_zarr_workflow(

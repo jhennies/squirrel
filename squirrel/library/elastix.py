@@ -800,7 +800,7 @@ def register_with_elastix(
 
         if use_clahe:
             from squirrel.library.normalization import clahe_on_image
-            img = clahe_on_image(img)
+            img = clahe_on_image(img, tile_grid_size=(127, 127), tile_grid_in_pixels=True, auto_mask=auto_mask)
         if median_radius > 0:
             from skimage.filters import median
             from skimage.morphology import disk
@@ -810,7 +810,9 @@ def register_with_elastix(
             img = gaussian(img.astype(float), gaussian_sigma).astype(dtype)
         if use_edges:
             from skimage.filters import sobel
-            img = sobel(img.astype(float))
+            img = np.array(sobel(img.astype(float)))
+            img -= img.min()
+            img = (img / img.max() * 255).astype('uint8')
 
         mask = _generate_mask(img) if auto_mask is not None else None
 
@@ -998,6 +1000,8 @@ def slice_wise_stack_to_stack_alignment(
         auto_mask='non-zero',
         median_radius=0,
         gaussian_sigma=0.,
+        use_clahe=False,
+        use_edges=False,
         number_of_spatial_samples=None,
         maximum_number_of_iterations=None,
         number_of_resolutions=None,
@@ -1042,6 +1046,8 @@ def slice_wise_stack_to_stack_alignment(
                 parameter_map=parameter_map,
                 median_radius=median_radius,
                 gaussian_sigma=gaussian_sigma,
+                use_clahe=use_clahe,
+                use_edges=use_edges,
                 crop_to_bounds_off=crop_to_bounds_off,
                 normalize_images=normalize_images,
                 n_workers=1,
@@ -1099,6 +1105,7 @@ def slice_wise_stack_to_stack_alignment(
                         parameter_map=parameter_map_filepath,
                         median_radius=median_radius,
                         gaussian_sigma=gaussian_sigma,
+                        use_clahe=use_clahe,
                         crop_to_bounds_off=crop_to_bounds_off,
                         normalize_images=normalize_images,
                         result_to_disk=results_filepath if type(result_transforms) == ElastixStack else '',
@@ -1521,6 +1528,149 @@ class ElastixMultiStepStack:
         return filepaths
 
 
+def search_best_registration(fixed, moving):
+
+    from squirrel.library.scaling import average_bin_image
+    from vigra.filters import gaussianGradientMagnitude
+    from squirrel.library.normalization import clahe_on_image, apply_quantiles
+    fixedg = gaussianGradientMagnitude(fixed.astype('float32'), 2.0)
+    movingg = gaussianGradientMagnitude(moving.astype('float32'), 2.0)
+    fixedg -= fixedg.min()
+    fixedg = (fixedg / fixedg.max() * 255).astype('uint8')
+    movingg -= movingg.min()
+    movingg = (movingg / movingg.max() * 255).astype('uint8')
+
+    # Run xcorr (bin1)
+    from squirrel.library.xcorr import xcorr
+    shift_xcorr0, error, _, _, _ = xcorr(fixed, moving, sigma=2.0)
+    shift_xcorr1, error, _, _, _ = xcorr(fixed, moving, sigma=3.0)
+    shift_xcorr2, error, _, _, _ = xcorr(fixed, moving, sigma=2.0, use_clahe=127)
+    shift_xcorr3, error, _, _, _ = xcorr(fixed, moving, sigma=3.0, use_clahe=127)
+    # Run elastix (bin8)
+    shift_matrix, _ = register_with_elastix(
+        average_bin_image(fixed, 8),
+        average_bin_image(moving, 8),
+        transform='translation',
+        automatic_transform_initialization=False,
+        auto_mask=None,
+        return_result_image=True,
+        params_to_origin=True,
+        gaussian_sigma=1.0
+    )
+    shift_elx0 = -shift_matrix.get_translation() * 8
+    # Run elastix (bin4)
+    shift_matrix, _ = register_with_elastix(
+        average_bin_image(fixed, 4),
+        average_bin_image(moving, 4),
+        transform='translation',
+        automatic_transform_initialization=False,
+        auto_mask=None,
+        return_result_image=False,
+        params_to_origin=True,
+        gaussian_sigma=1.0
+    )
+    shift_elx1 = -shift_matrix.get_translation() * 4
+    shift_matrix, _ = register_with_elastix(
+        average_bin_image(fixed, 2),
+        average_bin_image(moving, 2),
+        transform='translation',
+        automatic_transform_initialization=False,
+        auto_mask=None,
+        return_result_image=False,
+        params_to_origin=True,
+        gaussian_sigma=1.0
+    )
+    shift_elx2 = -shift_matrix.get_translation() * 2
+
+    shifts = [
+        [0., 0.],
+        shift_xcorr0,
+        shift_xcorr1,
+        shift_xcorr2,
+        shift_xcorr3,
+        shift_elx0,
+        shift_elx1,
+        shift_elx2
+    ]
+
+    from scipy.ndimage import shift as ndi_shift
+    from squirrel.library.xcorr import normalized_cross_correlation
+    errors = [
+        1 - normalized_cross_correlation(fixedg, movingg, shift)
+        for shift in shifts
+    ]
+    # mis = []
+    # for shift in shifts:
+    #     moving_ = ndi_shift(moving, shift=shift)
+    #     mask = np.ones(moving.shape)
+    #     mask[moving_ == 0] = 0
+    #     mis.append(compute_mattes_mi(fixed, moving_, mask=mask))
+    mis = [
+        compute_mattes_mi(fixedg, ndi_shift(movingg, shift=shift), bins=50, sampling_fraction=0.2)
+        for shift in shifts
+    ]
+
+    print(f'errors = {np.array(errors).astype(float)}')
+    print(f'mis = {mis}')
+
+    # Depending on which one was best: refine with elastix (bin1)
+    # idx = np.argmin(errors)
+    idx = np.argmin(mis)
+    print(f'idx = {idx}')
+
+    shifted_moving = ndi_shift(moving, shift=shifts[idx], order=1, prefilter=False)
+
+    pmap = get_elastix_parameter_map('translation')
+    pmap['NumberOfResolutions'] = ('1',)
+    pmap['AutomaticTransformInitialization'] = ('false',)
+    pmap['MaximumStepLength'] = ('0.5',)
+    pmap['MaximumNumberOfIterations'] = ('1024',)
+    shift_matrix, _ = register_with_elastix(
+        fixed,
+        shifted_moving,
+        transform='translation',
+        automatic_transform_initialization=False,
+        auto_mask=None,
+        return_result_image=False,
+        params_to_origin=True,
+        gaussian_sigma=2.0,
+        number_of_resolutions=1,
+        maximum_number_of_iterations=1024,
+        parameter_map=pmap,
+        verbose=False
+    )
+    final_shift = shifts[idx] - shift_matrix.get_translation()
+
+    final_error = 1 - normalized_cross_correlation(fixedg, movingg, final_shift)
+    final_mi = compute_mattes_mi(fixedg, ndi_shift(movingg, shift=final_shift))
+
+    # from matplotlib import pyplot as plt
+    # for shift in shifts:
+    #     plt.figure()
+    #     plt.imshow(np.array([
+    #         fixed,
+    #         ndi_shift(moving, shift=shift, order=1, prefilter=False),
+    #         fixed
+    #     ]).transpose([1, 2, 0]))
+    # plt.figure()
+    # plt.imshow(np.array([
+    #     fixed,
+    #     ndi_shift(moving, shift=final_shift, order=1, prefilter=False),
+    #     fixed
+    # ]).transpose([1, 2, 0]))
+    # plt.show()
+
+    if final_mi < min(mis):
+        print('final alignment improved!')
+        print(f'minimum error: {final_error}')
+        print(f'minimum MI: {final_mi}')
+        return final_shift, final_error, final_mi, idx
+    print(f'final alignment did not improve: {final_mi} > {min(mis)}')
+    print(f'minimum error: {errors[idx]}')
+    print(f'minimum MI: {mis[idx]}')
+    return shifts[idx], errors[idx], mis[idx], idx
+
+
 if __name__ == '__main__':
 
     # a = [1, 2, 3, 4, 5, 6]
@@ -1546,7 +1696,7 @@ if __name__ == '__main__':
     #     debug_dir='/media/julian/Data/tmp/init_elx_align/'
     # )
 
-    # from tifffile import imread, imwrite
+    from tifffile import imread, imwrite
     # # moving_img = imread('/media/julian/Data/projects/hennies/amst_devel/amst2-test-auto-init/tiffs/slice_01927_z=19.4090um.tif')
     # # fixed_img = imread('/media/julian/Data/projects/hennies/amst_devel/amst2-test-auto-init/tiffs/slice_01926_z=19.3991um.tif')
     # # moving_img = imread('/media/julian/Data/projects/hennies/amst_devel/amst2-hela-join-parts/tiffs/slice_01786.tif')
@@ -1564,14 +1714,70 @@ if __name__ == '__main__':
     #     debug_dirpath='/media/julian/Data/courses/2025_embo_volume_sem/tmp/debug'
     # )
 
-    from squirrel.library.io import load_data_handle
-    from squirrel.library.affine_matrices import AffineStack
-    stack_fp = '/media/julian/Data/projects/hennies/amst_devel/amst2-test-example/amst-full/pre-align/nsbs-pre-align.json'
-    img_stack_fp = '/media/julian/Data/projects/hennies/amst_devel/amst2-test-example/tiffs-segmentation-uint32/'
-    img_stack, shp = load_data_handle(img_stack_fp)
-    stack1 = AffineStack(filepath=stack_fp)
-    stack2 = '/media/julian/Data/projects/hennies/amst_devel/amst2-test-example/amst-full/amst/amst/amst.meta/amst/'
-    stack2 = ElastixStack(dirpath=stack2, image_shape=shp)
-    emss = ElastixMultiStepStack(stacks=[stack1, stack2], image_shape=shp[1:])
+    # from squirrel.library.io import load_data_handle
+    # from squirrel.library.affine_matrices import AffineStack
+    # stack_fp = '/media/julian/Data/projects/hennies/amst_devel/amst2-test-example/amst-full/pre-align/nsbs-pre-align.json'
+    # img_stack_fp = '/media/julian/Data/projects/hennies/amst_devel/amst2-test-example/tiffs-segmentation-uint32/'
+    # img_stack, shp = load_data_handle(img_stack_fp)
+    # stack1 = AffineStack(filepath=stack_fp)
+    # stack2 = '/media/julian/Data/projects/hennies/amst_devel/amst2-test-example/amst-full/amst/amst/amst.meta/amst/'
+    # stack2 = ElastixStack(dirpath=stack2, image_shape=shp)
+    # emss = ElastixMultiStepStack(stacks=[stack1, stack2], image_shape=shp[1:])
+    #
+    # emss.apply_on_image_stack(img_stack, shp, resample_interpolator='nearest')
 
-    emss.apply_on_image_stack(img_stack, shp, resample_interpolator='nearest')
+    # fp = '/media/julian/Data/projects/hennies/amst_devel/amst2-empiar_12608-array_tomo/evaluation/images-amst/input_0001.h5'
+    # from h5py import File
+    # with File(fp, mode='r') as f:
+    #     fixed_img = f['data'][11, :]
+    #     moving_img = f['data'][12, :]
+    # search_best_registration(fixed_img, moving_img)
+    # # from matplotlib import pyplot as plt
+    # # plt.imshow(moving_img)
+    # # plt.show()
+
+    from tifffile import imread
+    img = imread('/media/julian/Data/datasets/empiar/12608_array_tomo/data/Micrographs/04_Pdzd8cKO_Fkbp8KD_tif/0048.tif')
+
+    from squirrel.library.image import image_to_shape
+    img = image_to_shape(img, [4792, 5685])
+    from matplotlib import pyplot as plt
+    # plt.imshow(img)
+
+    from SimpleITK import ReadParameterFile
+    from squirrel.library.affine_matrices import AffineStack
+    trafos1 = AffineStack(filepath='/media/julian/Data/projects/hennies/amst_devel/amst2-empiar_12608-array_tomo/sift-ap.json')
+    trafos2 = AffineStack(filepath='/media/julian/Data/projects/hennies/amst_devel/amst2-empiar_12608-array_tomo/sift_seq_it2.json')
+
+    from squirrel.library.elastix import load_transform_stack_from_multiple_files
+    trafos = [
+        trafos1[48],
+        ReadParameterFile('/media/julian/Data/projects/hennies/amst_devel/amst2-empiar_12608-array_tomo/amst/amst.meta/amst/transform_00048.txt'),
+        trafos2[48],
+        ReadParameterFile(
+            '/media/julian/Data/projects/hennies/amst_devel/amst2-empiar_12608-array_tomo/amst_it2/amst.meta/amst/transform_00048.txt')
+    ]
+
+    result1 = apply_transforms_on_image(
+        img, trafos
+    )
+
+    result2 = apply_transforms_on_image(img, [trafos[0]])
+    result2 = apply_transforms_on_image(result2, [trafos[1]])
+    result2 = apply_transforms_on_image(result2, [trafos[2]])
+    result2 = apply_transforms_on_image(result2, [trafos[3]])
+
+    print((result1 - result2).sum())
+
+    plt.imshow(
+        np.array([
+            result2,
+            result1,
+            result2
+        ]).transpose([1, 2, 0])
+    )
+
+    plt.figure()
+    plt.imshow(result1 - result2)
+    plt.show()
+

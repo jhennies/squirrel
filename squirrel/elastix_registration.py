@@ -533,6 +533,14 @@ def stack_alignment_validation():
                         help='Maximum of the y-axis')
     parser.add_argument('--method', type=str, default='elastix',
                         help='The registration method; either "elastix" or "xcorr"; default="elastix"')
+    parser.add_argument('--method_kwargs', nargs='+', type=str, default=None,
+                        help='Keyword argument of the registration method. \n'
+                             '  Format example (for method="elastix"): \n'
+                             '    --method_kwargs parameter_map:/path/to/file.txt')
+    parser.add_argument('--gaussian_sigma', type=float, default=0.,
+                        help='Perform a gaussian filter before registration')
+    parser.add_argument('--use_clahe', action='store_true',
+                        help='CLAHE filter before registration')
     parser.add_argument('--subtract_average', action='store_true',
                         help='Subtract the local average of the alignment signal to avoid drift effect to influece the '
                              'error estimation')
@@ -548,8 +556,14 @@ def stack_alignment_validation():
     out_name = args.out_name
     y_max = args.y_max
     method = args.method
+    method_kwargs = args.method_kwargs
+    gaussian_sigma = args.gaussian_sigma
+    use_clahe = args.use_clahe
     subtract_average = args.subtract_average
     verbose = args.verbose
+
+    from squirrel.library.argument_parsing import column_separated_inputs_to_dict
+    method_kwargs = column_separated_inputs_to_dict(method_kwargs)
 
     from squirrel.workflows.elastix import stack_alignment_validation_workflow
 
@@ -567,6 +581,9 @@ def stack_alignment_validation():
         out_name=out_name,
         y_max=y_max,
         method=method,
+        method_kwargs=method_kwargs,
+        gaussian_sigma=gaussian_sigma,
+        use_clahe=use_clahe,
         subtract_average=subtract_average,
         verbose=verbose,
     )
