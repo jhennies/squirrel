@@ -3,6 +3,76 @@ import numpy as np
 import inspect
 
 
+def fft_highpass(
+        image: np.ndarray,
+        sigma: (float, float) = (10, 10),
+        keep_zeros: bool = False,
+        cast_dtype: str = None
+) -> np.ndarray:
+    """
+    Apply an anisotropic high-pass filter to a 2D image using FFT,
+    matching a Gaussian high-pass filter with given spatial sigmas.
+
+    Parameters
+    ----------
+    image : 2D np.ndarray
+        Input image
+    sigma : float
+        Gaussian sigmas along x- and y-axis (pixels)
+    keep_zeros : bool
+        Pixels that are zero in the input will be zero in the output
+    cast_dtype :
+        Output will be normalized and casted to the requested dtype (accepted values: "uint8", "uint16")
+
+    Returns
+    -------
+    result : 2D np.ndarray
+        High-pass filtered image
+    """
+
+    if cast_dtype not in ['uint8', 'uint16', None]:
+        raise ValueError(f'Invalid dtype for casting: {cast_dtype}. Possible values: ["uint8", "uint16", None]')
+
+    mask = None
+    if keep_zeros:
+        mask = image == 0
+
+    sigma_y, sigma_x = sigma
+    ny, nx = image.shape
+
+    # FFT of the image
+    F = np.fft.fft2(image)
+    F_shifted = np.fft.fftshift(F)  # center zero frequency
+
+    # Frequency grids (cycles per pixel, shifted to [-0.5, 0.5))
+    ky = np.fft.fftshift(np.fft.fftfreq(ny))
+    kx = np.fft.fftshift(np.fft.fftfreq(nx))
+    KX, KY = np.meshgrid(kx, ky)
+
+    # Convert spatial sigma to frequency domain parameter
+    sx_freq = nx / (2 * np.pi * sigma_x)
+    sy_freq = ny / (2 * np.pi * sigma_y)
+
+    # Anisotropic high-pass filter
+    H = 1 - np.exp(-((KX * nx)**2 / sx_freq**2 + (KY * ny)**2 / sy_freq**2))
+
+    # Apply filter
+    F_filtered = F_shifted * H
+
+    # Transform back to spatial domain
+    result = np.real(np.fft.ifft2(np.fft.ifftshift(F_filtered)))
+
+    if cast_dtype in ['uint8', 'uint16']:
+        result -= result.min()
+        result = result / result.max() * 255
+        result = result.astype('uint8')
+
+    if keep_zeros:
+        result[mask] = 0
+
+    return result
+
+
 class ImageFilter:
 
     def __init__(self, in_array):
@@ -117,6 +187,15 @@ class ImageFilter:
             maxit=maxit,
             algo=algo
         )
+
+    @staticmethod
+    def fft_highpass(
+            in_array: np.ndarray,
+            sigma: (float, float) = (10, 10),
+            keep_zeros: bool = False,
+            cast_dtype: str = None
+    ) -> np.ndarray:
+        return fft_highpass(in_array, sigma, keep_zeros=keep_zeros, cast_dtype=cast_dtype)
 
 
 if __name__ == '__main__':
