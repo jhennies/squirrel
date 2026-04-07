@@ -711,7 +711,7 @@ class AffineMatrix:
     def get_scaled(self, scale):
         matrix = self.copy()
         matrix.set_translation(matrix.get_translation() * scale)
-        pivot_matrix = AffineMatrix(translation=matrix.get_pivot())
+        pivot_matrix = AffineMatrix(translation=matrix.get_pivot(), pivot=matrix.get_pivot())
         matrix = matrix * pivot_matrix
         pivot_matrix.set_translation(pivot_matrix.get_translation() * scale)
         return (-pivot_matrix) * matrix
