@@ -14,9 +14,13 @@ def create_nearest_position_mapping(input_length, scale):
     )
 
 
-def scale_image_nearest(image, scale_factors):
+def scale_image(image, scale_factors, order=0):
     from scipy.ndimage import zoom
-    return zoom(image, scale_factors, order=0)
+    return zoom(image, scale_factors, order=order)
+
+
+def scale_image_nearest(image, scale_factors):
+    return scale_image(image, scale_factors, order=0)
 
 
 def average_bin_image(img, factor):
