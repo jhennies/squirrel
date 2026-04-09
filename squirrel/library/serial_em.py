@@ -857,21 +857,41 @@ class TomoCLEMNavigator(Navigator):
         if map_type == 'grid':
             key = next(iter(self.nav_dict['items']))
             map_items = {key: self.nav_dict['items'][key]}
-            assert map_items[key]['MapFile'].endswith('.mrc')
+            if not map_items[key]['MapFile'].endswith('.mrc') and not map_items[key]['MapFile'].endswith('.st'):
+                raise ValueError(f'Map items need to end with "*.mrc" or "*.st". Found "{map_items[key]["MapFile"]}"')
             return map_items
 
         return super()._get_map_items_dict(map_type)
 
     def _get_grid_map_filepath(self, fp):
         binning = self.map_binnings['grid']
-        return fp.parent / f'{fp.stem}_stitched_grid01_bin{binning}{fp.suffix}'
+        grid_map_fp = fp.parent / f'{fp.stem}_stitched_grid01_bin{binning}{fp.suffix}'
+
+        if grid_map_fp.exists():
+            return grid_map_fp
+
+        if fp.suffix.lower() != '.mrc':
+            grid_map_fp_mrc = fp.parent / f'{fp.stem}_stitched_grid01_bin{binning}.mrc'
+            if grid_map_fp_mrc.exists():
+                return grid_map_fp_mrc
+
+        raise FileNotFoundError(f'Grid map file not found for "{fp}"')
 
     def _get_mmm_map_filepath(self, fp):
         binning = self.map_binnings['mmm']
         return fp.parent / f'{fp.stem}_stitched_grid01_bin{binning}{fp.suffix}'
 
     def _get_view_map_filepath(self, fp):
-        return self.filepath.parent.parent / 'pace' / fp.name
+        # Check in the same directory
+        view_map_fp = self.filepath.parent / fp.name
+        if view_map_fp.exists():
+            return view_map_fp
+        # Try with 'pace'
+        view_map_fp = self.filepath.parent.parent / 'pace' / fp.name
+        if view_map_fp.exists():
+            return view_map_fp
+        # Fail
+        raise FileNotFoundError(f'View map file not found for "{fp}"')
 
     def _get_tgt_map_filepath(self, fp):
         return self.filepath.parent.parent / 'pace' / fp.name

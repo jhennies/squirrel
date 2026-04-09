@@ -105,16 +105,25 @@ class ImageFilter:
                 raise ValueError(f'{filter_name} not in available filters: {available_filters}')
 
     def get_filtered(
-            self, filters: list[list[object]], in_array=None
+            self,
+            filters: list[list[object]],
+            in_array: np.ndarray = None,
+            return_intermediates: bool = False
     ) -> np.ndarray:
 
         filter_names = [filter[0] for filter in filters]
         self._check_filter_names(filter_names)
 
+        intermediates = []
+
         result_array = self._in_array.copy() if in_array is None else in_array
         for filter_name, filter_kwargs in filters:
             result_array = getattr(self, filter_name)(result_array, **filter_kwargs)
+            if return_intermediates:
+                intermediates.append(result_array)
 
+        if return_intermediates:
+            return result_array, intermediates
         return result_array
 
     def get_filtered_stack(
@@ -339,7 +348,7 @@ if __name__ == '__main__':
     #     ]
     # )
 
-    result = imf.get_filtered(
+    result, intermediates = imf.get_filtered(
         [
             ['vsnr', dict(is_gpu=True, maxit=100, keep_zeros=True, filters=[
                 dict(name='Gabor', sigma=[2, 35], theta=0, noise_level=0.5),  #, frequency=0.3),
@@ -355,10 +364,33 @@ if __name__ == '__main__':
             # ])],
             ['clahe', dict(tile_grid_in_pixels=True, tile_grid_size=(63, 63), keep_zeros=True)],
             ['median', dict(radius=2, elliptical_footprint=True, keep_zeros=True)],
-        ]
+        ],
+        return_intermediates=True
     )
 
     from matplotlib import pyplot as plt
+
+    # Example: list of images (replace with your actual images)
+
+    # Number of images
+    n = len(intermediates)
+
+    # Create subplots: 1 row, n columns
+    fig, axes = plt.subplots(1, n, figsize=(3 * n, 3))  # adjust size as needed
+
+    # If only one image, axes is not a list, so make it iterable
+    if n == 1:
+        axes = [axes]
+
+    # Plot each image
+    for ax, intermediate in zip(axes, intermediates):
+        ax.imshow(intermediate, cmap='gray')  # or remove cmap for color images
+        ax.axis('off')  # remove axes ticks
+
+    plt.tight_layout()
+    plt.show()
+
+    plt.figure()
     plt.imshow(np.concatenate([img, result], axis=1), cmap='gray')
     plt.show()
 
