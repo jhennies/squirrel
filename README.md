@@ -64,6 +64,12 @@ mamba install -c conda-forge vigra
 mamba install -c conda-forge pandas
 ```
 
+### For VSNR
+
+```
+pip install pyvsnr
+```
+
 ## Usage
 
 The main functions can be used directly after activation of the 

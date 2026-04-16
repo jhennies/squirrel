@@ -1,13 +1,12 @@
 
 import numpy as np
 import inspect
+from functools import wraps
 
 
 def fft_highpass(
         image: np.ndarray,
-        sigma: (float, float) = (10, 10),
-        keep_zeros: bool = False,
-        cast_dtype: str = None
+        sigma: tuple[float, float] = (10, 10)
 ) -> np.ndarray:
     """
     Apply an anisotropic high-pass filter to a 2D image using FFT,
@@ -19,23 +18,12 @@ def fft_highpass(
         Input image
     sigma : float
         Gaussian sigmas along x- and y-axis (pixels)
-    keep_zeros : bool
-        Pixels that are zero in the input will be zero in the output
-    cast_dtype :
-        Output will be normalized and casted to the requested dtype (accepted values: "uint8", "uint16")
 
     Returns
     -------
     result : 2D np.ndarray
         High-pass filtered image
     """
-
-    if cast_dtype not in ['uint8', 'uint16', None]:
-        raise ValueError(f'Invalid dtype for casting: {cast_dtype}. Possible values: ["uint8", "uint16", None]')
-
-    mask = None
-    if keep_zeros:
-        mask = image == 0
 
     sigma_y, sigma_x = sigma
     ny, nx = image.shape
@@ -62,15 +50,47 @@ def fft_highpass(
     # Transform back to spatial domain
     result = np.real(np.fft.ifft2(np.fft.ifftshift(F_filtered)))
 
-    if cast_dtype in ['uint8', 'uint16']:
-        result -= result.min()
-        result = result / result.max() * 255
-        result = result.astype('uint8')
-
-    if keep_zeros:
-        result[mask] = 0
-
     return result
+
+
+def filter_wrapper(func):
+    @wraps(func)
+    def wrapper(in_array: np.ndarray, *args,
+                filter_mode: str = 'apply',
+                clip: tuple[float, float] | None = None,
+                cast_dtype: np.dtype | None = None,
+                keep_zeros: bool = False,
+                **kwargs) -> np.ndarray:
+
+        if filter_mode not in ['apply', 'add', 'subtract']:
+            raise ValueError(f'Invalid value for filter_mode: {filter_mode}; Valid values: ["apply", "add", "subtract"]')
+        if clip is not None and len(clip) != 2:
+            raise ValueError(f"clip must have exactly two values (low, high); instead got: {clip}")
+
+        original = in_array
+        result = func(in_array, *args, **kwargs)
+
+        if filter_mode == 'add':
+            result = original.astype('float32') + result.astype('float32')
+        if filter_mode == 'subtract':
+            result = original.astype('float32') - result.astype('float32')
+
+        if clip is not None:
+            result = np.clip(result, *clip)
+
+        if cast_dtype in ['uint8', 'uint16', 'uint32', 'uint64']:
+            result -= result.min()
+            result = result / result.max() * np.iinfo(cast_dtype).max
+            result = result.astype(cast_dtype)
+        elif cast_dtype is not None:
+            result = result.astype(cast_dtype)
+
+        if keep_zeros:
+            result = np.where(original == 0, 0, result)
+
+        return result
+
+    return wrapper
 
 
 class ImageFilter:
@@ -85,16 +105,25 @@ class ImageFilter:
                 raise ValueError(f'{filter_name} not in available filters: {available_filters}')
 
     def get_filtered(
-            self, filters: list[list[object]], in_array=None
+            self,
+            filters: list[list[object]],
+            in_array: np.ndarray = None,
+            return_intermediates: bool = False
     ) -> np.ndarray:
 
         filter_names = [filter[0] for filter in filters]
         self._check_filter_names(filter_names)
 
+        intermediates = []
+
         result_array = self._in_array.copy() if in_array is None else in_array
         for filter_name, filter_kwargs in filters:
             result_array = getattr(self, filter_name)(result_array, **filter_kwargs)
+            if return_intermediates:
+                intermediates.append(result_array)
 
+        if return_intermediates:
+            return result_array, intermediates
         return result_array
 
     def get_filtered_stack(
@@ -133,6 +162,7 @@ class ImageFilter:
         ]
 
     @staticmethod
+    @filter_wrapper
     def gaussian(in_array: np.ndarray, sigma: float = 1.0) -> np.ndarray:
         from vigra.filters import gaussianSmoothing
         if in_array.dtype == 'uint16':
@@ -142,11 +172,96 @@ class ImageFilter:
         return gaussianSmoothing(in_array, sigma=sigma)
 
     @staticmethod
+    @filter_wrapper
     def gaussian_gradient_magnitude(in_array: np.ndarray, sigma: float = 1.0) -> np.ndarray:
         from vigra.filters import gaussianGradientMagnitude
         return gaussianGradientMagnitude(in_array.astype('float32'), sigma=sigma)
 
     @staticmethod
+    @filter_wrapper
+    def median(
+            in_array: np.ndarray,
+            radius: int | tuple[int, int] | None = None,
+            footprint: np.ndarray | None = None,
+            elliptical_footprint: bool = False,
+            on_binned: int = 1,
+            sample_footprint: int = None
+    ):
+        def _sample_footprint(footprint, n_samples=100):
+            print(f'sampling footprint with {n_samples} samples ...')
+
+            # Get coordinates of True pixels
+            true_coords = np.argwhere(footprint)
+
+            # If requested samples > available pixels, return original
+            if n_samples >= len(true_coords):
+                return footprint
+
+            # Randomly choose indices
+            chosen_idx = np.random.choice(len(true_coords), size=n_samples, replace=False)
+            selected_coords = true_coords[chosen_idx]
+
+            # Build new footprint
+            subsampled = np.zeros_like(footprint, dtype=bool)
+            subsampled[tuple(selected_coords.T)] = True
+
+            return subsampled
+
+        if not (bool(radius is None) ^ bool(footprint is None)):
+            raise ValueError('Supply either radius or footprint, and not both!')
+
+        shape = in_array.shape
+        if on_binned != 1:
+            from squirrel.library.scaling import average_bin_image
+            in_array = average_bin_image(img, on_binned)
+
+        if radius is not None:
+            # Normalize radius to a tuple
+            if isinstance(radius, int):
+                radius = (radius, radius)
+
+            # Create an elliptical or rectangular footprint
+            if elliptical_footprint:
+                print(f'computing median with skimage and elliptical footprint ...')
+                y, x = np.ogrid[-radius[0]:radius[0] + 1, -radius[1]:radius[1] + 1]
+                mask = (x ** 2 / radius[1] ** 2 + y ** 2 / radius[0] ** 2) <= 1
+                footprint = mask.astype(bool)
+                if sample_footprint is not None:
+                    footprint = _sample_footprint(footprint, sample_footprint)
+                # Only possible with skimage
+                from skimage.filters import median
+                in_array = median(in_array, footprint=footprint)
+            elif sample_footprint is None:
+                print(f'computing median with scipy ...')
+                # Supposedly faster with scipy
+                from scipy.ndimage import median_filter
+                in_array = median_filter(in_array, size=(2 * radius[0] + 1, 2 * radius[1] + 1))
+            else:
+                print(f'computing median with skimage and rectangular footprint ...')
+                footprint_shape = (2 * radius[0] + 1, 2 * radius[1] + 1)
+                footprint = np.ones(footprint_shape, dtype=bool)
+                footprint = _sample_footprint(footprint, sample_footprint)
+                from skimage.filters import median
+                in_array = median(in_array, footprint=footprint)
+
+        elif footprint is not None:
+            print(f'computing median with skimage and custom footprint ...')
+            if sample_footprint is not None:
+                footprint = _sample_footprint(footprint, sample_footprint)
+            from skimage.filters import median
+            in_array = median(in_array, footprint=footprint)
+
+        if on_binned != 1:
+            from squirrel.library.scaling import scale_image
+            return_img = np.zeros(shape, dtype=in_array.dtype)
+            return_img[:in_array.shape[0] * on_binned, :in_array.shape[1] * on_binned] = scale_image(in_array, on_binned, order=3)
+        else:
+            return_img = in_array
+
+        return return_img
+
+    @staticmethod
+    @filter_wrapper
     def clahe(
             in_array: np.ndarray,
             clip_limit: float = 3.0,
@@ -172,6 +287,7 @@ class ImageFilter:
         )
 
     @staticmethod
+    @filter_wrapper
     def vsnr(
             in_array: np.ndarray,
             filters: list[dict] = None,
@@ -189,13 +305,12 @@ class ImageFilter:
         )
 
     @staticmethod
+    @filter_wrapper
     def fft_highpass(
             in_array: np.ndarray,
-            sigma: (float, float) = (10, 10),
-            keep_zeros: bool = False,
-            cast_dtype: str = None
+            sigma: tuple[float, float] = (10, 10)
     ) -> np.ndarray:
-        return fft_highpass(in_array, sigma, keep_zeros=keep_zeros, cast_dtype=cast_dtype)
+        return fft_highpass(in_array, sigma)
 
 
 if __name__ == '__main__':
@@ -213,27 +328,69 @@ if __name__ == '__main__':
     # plt.show()
 
     from squirrel.library.io import read_tif_slice
-    img = read_tif_slice(filepath='/mnt/icem/hennies/tmp/clahe_test/image.tif', return_filepath=False)
+    img = read_tif_slice(filepath='/media/julian/Data/tmp/clahe_test/image.tif', return_filepath=False)
 
     imf = ImageFilter(img)
 
-    result = imf.get_filtered(
+    # result = imf.get_filtered(
+    #     [
+    #         ['vsnr', dict(is_gpu=True, maxit=100, filters=[
+    #             dict(name='Gabor', sigma=[2, 35], theta=0, noise_level=0.5),  #, frequency=0.3),
+    #         ])],
+    #         ['vsnr', dict(is_gpu=True, maxit=100, filters=[
+    #             dict(name='Gabor', sigma=[2, 35], theta=90, noise_level=0.5),
+    #         ])],
+    #         ['vsnr', dict(is_gpu=True, maxit=100, filters=[
+    #             dict(name='Gabor', sigma=[5, 35], theta=90, noise_level=0.5),
+    #         ])],
+    #         ['clahe', dict(tile_grid_in_pixels=True, tile_grid_size=(63, 63))],
+    #         ['gaussian', dict(sigma=1.5)]
+    #     ]
+    # )
+
+    result, intermediates = imf.get_filtered(
         [
-            ['vsnr', dict(is_gpu=True, maxit=100, filters=[
+            ['vsnr', dict(is_gpu=True, maxit=100, keep_zeros=True, filters=[
                 dict(name='Gabor', sigma=[2, 35], theta=0, noise_level=0.5),  #, frequency=0.3),
             ])],
-            ['vsnr', dict(is_gpu=True, maxit=100, filters=[
+            ['vsnr', dict(is_gpu=True, maxit=100, keep_zeros=True, filters=[
                 dict(name='Gabor', sigma=[2, 35], theta=90, noise_level=0.5),
             ])],
-            ['vsnr', dict(is_gpu=True, maxit=100, filters=[
-                dict(name='Gabor', sigma=[5, 35], theta=90, noise_level=0.5),
-            ])],
-            ['clahe', dict(tile_grid_in_pixels=True, tile_grid_size=(63, 63))],
-            ['gaussian', dict(sigma=1.5)]
-        ]
+            ['median', dict(radius=[5, 200], filter_mode='subtract', cast_dtype='uint16', sample_footprint=200, elliptical_footprint=True, keep_zeros=True)],
+            ['median', dict(radius=[300, 5], filter_mode='subtract', cast_dtype='uint16', sample_footprint=200, elliptical_footprint=True, keep_zeros=True)],
+            # ['median', dict(radius=[1, 11], on_binned=9, filter_mode='subtract', cast_dtype='uint16', keep_zeros=True)],
+            # ['vsnr', dict(is_gpu=True, maxit=100, keep_zeros=True, filters=[
+            #     dict(name='Gabor', sigma=[2, 35], theta=90, noise_level=0.5),  #, frequency=0.3),
+            # ])],
+            ['clahe', dict(tile_grid_in_pixels=True, tile_grid_size=(63, 63), keep_zeros=True)],
+            ['median', dict(radius=2, elliptical_footprint=True, keep_zeros=True)],
+        ],
+        return_intermediates=True
     )
 
     from matplotlib import pyplot as plt
+
+    # Example: list of images (replace with your actual images)
+
+    # Number of images
+    n = len(intermediates)
+
+    # Create subplots: 1 row, n columns
+    fig, axes = plt.subplots(1, n, figsize=(3 * n, 3))  # adjust size as needed
+
+    # If only one image, axes is not a list, so make it iterable
+    if n == 1:
+        axes = [axes]
+
+    # Plot each image
+    for ax, intermediate in zip(axes, intermediates):
+        ax.imshow(intermediate, cmap='gray')  # or remove cmap for color images
+        ax.axis('off')  # remove axes ticks
+
+    plt.tight_layout()
+    plt.show()
+
+    plt.figure()
     plt.imshow(np.concatenate([img, result], axis=1), cmap='gray')
     plt.show()
 

@@ -679,7 +679,7 @@ class AffineMatrix:
         return self._ndim
 
     def inverse(self):
-        inv = np.linalg.inv(self.get_matrix(order='Ms').astype(np.float128))
+        inv = np.linalg.inv(self.get_matrix(order='Ms').astype(np.float64))
         inv = self._ms_to_c(inv)
         return AffineMatrix(parameters=inv, pivot=self.get_pivot())
 
@@ -711,7 +711,7 @@ class AffineMatrix:
     def get_scaled(self, scale):
         matrix = self.copy()
         matrix.set_translation(matrix.get_translation() * scale)
-        pivot_matrix = AffineMatrix(translation=matrix.get_pivot())
+        pivot_matrix = AffineMatrix(translation=matrix.get_pivot(), pivot=matrix.get_pivot())
         matrix = matrix * pivot_matrix
         pivot_matrix.set_translation(pivot_matrix.get_translation() * scale)
         return (-pivot_matrix) * matrix
