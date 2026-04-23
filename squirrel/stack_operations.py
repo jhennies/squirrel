@@ -285,6 +285,11 @@ def merge_tif_stacks():
     parser.add_argument('--inconsistent_shapes', action='store_true',
                         help='Enable this if tif slices within one stack may have different shapes;'
                              'This setting massively increases computation time!')
+    parser.add_argument('--add_shifts', type=str, nargs='+', default=None,
+                        help='Add a shift to each stack, supply two values for each stack separated by comma; '
+                             'default=None\n'
+                             'Example: --add_shifts "0,0" "10,20" "(-20,30)"\n'
+                             'Note: for negative values you must use parenthesis')
     parser.add_argument('-v', '--verbose', action='store_true')
 
     args = parser.parse_args()
@@ -294,7 +299,10 @@ def merge_tif_stacks():
     out_pattern = args.out_pattern
     pad_canvas = args.pad_canvas
     inconsistent_shapes = args.inconsistent_shapes
+    add_shifts = args.add_shifts
     verbose = args.verbose
+
+    add_shifts = [[int(n) for n in s.strip("()").split(",")] for s in add_shifts]
 
     from squirrel.workflows.convert import merge_tif_stacks_workflow
 
@@ -305,6 +313,7 @@ def merge_tif_stacks():
         out_pattern=out_pattern,
         pad_canvas=pad_canvas,
         inconsistent_shapes=inconsistent_shapes,
+        add_shifts=add_shifts,
         verbose=verbose
     )
 
