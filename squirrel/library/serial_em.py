@@ -147,6 +147,26 @@ def get_resolution_from_mdoc(filepath, unit='micrometer'):
     raise ValueError(f'Invalid unit: {unit}')
 
 
+def get_resolution_from_mrc_header(filepath, unit='micrometer'):
+    import mrcfile
+
+    with mrcfile.open(filepath, permissive=True) as mrc:
+        pixel_spacing = mrc.voxel_size
+    pixel_spacing = np.array([pixel_spacing.x, pixel_spacing.y])
+    if pixel_spacing[0] != pixel_spacing[1]:
+        raise ValueError('Assuming isotropic pixel spacing!')
+    pixel_spacing = pixel_spacing[0]
+
+    if unit == 'micrometer':
+        return pixel_spacing / 10000
+    if unit == 'nanometer':
+        return pixel_spacing / 10
+    if unit == 'angstrom':
+        return pixel_spacing
+
+    return pixel_spacing
+
+
 def get_resolution_of_nav_item(nav_item, mdoc_dirpath=None, unit='micrometer', map_type=None):
 
     map_filepath = Path(nav_item['MapFile'].replace("\\", '/'))
@@ -409,9 +429,12 @@ def get_map_items_by_glob(nav_dict, nav_filepath, glob='*.mrc'):
     return out_items
 
 
-def get_mdoc_filepath(mrc_filepath):
+def get_mdoc_filepath(mrc_filepath, check_exist=False):
     mrc_filepath = Path(mrc_filepath)
-    return mrc_filepath.parent / f'{mrc_filepath.name}.mdoc'
+    mdoc_filepath = mrc_filepath.parent / f'{mrc_filepath.name}.mdoc'
+    if mdoc_filepath.exists() or not check_exist:
+        return mdoc_filepath
+    raise FileNotFoundError(f'Mdoc filepath does not exist: {mdoc_filepath}')
 
 
 def get_map_scale_xy(map_item):
@@ -445,11 +468,13 @@ def get_contrast_limits_from_map(
 class Navigator:
 
     def __init__(
-            self, filepaths,
+            self,
+            filepaths,
             map_types: list[str] = None,
             map_hierarchy: list[str] = None,
             search_strings: dict[str, str] = None,
             map_binnings: dict[str, int] = None,
+            skip_key_hierarchy_init: bool = False,
             verbose: bool = False
     ):
 
@@ -469,16 +494,23 @@ class Navigator:
         for map_type in self.map_types:
             self.map_items_dict[map_type] = self._get_map_items_dict(map_type)
 
+        self.map_ids = {map_type: sorted(self.map_items_dict[map_type].keys()) for map_type in map_types}
+
         self.map_filepaths = {map_type: self._get_map_filepaths(map_type) for map_type in self.map_types}
 
         self.mdoc_filepaths = {map_type: self._get_mdoc_filepaths(map_type) for map_type in self.map_types}
+
+        self.map_resolutions = {map_type: self._get_map_resolutions(map_type) for map_type in self.map_types}
+
+        self.map_shapes = {map_type: self._get_map_shapes(map_type) for map_type in self.map_types}
 
         self.map_contrast_limits = {map_type: None for map_type in self.map_types}
 
         self.map_sec_ids = {map_type: self._get_map_sec_ids(map_type) for map_type in self.map_types}
 
-        self.map_hierarchy = map_hierarchy
-        self._build_key_hierarchy()
+        self.map_hierarchy = map_hierarchy.copy()
+        if not skip_key_hierarchy_init:
+            self._build_key_hierarchy()
 
         self._count = [0] * len(self.map_types)
 
@@ -519,31 +551,65 @@ class Navigator:
         return get_map_filepath_from_nav_item(self.filepath, item)
 
     def _get_map_filepaths(self, map_type):
+        # print(map_type)
         return self._function_on_property(map_type, 'map_items_dict', self._get_map_filepath)
 
     def _get_mdoc_filepaths(self, map_type):
         return self._function_on_property(map_type, 'map_filepaths', get_mdoc_filepath)
 
-    def _get_map_resolution(self, map_type, key):
-        mdoc_fp = self.mdoc_filepaths[map_type][key]
-        return get_resolution_from_mdoc(mdoc_fp, unit='micrometer')
+    def _get_map_resolution(self, map_type, key, item=None):
+        try:
+            return get_resolution_from_mdoc(self.mdoc_filepaths[map_type][key], unit='micrometer')
+        except (FileNotFoundError, KeyError):
+            return get_resolution_from_mrc_header(self.map_filepaths[map_type][key], unit='micrometer')
 
-    def _get_affine(self, map_type, key, item, binning, invert=False, full_square=False, flatten=False):
+    def _get_map_resolutions(self, map_type):
+        return self._function_on_property(map_type, 'map_items_dict', self._get_map_resolution)
 
-        xy = get_map_scale_xy(item)
-        mat = get_map_scale_matrix_from_item(item)
-        img_shp = get_map_shape(item, binning)
-        map_binning = get_value_from_item(item, 'MapBinning')
-        mont_binning = get_value_from_item(item, 'MontBinning')
-        map_resolution = self._get_map_resolution(map_type, key)
+    def _get_map_shape(self, map_type, key, item=None):
+        import mrcfile
+        with mrcfile.open(item, permissive=True, header_only=True) as mrc:
+            shape = mrc.header.nz, mrc.header.ny, mrc.header.nx
+        return np.array(shape)
 
-        bin_factor = map_binning / mont_binning * map_resolution
+    def _get_map_shapes(self, map_type):
+        return self._function_on_property(map_type, 'map_filepaths', self._get_map_shape)
+
+    def _get_affine(
+            self, map_type, key, item, binning,
+            invert=False,
+            full_square=False,
+            flatten=False,
+            rotate_90=False,
+            is_3d=False
+    ):
+
+        xy = get_map_scale_xy(item)  # Gets StageXYZ entry from SerialEM
+        mat = get_map_scale_matrix_from_item(item)  # gets MapScaleMatrix entry from SerialEM
+        from squirrel.library.io import get_mrc_shape
+        img_shp = get_mrc_shape(self.map_filepaths[map_type][key])[::-1]
+        if not is_3d:
+            img_shp = img_shp[:2]
+        map_resolution = self.map_resolutions[map_type][key]
+
+        def scale_to_one(x):
+            return 2 ** round(-np.log2(x))
+
+        bin_factor = scale_to_one(mat[0, 0] * map_resolution) * map_resolution
+        bin_factor_matrix = np.eye(4)
+        bin_factor_matrix[:2, :2] = bin_factor_matrix[:2, :2] * bin_factor
+
         affine = np.array([
-            [mat[0, 0] * bin_factor, mat[0, 1] * bin_factor, 0, img_shp[0] / 2 * (map_resolution * binning)],
-            [mat[1, 0] * bin_factor, mat[1, 1] * bin_factor, 0, img_shp[1] / 2 * (map_resolution * binning)],
-            [0, 0, 1, 0],
+            [mat[0, 0], mat[0, 1], 0, img_shp[0] / 2 * (map_resolution * binning)],
+            [mat[1, 0], mat[1, 1], 0, img_shp[1] / 2 * (map_resolution * binning)],
+            [0, 0, 1, 0 if not is_3d else img_shp[2] / 2 * (map_resolution * binning)],
             [0, 0, 0, 1]
         ])
+        affine = affine @ bin_factor_matrix
+
+        if rotate_90:
+            R = np.array([[0, -1], [1,  0]])
+            affine[:2, :2] = affine[:2, :2] @ R
 
         if invert:
             affine = np.linalg.inv(affine)
@@ -555,15 +621,18 @@ class Navigator:
             affine = affine.flatten()
         return affine
 
-    def _get_map_full_affine(self, map_type, key, item, binning=1, apply_affine=None, invert=False, full_square=False, flatten=False):
+    def _get_map_full_affine(
+            self, map_type, key, item, binning=1,
+            apply_affine=None, invert=False, full_square=False, flatten=False, is_3d=False, rotate_90=False
+    ):
 
         if apply_affine is not None:
-            affine = self._get_affine(map_type, key, item, binning, invert=invert, full_square=full_square, flatten=False)
+            affine = self._get_affine(map_type, key, item, binning, invert=invert, full_square=full_square, flatten=False, is_3d=is_3d, rotate_90=rotate_90)
             if flatten:
                 return (apply_affine @ affine).flatten()
             return apply_affine @ affine
 
-        return self._get_affine(map_type, key, item, binning, invert=invert, full_square=full_square, flatten=flatten)
+        return self._get_affine(map_type, key, item, binning, invert=invert, full_square=full_square, flatten=flatten, is_3d=is_3d, rotate_90=rotate_90)
 
     def get_grid_key(self):
         return next(iter(self.map_items_dict['grid']))
@@ -572,7 +641,7 @@ class Navigator:
         key = self.get_grid_key()
         return self.map_items_dict['grid'][key]
 
-    def get_map_full_affines(self, map_type, stage_coordinate_system=False):
+    def get_map_full_affines(self, map_type, stage_coordinate_system=False, is_3d=False, rotate_90=False):
 
         kwargs = dict(
             apply_affine=(
@@ -580,7 +649,7 @@ class Navigator:
                 self._get_map_full_affine('grid', self.get_grid_key(), self.get_grid_item(), self.map_binnings['grid'], invert=False, full_square=True, flatten=False)
             ),
             binning=self.map_binnings[map_type],
-            invert=True, full_square=True, flatten=True
+            invert=True, full_square=True, flatten=True, is_3d=is_3d, rotate_90=rotate_90
         )
         return self._function_on_property(map_type, 'map_items_dict', self._get_map_full_affine, **kwargs)
 
@@ -612,31 +681,31 @@ class Navigator:
         for map_type in ordered_map_types:
             self.key_hierarchy[map_type] = self._get_key_dependencies_for_map_type(map_type)
 
-    def get_property_by_hierarchy(self, map_type, property, parent_key):
-
-        def find_index_path(nested, target, path=None):
-            if path is None:
-                path = []
-
-            if isinstance(nested, list):
-                for i, item in enumerate(nested):
-                    result = find_index_path(item, target, path + [i])
-                    if result is not None:
-                        return result
-            else:
-                if nested == target:
-                    return path
-
-            return None
-
-        parent_map_type = self.map_hierarchy[self.map_hierarchy.index(map_type) - 1]
-        index_path = find_index_path(self.key_hierarchy[parent_map_type], parent_key)
-
-        this_keys = self.key_hierarchy[map_type]
-        for idx in index_path:
-            this_keys = this_keys[idx]
-
-        return [property[x] for x in this_keys]
+    # def get_property_by_hierarchy(self, map_type, property, parent_key):
+    #
+    #     def find_index_path(nested, target, path=None):
+    #         if path is None:
+    #             path = []
+    #
+    #         if isinstance(nested, list):
+    #             for i, item in enumerate(nested):
+    #                 result = find_index_path(item, target, path + [i])
+    #                 if result is not None:
+    #                     return result
+    #         else:
+    #             if nested == target:
+    #                 return path
+    #
+    #         return None
+    #
+    #     parent_map_type = self.map_hierarchy[self.map_hierarchy.index(map_type) - 1]
+    #     index_path = find_index_path(self.key_hierarchy[parent_map_type], parent_key)
+    #
+    #     this_keys = self.key_hierarchy[map_type]
+    #     for idx in index_path:
+    #         this_keys = this_keys[idx]
+    #
+    #     return [property[x] for x in this_keys]
 
     def _key_generator(self):
 
@@ -661,6 +730,22 @@ class Navigator:
 
     def __iter__(self):
         return self._key_generator()
+
+    def get_parent_map_type(self, map_type):
+        if not map_type in self.map_hierarchy:
+            raise ValueError(f'Invalid map_type = {map_type}')
+        idx = self.map_hierarchy.index(map_type)
+        if idx == 0:
+            return None
+        return self.map_hierarchy[idx - 1]
+
+    def get_child_map_type(self, map_type):
+        if not map_type in self.map_hierarchy:
+            raise ValueError(f'Invalid map_type = {map_type}')
+        idx = self.map_hierarchy.index(map_type)
+        if idx == len(self.map_hierarchy):
+            return None
+        return self.map_hierarchy[idx + 1]
 
 
 class SingleParticleNavigator(Navigator):
@@ -755,7 +840,7 @@ class SingleParticleNavigator(Navigator):
 
     def _get_grid_mdoc_filepath(self, item):
         fp = get_map_filepath_from_nav_item(self.filepath, item)
-        return get_mdoc_filepath(fp)
+        return get_mdoc_filepath(fp, check_exist=False)
 
     def _get_search_mdoc_filepath(self, item):
         fp = get_map_filepath_from_nav_item(self.filepath, item)
@@ -799,62 +884,96 @@ class SingleParticleNavigator(Navigator):
 
 class TomoCLEMNavigator(Navigator):
 
-    MAP_TYPES = [
-        'grid',
-        'mmm',
-        'view',
-        'tgt'
-        # 'tilt_stack'
-    ]
+    MAP_TYPES = ['grid', 'lamella', 'view', 'tgt']
 
-    SEARCH_STRINGS = dict(
+    DEFAULT_SEARCH_STRINGS = dict(
         grid=None,
-        mmm='MMM_*.mrc',
-        view='*tgt_???_view.mrc',
-        tgt='*tgt_???.mrc'
+        lamella='L_*.map',
+        view='L??_tgt_???_view.mrc',
+        tgt='L??_tgt_???.mrc'
+    )
+
+    DEFAULT_MAP_BINNINGS = dict(
+        grid=8,
+        lamella=8,
+        view=1,
+        tgt=1
+    )
+
+    DEFAULT_MATCH_TO_PARENTS = dict(
+        view=dict(  # How to match views with lamellae
+            lamella=['MapFile', r'L_(\d{2})'],
+            view=['MapFile', r'L(\d{2})']
+        ),
+        tgt=dict(  # How to match tgts with views
+            view=['MapFile', r'L(\d{2})_tgt_(\d{3})'],
+            tgt=['MapFile', r'L(\d{2})_tgt_(\d{3})']
+        )
     )
 
     def __init__(
             self,
-            filepath: str,
-            grid_bin: int = 1,
-            mmm_bin: int = 1,
-            view_bin: int = 1,
-            tgt_bin: int = 1
+            filepaths: str|list[str],
+            search_strings: dict|None = None,
+            map_binnings: dict|None = None,
+            map_types: list[str]|None = None,
+            match_to_parents: dict|None = None,
+            stitched_dirpath: str|None = None
     ):
+
+        map_types = self.MAP_TYPES if map_types is None else map_types
+        if search_strings is not None:
+            map_types = list(search_strings.keys())
+            if any([map_type not in self.MAP_TYPES for map_type in map_types]):
+                raise ValueError(f'Invalid map type encountered! {map_types}')
+
+        if search_strings is None:
+            search_strings = {map_type: self.DEFAULT_SEARCH_STRINGS[map_type] for map_type in map_types}
+        if map_binnings is None:
+            map_binnings = {map_type: self.DEFAULT_MAP_BINNINGS[map_type] for map_type in map_types}
+        self.match_to_parents = match_to_parents
+        if self.match_to_parents is None:
+            self.match_to_parents = {map_type: self.DEFAULT_MATCH_TO_PARENTS[map_type] for map_type in map_types if map_type in self.DEFAULT_MATCH_TO_PARENTS}
+        self.stitched_dirpath = Path(stitched_dirpath) if stitched_dirpath is not None else None
+
         super().__init__(
-            filepath,
-            map_types=self.MAP_TYPES,
-            map_hierarchy=self.MAP_TYPES,
-            search_strings=self.SEARCH_STRINGS,
-            map_binnings=dict(
-                grid=grid_bin,
-                mmm=mmm_bin,
-                view=view_bin,
-                tgt=tgt_bin
-            )
+            filepaths,
+            map_types=map_types,
+            map_hierarchy=map_types,
+            search_strings=search_strings,
+            map_binnings=map_binnings,
+            skip_key_hierarchy_init=True
         )
 
-        self.lamella_ids = {map_type: self._get_map_lamella_ids(map_type) for map_type in self.map_types}
+        self.match_ids = {map_type: self._get_map_match_ids(map_type) for map_type in map_types}
 
-    @staticmethod
-    def _get_lamella_from_note(medium_mag_map_item):
-        lamella_id = medium_mag_map_item['Note'].split(' - ')[2][:3]
-        return lamella_id
+        self._build_match_dicts()
+        self._build_key_hierarchy()
 
-    @staticmethod
-    def _get_lamella_from_map_file(map_item):
-        return map_item['MapFile'].split('\\')[-1][:3]
+    def _build_match_dicts_for_map(self, map_type):
+        parent_ids, child_ids = self._assign_maps_to_maps(map_type, self.get_parent_map_type(map_type), self.match_ids[map_type])
+        self.match_dict_fwd[self.get_parent_map_type(map_type)] = dict(zip(parent_ids, child_ids))
+        self.match_dict_bkw[map_type] = dict()
+        for idx, siblings in enumerate(child_ids):
+            for child in siblings:
+                self.match_dict_bkw[map_type][child] = parent_ids[idx]
 
-    def _get_map_item_by_lamella_id(self, map_items, lamella_id, return_key_only=False):
-        if return_key_only:
-            return [k for k, v in map_items.items() if self._get_lamella_from_map_file(v) == lamella_id]
-        return {k: v for k, v in view_map_items.items() if
-                v['MapFile'].split('\\')[-1][:3] == lamella_id}
+    def _build_match_dicts(self):
+        self.match_dict_bkw = dict()
+        self.match_dict_fwd = dict()
+
+        for k, v in self.match_ids.items():
+            if k == 'grid':
+                self.match_dict_bkw[k] = None
+            if k == 'lamella':
+                self.match_dict_fwd[self.get_parent_map_type(k)] = {self.map_ids[self.get_parent_map_type(k)][0]: self.map_ids[k]}
+                self.match_dict_bkw[k] = {k: self.map_ids['grid'][0] for k in self.map_ids[k]}
+            if k in ['view', 'tgt']:
+                self._build_match_dicts_for_map(k)
 
     def _get_map_items_dict(self, map_type):
 
-        if map_type == 'grid':
+        if map_type == 'grid' and self.search_strings['grid'] is None:
             key = next(iter(self.nav_dict['items']))
             map_items = {key: self.nav_dict['items'][key]}
             if not map_items[key]['MapFile'].endswith('.mrc') and not map_items[key]['MapFile'].endswith('.st'):
@@ -863,23 +982,99 @@ class TomoCLEMNavigator(Navigator):
 
         return super()._get_map_items_dict(map_type)
 
+    def _assign_maps_to_maps(self, map_type, ref_map_type, ref_map_ids):
+        ref_map = ref_map_ids[ref_map_type]
+        this_map = ref_map_ids[map_type]
+
+        # Step 1: sort keys of `ref_map` by their values
+        sorted_keys = sorted(list(ref_map.keys()))
+
+        # Step 2: group keys of `this_map` by their values
+        grouped_this_map = {}
+        for key, val in this_map.items():
+            grouped_this_map.setdefault(val, []).append(key)
+
+        # Step 3: order grouped lists according to sorted `ref_map`
+        sorted_groups_this_map = [sorted(grouped_this_map.get(ref_map[k], [])) for k in sorted_keys]
+
+        return sorted_keys, sorted_groups_this_map
+
+    @staticmethod
+    def _recursive_replace(recursive_list, mapping):
+        def recurse(obj):
+            if isinstance(obj, list):
+                return [recurse(item) for item in obj]
+            else:
+                return mapping.get(obj, obj)  # fallback if not found
+
+        return recurse(recursive_list)
+
+    def _get_key_dependencies_for_map_type(self, map_type):
+
+        if map_type == 'grid':
+            return self.map_ids[map_type]
+
+        if map_type in ['lamella', 'view', 'tgt', 'tomo']:
+            # We are assuming only one grid, so all lamella are dependent on that one
+            return self._recursive_replace(self.key_hierarchy[self.get_parent_map_type(map_type)], self.match_dict_fwd[self.get_parent_map_type(map_type)])
+
+        raise ValueError(f'Invalid map_type: {map_type}')
+
+    @staticmethod
+    def _match_regex(s, regex):
+        import re
+        match = re.search(regex, s)
+        if match:
+            return ''.join(match.groups()) or match.group(0)
+
+    def _get_map_map_id(self, map_type, key, item, match_description):
+
+        item_key, regex = match_description
+        s = item[item_key]
+        map_id = self._match_regex(s, regex)
+
+        return map_id
+
+    def _get_map_map_ids(self, map_type, match_description):
+        return self._function_on_property(map_type, 'map_items_dict', self._get_map_map_id, match_description=match_description)
+
+    def _get_map_match_ids(self, map_type):
+
+        if map_type in self.match_to_parents:
+            matches = self.match_to_parents[map_type]
+            return {k: self._get_map_map_ids(k, v) for k, v in matches.items()}
+
+        return None
+
     def _get_grid_map_filepath(self, fp):
         binning = self.map_binnings['grid']
-        grid_map_fp = fp.parent / f'{fp.stem}_stitched_grid01_bin{binning}{fp.suffix}'
+        parent_fp = self.stitched_dirpath if self.stitched_dirpath is not None else fp.parent
+        grid_map_fp = parent_fp / f'{fp.stem}_stitched_grid01_bin{binning}{fp.suffix}'
 
         if grid_map_fp.exists():
             return grid_map_fp
 
         if fp.suffix.lower() != '.mrc':
-            grid_map_fp_mrc = fp.parent / f'{fp.stem}_stitched_grid01_bin{binning}.mrc'
+            grid_map_fp_mrc = parent_fp / f'{fp.stem}_stitched_grid01_bin{binning}.mrc'
             if grid_map_fp_mrc.exists():
                 return grid_map_fp_mrc
 
         raise FileNotFoundError(f'Grid map file not found for "{fp}"')
 
-    def _get_mmm_map_filepath(self, fp):
-        binning = self.map_binnings['mmm']
-        return fp.parent / f'{fp.stem}_stitched_grid01_bin{binning}{fp.suffix}'
+    def _get_lamella_map_filepath(self, fp):
+        binning = self.map_binnings['lamella']
+        parent_fp = self.stitched_dirpath if self.stitched_dirpath is not None else fp.parent
+        lamella_map_fp = parent_fp / f'{fp.stem}_stitched_grid01_bin{binning}{fp.suffix}'
+
+        if lamella_map_fp.exists():
+            return lamella_map_fp
+
+        if fp.suffix.lower() != '.mrc':
+            lamella_map_fp = parent_fp / f'{fp.stem}_stitched_grid01_bin{binning}.mrc'
+            if lamella_map_fp.exists():
+                return lamella_map_fp
+
+        raise FileNotFoundError(f'Lamella map file not found for "{fp}"')
 
     def _get_view_map_filepath(self, fp):
         # Check in the same directory
@@ -894,91 +1089,90 @@ class TomoCLEMNavigator(Navigator):
         raise FileNotFoundError(f'View map file not found for "{fp}"')
 
     def _get_tgt_map_filepath(self, fp):
+        # Check in the same directory
+        map_fp = self.filepath.parent / fp.name
+        if map_fp.exists():
+            return map_fp
+        # Try with 'pace'
+        map_fp = self.filepath.parent.parent / 'pace' / fp.name
+        if map_fp.exists():
+            return map_fp
+        # Fail
         return self.filepath.parent.parent / 'pace' / fp.name
 
     def _get_map_filepath(self, map_type, key, item):
         fp = super()._get_map_filepath(item)
+        print(fp)
         if map_type == 'grid':
             return self._get_grid_map_filepath(fp)
-        if map_type == 'mmm':
-            return self._get_mmm_map_filepath(fp)
+        if map_type == 'lamella':
+            return self._get_lamella_map_filepath(fp)
         if map_type == 'view':
             return self._get_view_map_filepath(fp)
         if map_type == 'tgt':
             return self._get_tgt_map_filepath(fp)
+        if map_type == 'ts':
+            raise NotImplementedError
         return fp
 
     def _get_grid_mdoc_filepath(self, item):
         fp = get_map_filepath_from_nav_item(self.filepath, item)
         return get_mdoc_filepath(fp)
 
-    def _get_mmm_mdoc_filepath(self, item):
+    def _get_lamella_mdoc_filepath(self, item):
         fp = get_map_filepath_from_nav_item(self.filepath, item)
         return get_mdoc_filepath(fp)
-
-    def _get_view_mdoc_filepath(self, fp):
-        import re
-        return Path(re.sub(r'_view(_\d+)?\.mrc$', r'_view.mrc.mdoc', str(fp)))
 
     def _get_mdoc_filepaths(self, map_type):
         if map_type == 'grid':
             return self._function_on_property(map_type, 'map_items_dict', self._get_grid_mdoc_filepath)
-        if map_type == 'mmm':
-            return self._function_on_property(map_type, 'map_items_dict', self._get_mmm_mdoc_filepath)
-        if map_type == 'view':
-            pass
+        if map_type == 'lamella':
+            return self._function_on_property(map_type, 'map_items_dict', self._get_lamella_mdoc_filepath)
         return super()._get_mdoc_filepaths(map_type)
 
-    @staticmethod
-    def _get_map_sec_id(map_item):
-        import re
-        fp = map_item['MapFile']
-        match = re.search(r'_([0-9]+)(?:_[^.]*)?\.mrc$', str(fp))
-        if match:
-            return int(match.group(1))
-        return 0
+    def find_item(self, map_type, serial_em_item, regex, target_value):
+        for map_id in self.map_ids[map_type]:
+            s = self.map_items_dict[map_type][map_id][serial_em_item]
+            candidate = self._match_regex(s, regex)
+            if candidate == target_value:
+                return map_id
 
-    def _get_map_lamella_id(self, map_type, key, item):
-        if map_type == 'mmm':
-            return self._get_lamella_from_note(item)
-        if map_type in ['view', 'tgt']:
-            return self._get_lamella_from_map_file(item)
-        return ''
+    def add_tomograms(
+            self,
+            dirpath,
+            pattern='*.mrc',
+            match_parent=['MapFile', r'L(\d{2})_ts_(\d{3})'],
+            match_self=r'L(\d{2})_ts_(\d{3})'
+            # parent_map_type='tgt'
+    ):
 
-    def _get_map_lamella_ids(self, map_type):
-        return self._function_on_property(map_type, 'map_items_dict', self._get_map_lamella_id)
+        self.map_types.append('tomo')
+        self.map_hierarchy.append('tomo')
+        self.map_binnings['tomo'] = 1
+        self.map_contrast_limits['tomo'] = None
 
-    def _assign_maps_to_mmm_maps(self, map_items):
-        nav_dict_items = self.nav_dict['items']
-        medium_mag_map_items = self.map_items_dict['mmm']
-        lamella_ids = {k: self._get_lamella_from_note(v) for k, v in medium_mag_map_items.items()}
+        dirpath = Path(dirpath)
+        tomo_fps = list(Path(dirpath).glob(pattern))
 
-        return {
-            k: self._get_map_item_by_lamella_id(map_items, v, return_key_only=True)
-            for k, v in lamella_ids.items()
+        self.map_ids['tomo'] = [str(x) for x in range(len(tomo_fps))]
+        self.map_items_dict['tomo'] = {str(idx): dict(MapFile=str(tomo_fp)) for idx, tomo_fp in enumerate(tomo_fps)}
+
+        self.match_to_parents['tomo'] = {
+            'tomo': ['MapFile', match_self],
+            self.get_parent_map_type('tomo'): match_parent
         }
+        self.match_ids['tomo'] = self._get_map_match_ids('tomo')
+        self._build_match_dicts_for_map('tomo')
+        self.key_hierarchy['tomo'] = self._get_key_dependencies_for_map_type('tomo')
+        self.map_filepaths['tomo'] = dict(zip(self.map_ids['tomo'], tomo_fps))
+        # self.map_resolutions['tomo'] = self._get_map_resolutions('tomo')
 
-    def _get_key_dependencies_for_map_type(self, map_type):
-
-        if map_type == 'grid':
-            return [list(self.map_items_dict[map_type].keys())[0]]
-
-        if map_type == 'mmm':
-            return [sorted(list(self.map_items_dict[map_type].keys()))]
-
-        if map_type == 'view':
-            assignment_info = self._assign_maps_to_mmm_maps(self.map_items_dict['view'])
-            return [[sorted(assignment_info[k]) for k in self.key_hierarchy['mmm'][0]]]
-
-        if map_type == 'tgt':
-            assignment_info = self._assign_maps_to_mmm_maps(self.map_items_dict['tgt'])
-            return [[[sorted(assignment_info[k])] for k in self.key_hierarchy['mmm'][0]]]
-
-    def _key_generator(self):
-
-        yields = []
-        for map_type, key, idx_path in super()._key_generator():
-            yields.append([self.lamella_ids[map_type][key], idx_path, map_type, key])
-
-        for lamella_id, idx_path, map_type, key in sorted(yields):
-            yield map_type, key, idx_path, lamella_id
+        # With the tomograms matched to their respective parents, populate the view items with additional information
+        tomo_parent = self.get_parent_map_type('tomo')
+        self.map_shapes['tomo'] = self._get_map_shapes('tomo')
+        self.map_resolutions['tomo'] = dict()
+        for k, v in self.match_dict_bkw['tomo'].items():
+            self.map_items_dict['tomo'][k]['MapScaleMat'] = self.map_items_dict[tomo_parent][v]['MapScaleMat']
+            self.map_items_dict['tomo'][k]['StageXYZ'] = self.map_items_dict[tomo_parent][v]['StageXYZ']
+            # Using the parent map resolution to ensure that the affine transformation is computed correctly
+            self.map_resolutions['tomo'][k] = self.map_resolutions[tomo_parent][v]
