@@ -939,6 +939,24 @@ def make_elastix_default_parameter_file_workflow(
     WriteParameterFile(params, out_filepath)
 
 
+def get_elastix_transforms_substack_workflow(
+        transform_stack,
+        out_dirpath,
+        z_range=None,
+        verbose=False
+):
+
+    if not os.path.exists(out_dirpath):
+        from squirrel.library.elastix import ElastixStack
+        stack = ElastixStack(dirpath=transform_stack)
+        substack = stack.get_substack(np.s_[z_range[0]: z_range[1]])
+        substack.to_file(out_dirpath)
+        return
+
+    raise RuntimeError('The output already exists, choose a different output path or delete the existing one.')
+
+    
+
 if __name__ == '__main__':
     # stack_alignment_validation_workflow(
     #     '/media/julian/Data/projects/kors/align/4T/amst_parameter_test/pre_align/pre-align.ome.zarr',

@@ -422,6 +422,17 @@ class AffineStack:
         translations = np.array(self.get_translations())
         self.set_translations(translations + np.array(values))
 
+    def get_substack(self, sl: slice):
+        substack = self.new_stack_with_same_meta(self[sl])
+        if self.exists_meta('bounds'):
+            bounds = self.get_meta('bounds')
+            substack.set_meta('bounds', bounds[sl])
+        if self.exists_meta('stack_shape'):
+            stack_shape = self.get_meta('stack_shape')
+            substack.set_meta('stack_shape', [sl.stop - sl.start, stack_shape[1], stack_shape[2]])
+        return substack
+        
+    
 
 class AffineMatrix:
 
